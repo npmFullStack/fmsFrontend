@@ -1,84 +1,129 @@
-import React, { useEffect, useState } from 'react';
+// pages/Category.jsx
+import React, { useState, useCallback } from 'react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useDebounce } from 'use-debounce';
 import { Plus } from 'lucide-react';
-import { useCategoryStore } from '../stores/useCategoryStore';
+import api from '../api';
 import CategoryTable from '../components/tables/CategoryTable';
 import AddCategory from '../components/modals/AddCategory';
 import SearchBar from '../components/ui/SearchBar';
 import Pagination from '../components/ui/Pagination';
+import LoadingSkeleton from '../components/ui/LoadingSkeleton';
+import toast from 'react-hot-toast';
 
 const Category = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch] = useDebounce(searchTerm, 300);
+  const [page, setPage] = useState(1);
+  const [sort, setSort] = useState('id');
+  const [direction, setDirection] = useState('asc');
 
-  const {
-    categories,
-    loading,
-    pagination,
-    fetchCategories,
-    addCategory,
-    updateCategory,
-    deleteCategory,
-  } = useCategoryStore();
+  const queryClient = useQueryClient();
 
-  /** 🔹 Fetch categories on mount */
-  useEffect(() => {
-    fetchCategories();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Fetch categories
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['categories', debouncedSearch, page, sort, direction],
+    queryFn: async () => {
+      const res = await api.get('/categories', {
+        params: { search: debouncedSearch, page, sort, direction, per_page: 10 },
+      });
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
+  });
 
-  /** 🔹 Debounced search */
-  useEffect(() => {
-    const delay = setTimeout(() => {
-      fetchCategories({ search: searchTerm, page: 1 });
-    }, 600);
-    return () => clearTimeout(delay);
-  }, [searchTerm, fetchCategories]);
-
-  /** 🔹 Pagination */
-  const handlePageChange = (page) => {
-    fetchCategories({ page });
+  const categories = data?.data || [];
+  const pagination = {
+    current_page: data?.current_page || 1,
+    last_page: data?.last_page || 1,
   };
 
-  /** 🔹 Save handler (add or update) */
-  const handleSave = async (categoryData) => {
+  // Add mutation
+  const addMutation = useMutation({
+    mutationFn: (categoryData) => api.post('/categories', categoryData),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['categories']);
+      toast.success('Category added successfully');
+      setIsModalOpen(false);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to add category');
+    },
+  });
+
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => api.put(`/categories/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['categories']);
+      toast.success('Category updated successfully');
+      setEditingCategory(null);
+      setIsModalOpen(false);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to update category');
+    },
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/categories/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['categories']);
+      toast.success('Category deleted successfully');
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to delete category');
+    },
+  });
+
+  // Handlers
+  const handleSave = useCallback((categoryData) => {
     if (editingCategory) {
-      await updateCategory(editingCategory.id, categoryData);
+      updateMutation.mutate({ id: editingCategory.id, data: categoryData });
     } else {
-      await addCategory(categoryData);
+      addMutation.mutate(categoryData);
     }
-    setEditingCategory(null);
-    setIsModalOpen(false);
-  };
+  }, [editingCategory, addMutation, updateMutation]);
 
-  /** 🔹 Edit handler */
-  const handleEdit = (category) => {
+  const handleDelete = useCallback((id) => {
+    deleteMutation.mutate(id);
+  }, [deleteMutation]);
+
+  const handleEdit = useCallback((category) => {
     setEditingCategory(category);
     setIsModalOpen(true);
-  };
+  }, []);
 
-  /** 🔹 Close modal */
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setEditingCategory(null);
-  };
+  const handleSortChange = useCallback((field, dir) => {
+    setSort(field);
+    setDirection(dir);
+    setPage(1);
+  }, []);
 
-  /** 🔹 Simple loading text */
-  if (loading && categories.length === 0) {
+  // Loading state
+  if (isLoading) {
+    return <LoadingSkeleton type="table" rows={5} columns={4} />;
+  }
+
+  // Error state
+  if (isError) {
     return (
-      <div className="flex justify-center items-center h-[60vh] text-gray-500">
-        Loading categories...
+      <div className="error-container">
+        Failed to load categories.
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="page-container">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-        <h1 className="text-2xl font-bold">Category Management</h1>
-
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+      <div className="page-header">
+        <h1 className="page-title">Category Management</h1>
+        <div className="header-actions">
           <SearchBar
             value={searchTerm}
             onChange={setSearchTerm}
@@ -99,26 +144,31 @@ const Category = () => {
       <CategoryTable
         data={categories}
         onEdit={handleEdit}
-        onDelete={deleteCategory}
-        isLoading={loading}
+        onDelete={handleDelete}
+        sortField={sort}
+        sortDirection={direction}
+        onSortChange={handleSortChange}
       />
 
       {/* Pagination */}
-      {pagination?.last_page > 1 && (
+      {pagination.last_page > 1 && (
         <Pagination
-          currentPage={pagination.current_page || 1}
+          currentPage={pagination.current_page}
           totalPages={pagination.last_page}
-          onPageChange={handlePageChange}
+          onPageChange={setPage}
         />
       )}
 
       {/* Modal */}
       <AddCategory
         isOpen={isModalOpen}
-        onClose={handleCloseModal}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingCategory(null);
+        }}
         onSave={handleSave}
         editingCategory={editingCategory}
-        isLoading={loading}
+        isLoading={addMutation.isLoading || updateMutation.isLoading}
       />
     </div>
   );

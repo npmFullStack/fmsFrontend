@@ -1,10 +1,101 @@
+/* index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   body {
-    @apply font-sans; 
+    @apply font-sans;
   }
 }
 
+@layer components {
+  /* ========================================
+     Page Layout Classes
+     ======================================== */
+  .page-container {
+    @apply p-6 max-w-7xl mx-auto space-y-6;
+  }
+
+  .page-header {
+    @apply flex flex-col sm:flex-row justify-between items-center gap-4;
+  }
+
+  .page-title {
+    @apply text-2xl font-bold text-gray-800 dark:text-gray-100;
+  }
+
+  .header-actions {
+    @apply flex items-center gap-3 w-full sm:w-auto;
+  }
+
+  /* ========================================
+     Table Styles
+     ======================================== */
+  .table-wrapper {
+    @apply overflow-x-auto border rounded-lg shadow-sm bg-base-100;
+  }
+
+  .table-sort-btn {
+    @apply flex items-center gap-1 font-semibold hover:text-primary transition-colors;
+  }
+
+  .empty-state {
+    @apply text-center py-8 text-gray-500;
+  }
+
+  /* ========================================
+     State Classes
+     ======================================== */
+  .error-container {
+    @apply text-center text-red-500 mt-10 p-4 font-medium;
+  }
+
+  .loading-container {
+    @apply flex flex-col justify-center items-center h-[60vh] text-gray-500;
+  }
+
+  /* ========================================
+     Form & Input Classes
+     ======================================== */
+  .form-group {
+    @apply mb-4;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300;
+  }
+
+  .form-error {
+    @apply text-sm text-red-500 mt-1;
+  }
+
+  /* ========================================
+     Card Classes
+     ======================================== */
+  .card-wrapper {
+    @apply bg-base-100 rounded-lg shadow-md p-6;
+  }
+
+  .card-header {
+    @apply text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100;
+  }
+
+  /* ========================================
+     Button Variants
+     ======================================== */
+  .btn-icon {
+    @apply p-2 rounded-md hover:bg-base-200 transition-colors;
+  }
+
+  /* ========================================
+     Utility Classes
+     ======================================== */
+  .text-muted {
+    @apply text-gray-500 dark:text-gray-400;
+  }
+
+  .divider-text {
+    @apply text-sm text-gray-500 uppercase tracking-wider;
+  }
+}

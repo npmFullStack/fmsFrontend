@@ -4,7 +4,12 @@ import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 import clsx from 'clsx';
 
-const LoadingSkeleton = ({ type = "generic", rows = 3, columns = 4, className = "" }) => {
+const LoadingSkeleton = ({ 
+  type = "generic", 
+  rows = 3, 
+  columns = 4, 
+  className = "" 
+}) => {
   const renderTableSkeleton = () => (
     <div className={clsx("p-4", className)}>
       <div className="overflow-x-auto border rounded-md bg-base-100 shadow-sm">
@@ -37,7 +42,7 @@ const LoadingSkeleton = ({ type = "generic", rows = 3, columns = 4, className = 
   const renderGenericSkeleton = () => (
     <div className={clsx("flex flex-col items-center justify-center min-h-screen bg-base-100 px-4", className)}>
       <div className="w-full max-w-md space-y-4 text-center">
-        <Skeleton height={40} width={'60%'} className="mx-auto" />
+        <Skeleton height={40} width="60%" className="mx-auto" />
         <Skeleton count={3} height={20} />
         <div className="flex justify-center">
           <Skeleton height={36} width={120} />

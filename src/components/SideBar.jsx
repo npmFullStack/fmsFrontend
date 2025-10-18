@@ -117,7 +117,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
               </li>
               <li>
                 <Link
-                  to="/Category"
+                  to="/category"
                   onClick={() => setIsMobileOpen(false)}
                   className="flex items-center gap-3 py-2 px-4 rounded-md hover:bg-base-300 transition-all duration-300"
                 >

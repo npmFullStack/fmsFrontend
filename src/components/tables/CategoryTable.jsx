@@ -1,99 +1,144 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import SharedTable from '../ui/SharedTable';
+// components/tables/CategoryTable.jsx
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import DataTable from '../ui/DataTable';
 import BulkActionBar from '../ui/BulkActionBar';
+import { ArrowUpDown } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { formatCurrency, toUpperCase } from '../../utils/formatters';
 
-const CategoryTable = ({ data, onEdit, onDelete, isLoading = false }) => {
+const CategoryTable = ({
+  data,
+  onEdit,
+  onDelete,
+  onSortChange,
+  sortField = 'id',
+  sortDirection = 'asc',
+}) => {
   const [selected, setSelected] = useState([]);
 
-  // 🧹 Reset selection when data changes
   useEffect(() => setSelected([]), [data]);
 
   const allSelected = selected.length === data.length && data.length > 0;
 
-  const toggleSelect = (id) =>
+  const toggleSelect = useCallback((id) => {
     setSelected((prev) =>
       prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]
     );
+  }, []);
 
-  const toggleSelectAll = () =>
+  const toggleSelectAll = useCallback(() => {
     setSelected(allSelected ? [] : data.map((item) => item.id));
+  }, [allSelected, data]);
 
-  /** 🔹 Delete multiple categories */
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = useCallback(async () => {
     if (!confirm(`Delete ${selected.length} selected categories?`)) return;
     try {
       await Promise.all(selected.map((id) => onDelete(id)));
-      toast.success(`${selected.length} categories deleted`);
       setSelected([]);
     } catch (err) {
       toast.error(err.message || 'Failed to delete categories');
     }
-  };
+  }, [selected, onDelete]);
 
-  /** 🔹 Edit one selected category */
-  const handleBulkEdit = () => {
+  const handleBulkEdit = useCallback(() => {
     if (selected.length === 1) {
       const item = data.find((d) => d.id === selected[0]);
       onEdit(item);
     }
-  };
+  }, [selected, data, onEdit]);
 
-  /** 🔹 Table columns (no "Actions" column) */
+  const handleSort = useCallback((field) => {
+    if (!onSortChange) return;
+    const newDirection =
+      sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
+    onSortChange(field, newDirection);
+  }, [sortField, sortDirection, onSortChange]);
+
   const columns = useMemo(
     () => [
       {
-        key: 'select',
-        header: (
-          <input
-            type="checkbox"
-            className="checkbox checkbox-sm"
-            checked={allSelected}
-            onChange={toggleSelectAll}
-          />
+        id: 'select',
+        header: () => (
+          <div className="flex justify-center">
+            <input
+              type="checkbox"
+              className="checkbox checkbox-sm"
+              checked={allSelected}
+              onChange={toggleSelectAll}
+            />
+          </div>
         ),
-        cellClassName: 'text-center',
-        render: (item) => (
-          <input
-            type="checkbox"
-            className="checkbox checkbox-sm"
-            checked={selected.includes(item.id)}
-            onChange={() => toggleSelect(item.id)}
-          />
+        cell: ({ row }) => (
+          <div className="flex justify-center">
+            <input
+              type="checkbox"
+              className="checkbox checkbox-sm"
+              checked={selected.includes(row.original.id)}
+              onChange={() => toggleSelect(row.original.id)}
+            />
+          </div>
         ),
+        meta: {
+          headerClassName: 'w-12',
+          cellClassName: 'w-12',
+        },
       },
       {
-        key: 'index',
-        header: '#',
-        headerClassName: 'w-12 text-center',
-        cellClassName: 'text-center',
-        render: (_, index) => index + 1,
+        accessorKey: 'id',
+        header: () => (
+          <button onClick={() => handleSort('id')} className="table-sort-btn">
+            ID
+            <ArrowUpDown
+              className={`w-3 h-3 ${
+                sortField === 'id' ? 'text-primary' : 'text-gray-400'
+              }`}
+            />
+          </button>
+        ),
+        cell: ({ getValue }) => getValue(),
+        meta: {
+          cellClassName: 'text-center',
+        },
       },
       {
-        key: 'name',
-        header: 'Name',
-        headerClassName: 'font-semibold',
+        accessorKey: 'name',
+        header: () => (
+          <button onClick={() => handleSort('name')} className="table-sort-btn">
+            Name
+            <ArrowUpDown
+              className={`w-3 h-3 ${
+                sortField === 'name' ? 'text-primary' : 'text-gray-400'
+              }`}
+            />
+          </button>
+        ),
+        cell: ({ getValue }) => toUpperCase(getValue()),
       },
       {
-        key: 'base_rate',
-        header: 'Base Rate',
-        headerClassName: 'font-semibold',
-        render: (item) => `₱${item.base_rate}`,
+        accessorKey: 'base_rate',
+        header: () => (
+          <button onClick={() => handleSort('base_rate')} className="table-sort-btn">
+            Base Rate
+            <ArrowUpDown
+              className={`w-3 h-3 ${
+                sortField === 'base_rate' ? 'text-primary' : 'text-gray-400'
+              }`}
+            />
+          </button>
+        ),
+        cell: ({ getValue }) => formatCurrency(getValue()),
       },
     ],
-    [selected, allSelected]
+    [selected, allSelected, sortField, sortDirection, toggleSelectAll, toggleSelect, handleSort]
   );
 
   return (
     <div className="relative">
-      <SharedTable
+      <DataTable
         columns={columns}
-        data={data.map((item, index) => ({ ...item, index }))}
-        isLoading={isLoading}
+        data={data}
         emptyMessage="No categories found. Add your first category above."
-        zebra
       />
-
       <BulkActionBar
         selectedCount={selected.length}
         onEdit={handleBulkEdit}

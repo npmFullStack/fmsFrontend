@@ -13,7 +13,7 @@ const Home = () => {
               excepturi exercitationem quasi. In deleniti eaque aut repudiandae
               et a id nisi.
             </p>
-            <Link to="/Category">
+            <Link to="/category">
               <button className="btn bg-blue-600 text-white">Get Started</button>
             </Link>
           </div>
