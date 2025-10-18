@@ -1,135 +1,84 @@
-// pages/Category.jsx
-import React, { useEffect, useState } from "react";
-import api from "../api";
+// src/pages/Category.jsx
+import React, { useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
+import { useCategoryStore } from '../stores/useCategoryStore';
+import CategoryTable from '../components/tables/CategoryTable';
+import AddCategory from '../components/modals/AddCategory';
+import LoadingSkeleton from '../components/ui/LoadingSkeleton';
+import toast from 'react-hot-toast';
 
 const Category = () => {
-  const [categories, setCategories] = useState([]);
-  const [name, setName] = useState("");
-  const [baseRate, setBaseRate] = useState("");
-  const [editId, setEditId] = useState(null);
-
-  const fetchCategories = async () => {
-    try {
-      const res = await api.get("/categories");
-      setCategories(res.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const saveCategory = async () => {
-    try {
-      if (!name || !baseRate) return alert("Name and Base Rate required!");
-
-      if (editId) {
-        await api.put(`/categories/${editId}`, { name, base_rate: baseRate });
-        setEditId(null);
-      } else {
-        await api.post("/categories", { name, base_rate: baseRate });
-      }
-
-      setName("");
-      setBaseRate("");
-      fetchCategories();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const deleteCategory = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this category?")) return;
-    try {
-      await api.delete(`/categories/${id}`);
-      fetchCategories();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const editCategory = (cat) => {
-    setEditId(cat.id);
-    setName(cat.name);
-    setBaseRate(cat.base_rate);
-  };
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+  
+  const { 
+    categories, 
+    loading, 
+    fetchCategories, 
+    addCategory, 
+    updateCategory, 
+    deleteCategory 
+  } = useCategoryStore();
 
   useEffect(() => {
     fetchCategories();
-  }, []);
+  }, [fetchCategories]);
+
+  const handleSave = async (categoryData) => {
+    try {
+      if (editingCategory) {
+        await updateCategory(editingCategory.id, categoryData);
+      } else {
+        await addCategory(categoryData);
+      }
+      setEditingCategory(null);
+      setIsModalOpen(false);
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const handleEdit = (category) => {
+    setEditingCategory(category);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingCategory(null);
+  };
+
+  if (loading && categories.length === 0) {
+    return <LoadingSkeleton type="table" rows={5} columns={4} />;
+  }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6 text-center">Category Management</h1>
-
-      {/* Form */}
-      <div className="flex gap-2 mb-6">
-        <input
-          type="text"
-          placeholder="Category Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="border rounded px-3 py-2 flex-1 focus:outline-none focus:ring-2 focus:ring-blue-400"
-        />
-        <input
-          type="number"
-          placeholder="Base Rate"
-          value={baseRate}
-          onChange={(e) => setBaseRate(e.target.value)}
-          className="border rounded px-3 py-2 w-32 focus:outline-none focus:ring-2 focus:ring-blue-400"
-        />
+    <div className="p-6 max-w-6xl mx-auto">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Category Management</h1>
         <button
-          onClick={saveCategory}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition"
+          onClick={() => setIsModalOpen(true)}
+          className="btn btn-primary"
         >
-          {editId ? "Update" : "Add"}
+          <Plus className="w-4 h-4 mr-2" />
+          Add Category
         </button>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto border rounded shadow">
-        <table className="min-w-full table-auto">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-4 py-2 text-left">#</th>
-              <th className="px-4 py-2 text-left">Name</th>
-              <th className="px-4 py-2 text-left">Base Rate</th>
-              <th className="px-4 py-2 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {categories.map((cat, index) => (
-              <tr
-                key={cat.id}
-                className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
-              >
-                <td className="px-4 py-2">{index + 1}</td>
-                <td className="px-4 py-2">{cat.name}</td>
-                <td className="px-4 py-2">₱{cat.base_rate}</td>
-                <td className="px-4 py-2 flex gap-2">
-                  <button
-                    onClick={() => editCategory(cat)}
-                    className="bg-yellow-400 hover:bg-yellow-500 text-white px-3 py-1 rounded transition"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => deleteCategory(cat.id)}
-                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded transition"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {categories.length === 0 && (
-              <tr>
-                <td colSpan={4} className="text-center py-4 text-gray-500">
-                  No categories found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <CategoryTable
+        data={categories}
+        onEdit={handleEdit}
+        onDelete={deleteCategory}
+        isLoading={loading}
+      />
+
+      <AddCategory
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onSave={handleSave}
+        editingCategory={editingCategory}
+        isLoading={loading}
+      />
     </div>
   );
 };

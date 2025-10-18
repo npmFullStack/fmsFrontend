@@ -1,9 +1,8 @@
+// src/App.jsx
 import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
-import Loading from './components/Loading';
-import HomeSkeleton from './components/skeletons/HomeSkeleton';
-import CategorySkeleton from './components/skeletons/CategorySkeleton';
+import LoadingSkeleton from './components/ui/LoadingSkeleton';
 
 // Lazy-loaded pages
 const Home = lazy(() => import('./pages/Home'));
@@ -12,25 +11,24 @@ const Category = lazy(() => import('./pages/Category'));
 function App() {
   return (
     <Router>
-      {/* Global fallback */}
-      <Suspense fallback={<Loading />}>
+      <Suspense fallback={<LoadingSkeleton type="generic" />}>
         <Layout>
           <Routes>
-            <Route
-              path="/"
+            <Route 
+              path="/" 
               element={
-                <Suspense fallback={<HomeSkeleton />}>
+                <Suspense fallback={<LoadingSkeleton type="home" />}>
                   <Home />
                 </Suspense>
-              }
+              } 
             />
-            <Route
-              path="/Category"
+            <Route 
+              path="/category" 
               element={
-                <Suspense fallback={<CategorySkeleton />}>
+                <Suspense fallback={<LoadingSkeleton type="table" rows={5} columns={4} />}>
                   <Category />
                 </Suspense>
-              }
+              } 
             />
           </Routes>
         </Layout>
