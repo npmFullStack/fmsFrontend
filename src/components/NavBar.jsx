@@ -14,27 +14,25 @@ const NavBar = ({ onMenuClick }) => {
   };
 
   return (
-    <div className="navbar bg-base-200 shadow-sm">
+    <div className="navbar bg-base-100 shadow-md shadow-base-400 px-4">
       <div className="navbar-start">
-        {/* Mobile menu button - only on mobile */}
+        {/* Mobile menu button */}
         <button onClick={onMenuClick} className="btn btn-ghost btn-circle lg:hidden">
           <Menu className="w-5 h-5" />
         </button>
-        
-        {/* Company name - left aligned on all screens */}
+
+        {/* Company name */}
         <div className="flex items-center">
-          {/* Full text on desktop */}
-          <span className="text-sm font-semibold tracking-wide hidden lg:block">
+          <span className="text-sm font-bold tracking-wide hidden lg:block">
             X-TRA MILE FREIGHT FORWARDING INC.
           </span>
-          {/* Abbreviated text on mobile */}
           <span className="text-sm font-semibold tracking-wide lg:hidden">
             XMFFI
           </span>
         </div>
       </div>
 
-      <div className="navbar-end flex items-center gap-2 pr-2">
+      <div className="navbar-end flex items-center gap-3">
         {/* Theme toggle */}
         <label className="flex cursor-pointer items-center gap-2">
           <Sun className="w-5 h-5" />

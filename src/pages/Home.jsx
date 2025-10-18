@@ -14,7 +14,7 @@ const Home = () => {
               et a id nisi.
             </p>
             <Link to="/CategoryList">
-              <button className="btn btn-primary">Get Started</button>
+              <button className="btn bg-blue-600 text-white">Get Started</button>
             </Link>
           </div>
         </div>

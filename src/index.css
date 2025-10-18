@@ -2,14 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-@keyframes slideIn {
-  from {
-    transform: translateX(-100%);
+@layer base {
+  body {
+    @apply font-sans; 
   }
-  to {
-    transform: translateX(0);
-  }
-}
-.animate-slideIn {
-  animation: slideIn 0.3s ease-out;
 }
