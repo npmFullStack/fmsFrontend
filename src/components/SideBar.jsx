@@ -58,7 +58,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
           </li>
 
           <li>
-            <Link to="/CategoryList" className={linkClass('/CategoryList')}>
+            <Link to="/Category" className={linkClass('/Category')}>
               <List className="w-5 h-5 flex-shrink-0" />
               <span
                 className={`transition-all duration-300 inline-block whitespace-nowrap ${
@@ -67,7 +67,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
                     : 'opacity-100 translate-x-0 max-w-xs'
                 }`}
               >
-                Category List
+                Category
               </span>
             </Link>
           </li>
@@ -117,12 +117,12 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
               </li>
               <li>
                 <Link
-                  to="/CategoryList"
+                  to="/Category"
                   onClick={() => setIsMobileOpen(false)}
                   className="flex items-center gap-3 py-2 px-4 rounded-md hover:bg-base-300 transition-all duration-300"
                 >
                   <List className="w-5 h-5" />
-                  <span className="whitespace-nowrap">Category List</span>
+                  <span className="whitespace-nowrap">Category</span>
                 </Link>
               </li>
             </ul>

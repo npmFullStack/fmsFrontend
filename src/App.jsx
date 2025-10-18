@@ -3,11 +3,11 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Loading from './components/Loading';
 import HomeSkeleton from './components/skeletons/HomeSkeleton';
-import CategoryListSkeleton from './components/skeletons/CategoryListSkeleton';
+import CategorySkeleton from './components/skeletons/CategorySkeleton';
 
 // Lazy-loaded pages
 const Home = lazy(() => import('./pages/Home'));
-const CategoryList = lazy(() => import('./pages/CategoryList'));
+const Category = lazy(() => import('./pages/Category'));
 
 function App() {
   return (
@@ -25,10 +25,10 @@ function App() {
               }
             />
             <Route
-              path="/CategoryList"
+              path="/Category"
               element={
-                <Suspense fallback={<CategoryListSkeleton />}>
-                  <CategoryList />
+                <Suspense fallback={<CategorySkeleton />}>
+                  <Category />
                 </Suspense>
               }
             />

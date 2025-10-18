@@ -1,8 +1,8 @@
-// pages/CategoryList.jsx
+// pages/Category.jsx
 import React, { useEffect, useState } from "react";
 import api from "../api";
 
-const CategoryList = () => {
+const Category = () => {
   const [categories, setCategories] = useState([]);
   const [name, setName] = useState("");
   const [baseRate, setBaseRate] = useState("");
@@ -134,4 +134,4 @@ const CategoryList = () => {
   );
 };
 
-export default CategoryList;
+export default Category;

@@ -1,7 +1,7 @@
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 
-const CategoryListSkeleton = () => {
+const CategorySkeleton = () => {
   const rows = Array(10).fill(0);
 
   return (
@@ -38,4 +38,4 @@ const CategoryListSkeleton = () => {
   );
 };
 
-export default CategoryListSkeleton;
+export default CategorySkeleton;
