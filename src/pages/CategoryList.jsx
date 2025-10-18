@@ -103,7 +103,7 @@ const CategoryList = () => {
               >
                 <td className="px-4 py-2">{index + 1}</td>
                 <td className="px-4 py-2">{cat.name}</td>
-                <td className="px-4 py-2">${cat.base_rate}</td>
+                <td className="px-4 py-2">₱{cat.base_rate}</td>
                 <td className="px-4 py-2 flex gap-2">
                   <button
                     onClick={() => editCategory(cat)}
