@@ -7,11 +7,11 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const linkClass = (path) =>
-    `flex items-center gap-3 py-2 rounded-md transition-colors duration-200 ${
-      location.pathname === path 
-        ? 'bg-primary text-primary-content font-semibold shadow-sm' 
-        : 'hover:bg-base-300'
-    } ${isCollapsed ? 'justify-center px-1' : 'justify-start px-3'}`;
+  `flex items-center gap-3 py-2 rounded-md transition-colors duration-200 active:!bg-primary active:!text-primary-content ${
+    location.pathname === path 
+      ? 'bg-primary text-primary-content font-semibold shadow-sm' 
+      : 'hover:bg-base-300'
+  } ${isCollapsed ? 'justify-center px-1' : 'justify-start px-3'}`;
 
   return (
     <>
@@ -32,7 +32,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
           </div>
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="btn btn-ghost btn-sm hover:bg-base-300"
+            className="btn btn-ghost btn-sm hover:bg-base-300 active:bg-base-300"
             title={isCollapsed ? 'Expand' : 'Collapse'}
           >
             {isCollapsed ? (
@@ -100,7 +100,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
               <h2 className="text-sm font-bold">Menu</h2>
               <button
                 onClick={() => setIsMobileOpen(false)}
-                className="btn btn-ghost btn-sm hover:bg-base-300"
+                className="btn btn-ghost btn-sm hover:bg-base-300 active:bg-base-300"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -111,7 +111,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
                 <Link
                   to="/"
                   onClick={() => setIsMobileOpen(false)}
-                  className={`flex items-center gap-3 py-2 px-4 rounded-md transition-colors duration-200 ${
+                  className={`flex items-center gap-3 py-2 px-4 rounded-md transition-colors duration-200 active:bg-primary active:text-primary-content ${
                     location.pathname === '/' 
                       ? 'bg-primary text-primary-content font-semibold shadow-sm' 
                       : 'hover:bg-base-300'
@@ -125,7 +125,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
                 <Link
                   to="/category"
                   onClick={() => setIsMobileOpen(false)}
-                  className={`flex items-center gap-3 py-2 px-4 rounded-md transition-colors duration-200 ${
+                  className={`flex items-center gap-3 py-2 px-4 rounded-md transition-colors duration-200 active:bg-primary active:text-primary-content ${
                     location.pathname === '/category' 
                       ? 'bg-primary text-primary-content font-semibold shadow-sm' 
                       : 'hover:bg-base-300'

@@ -45,7 +45,7 @@ const NavBar = ({ onMenuClick }) => {
 
       <div className="navbar-end flex items-center gap-4">
         {/* Theme Selector Dropdown */}
-        <div className="dropdown dropdown-end">
+        <div className="dropdown dropdown-end dropdown-bottom">
           <button 
             className="btn btn-ghost btn-circle"
             onClick={() => setShowThemeDropdown(!showThemeDropdown)}
@@ -53,7 +53,7 @@ const NavBar = ({ onMenuClick }) => {
             <Palette className="w-5 h-5" />
           </button>
           {showThemeDropdown && (
-            <ul className="dropdown-content menu p-2 shadow-2xl bg-base-100 rounded-box w-80 z-50 border border-base-300">
+            <ul className="dropdown-content menu p-2 shadow-2xl bg-base-100 rounded-box w-[90vw] max-w-80 z-50 border border-base-300 left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0">
               <li className="menu-title py-1">
                 <span className="text-sm font-bold">Color Themes</span>
               </li>
@@ -82,7 +82,7 @@ const NavBar = ({ onMenuClick }) => {
                         <div className="text-sm font-semibold truncate">{themeData.name}</div>
                         <div className="text-xs opacity-70 mt-0.5">{themeData.colors}</div>
                         
-                        {/* Active Badge - Reduced padding makes this more visible */}
+                        {/* Active Badge */}
                         {isThemeActive(themeBase) && (
                           <div className="badge badge-primary badge-xs mt-0.5">
                             {isDarkMode ? 'Dark' : 'Light'} Mode
