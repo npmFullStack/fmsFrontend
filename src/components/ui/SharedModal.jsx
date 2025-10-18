@@ -1,4 +1,3 @@
-// src/components/ui/SharedModal.jsx
 import React from 'react';
 import { X } from 'lucide-react';
 import clsx from 'clsx';
@@ -21,7 +20,7 @@ const SharedModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-8"> {/* Changed to items-start and added pt-8 */}
       {/* Overlay */}
       <div 
         className="absolute inset-0 bg-black bg-opacity-50"
@@ -30,11 +29,11 @@ const SharedModal = ({
       
       {/* Modal */}
       <div className={clsx(
-        "relative bg-base-100 rounded-lg shadow-xl w-full mx-4",
+        "relative bg-base-100 rounded-lg shadow-xl w-full mx-4 mt-4", // Added mt-4
         sizeClasses[size]
       )}>
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-base-300">
+        <div className="flex items-center justify-between p-4 border-b border-base-300"> {/* Reduced padding from p-6 to p-4 */}
           <h3 className="text-lg font-semibold">{title}</h3>
           <button
             onClick={onClose}
@@ -45,7 +44,7 @@ const SharedModal = ({
         </div>
         
         {/* Content */}
-        <div className="p-6">
+        <div className="p-4"> {/* Reduced padding from p-6 to p-4 */}
           {children}
         </div>
       </div>

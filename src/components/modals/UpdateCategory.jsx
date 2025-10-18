@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { Edit } from 'lucide-react';
 import SharedModal from '../ui/SharedModal';
 
 const categorySchema = z.object({
@@ -9,11 +10,11 @@ const categorySchema = z.object({
   base_rate: z.string().min(1, 'Base rate is required').regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid number'),
 });
 
-const AddCategory = ({ 
+const UpdateCategory = ({ 
   isOpen, 
   onClose, 
-  onSave, 
-  editingCategory,
+  onUpdate, 
+  category,
   isLoading = false 
 }) => {
   const {
@@ -21,50 +22,51 @@ const AddCategory = ({
     handleSubmit,
     reset,
     setValue,
-    formState: { errors, isValid }
+    formState: { errors }
   } = useForm({
-    resolver: zodResolver(categorySchema),
-    mode: 'onChange' // Validate on change to see validation state
+    resolver: zodResolver(categorySchema)
   });
 
   useEffect(() => {
-    console.log('AddCategory mounted/updated', { isOpen, editingCategory });
-    if (editingCategory) {
-      setValue('name', editingCategory.name);
-      setValue('base_rate', editingCategory.base_rate.toString());
+    if (category) {
+      setValue('name', category.name);
+      setValue('base_rate', category.base_rate.toString());
     } else {
       reset();
     }
-  }, [editingCategory, reset, setValue, isOpen]);
+  }, [category, reset, setValue]);
 
   const onSubmit = (data) => {
-    console.log('📝 Form submitted with data:', data);
-    console.log('✅ Form is valid:', isValid);
-    
+    console.log('Update form submitted with data:', data);
     const categoryData = {
       ...data,
       base_rate: parseFloat(data.base_rate)
     };
-    
-    console.log('📤 Calling onSave with:', categoryData);
-    onSave(categoryData);
+    console.log('Sending to onUpdate:', categoryData);
+    onUpdate(category.id, categoryData);
   };
 
   const handleClose = () => {
-    console.log('❌ Closing modal');
     reset();
     onClose();
   };
 
-  console.log('🔄 AddCategory render', { isOpen, errors, isValid });
+  if (!category) return null;
 
   return (
     <SharedModal
       isOpen={isOpen}
       onClose={handleClose}
-      title={editingCategory ? 'Edit Category' : 'Add New Category'}
+      title="Update Category"
       size="sm"
     >
+      <div className="flex items-center gap-3 mb-4">
+        <Edit className="w-5 h-5 text-primary" />
+        <p className="text-base-content/70">
+          Editing: <span className="font-semibold text-base-content">{category.name}</span>
+        </p>
+      </div>
+
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="form-control">
           <label className="label">
@@ -75,7 +77,6 @@ const AddCategory = ({
             placeholder="Enter category name"
             className="input input-bordered w-full"
             {...register('name')}
-            onChange={(e) => console.log('Name input:', e.target.value)}
           />
           {errors.name && (
             <span className="text-error text-sm mt-1">{errors.name.message}</span>
@@ -92,7 +93,6 @@ const AddCategory = ({
             placeholder="0.00"
             className="input input-bordered w-full"
             {...register('base_rate')}
-            onChange={(e) => console.log('Base rate input:', e.target.value)}
           />
           {errors.base_rate && (
             <span className="text-error text-sm mt-1">{errors.base_rate.message}</span>
@@ -111,9 +111,9 @@ const AddCategory = ({
           <button
             type="submit"
             className="btn btn-primary"
-            disabled={isLoading || !isValid}
+            disabled={isLoading}
           >
-            {isLoading ? 'Saving...' : editingCategory ? 'Update' : 'Add'}
+            {isLoading ? 'Updating...' : 'Update Category'}
           </button>
         </div>
       </form>
@@ -121,4 +121,4 @@ const AddCategory = ({
   );
 };
 
-export default AddCategory;
+export default UpdateCategory;

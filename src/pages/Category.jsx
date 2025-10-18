@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useDebounce } from 'use-debounce';
 import { Plus } from 'lucide-react';
@@ -6,14 +6,19 @@ import api from '../api';
 import PageLayout from '../components/layout/PageLayout';
 import CategoryTable from '../components/tables/CategoryTable';
 import AddCategory from '../components/modals/AddCategory';
+import UpdateCategory from '../components/modals/UpdateCategory';
+import DeleteCategory from '../components/modals/DeleteCategory';
 import SearchBar from '../components/ui/SearchBar';
 import Pagination from '../components/ui/Pagination';
 import LoadingSkeleton from '../components/ui/LoadingSkeleton';
 import toast from 'react-hot-toast';
 
 const Category = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
+  const [deletingCategory, setDeletingCategory] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch] = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
@@ -21,6 +26,17 @@ const Category = () => {
   const [direction, setDirection] = useState('asc');
 
   const queryClient = useQueryClient();
+
+  // Debug state changes
+  useEffect(() => {
+    console.log('Category state changed:', {
+      isAddModalOpen,
+      isUpdateModalOpen, 
+      isDeleteModalOpen,
+      editingCategory,
+      deletingCategory
+    });
+  }, [isAddModalOpen, isUpdateModalOpen, isDeleteModalOpen, editingCategory, deletingCategory]);
 
   // Fetch categories
   const { data, isLoading, isError, refetch } = useQuery({
@@ -73,63 +89,105 @@ const Category = () => {
     setDirection(dir);
   }, []);
 
-  // Mutations with proper refetching
+  // Mutations
   const addMutation = useMutation({
-    mutationFn: (categoryData) => api.post('/categories', categoryData),
-    onSuccess: () => {
+    mutationFn: async (categoryData) => {
+      console.log('Sending POST request:', categoryData);
+      const response = await api.post('/categories', categoryData);
+      console.log('POST Response:', response.data);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      console.log('Add mutation success:', data);
       queryClient.invalidateQueries({ queryKey: ['categories'] });
-      refetch(); // Force refetch to ensure data is fresh
       toast.success('Category added successfully');
-      setIsModalOpen(false);
+      setIsAddModalOpen(false);
     },
     onError: (error) => {
+      console.error('Add mutation error:', error);
       toast.error(error.response?.data?.message || 'Failed to add category');
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => api.put(`/categories/${id}`, data),
-    onSuccess: () => {
+    mutationFn: async ({ id, data }) => {
+      console.log('Sending PUT request:', { id, data });
+      const response = await api.put(`/categories/${id}`, data);
+      console.log('PUT Response:', response.data);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      console.log('Update mutation success:', data);
       queryClient.invalidateQueries({ queryKey: ['categories'] });
-      refetch(); // Force refetch
       toast.success('Category updated successfully');
+      setIsUpdateModalOpen(false);
       setEditingCategory(null);
-      setIsModalOpen(false);
     },
     onError: (error) => {
+      console.error('Update mutation error:', error);
       toast.error(error.response?.data?.message || 'Failed to update category');
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => api.delete(`/categories/${id}`),
-    onSuccess: () => {
+    mutationFn: async (id) => {
+      console.log('Sending DELETE request for ID:', id);
+      const response = await api.delete(`/categories/${id}`);
+      console.log('DELETE Response:', response.data);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      console.log('Delete mutation success:', data);
       queryClient.invalidateQueries({ queryKey: ['categories'] });
-      refetch(); // Force refetch
       toast.success('Category deleted successfully');
+      setIsDeleteModalOpen(false);
+      setDeletingCategory(null);
     },
     onError: (error) => {
+      console.error('Delete mutation error:', error);
       toast.error(error.response?.data?.message || 'Failed to delete category');
     },
   });
 
-  const handleSave = useCallback((categoryData) => {
-    if (editingCategory) {
-      updateMutation.mutate({ id: editingCategory.id, data: categoryData });
-    } else {
-      addMutation.mutate(categoryData);
-    }
-  }, [editingCategory, addMutation, updateMutation]);
+  const handleAdd = useCallback((categoryData) => {
+    console.log('Handling add:', categoryData);
+    addMutation.mutate(categoryData);
+  }, [addMutation]);
+
+  const handleUpdate = useCallback((id, categoryData) => {
+    console.log('Handling update:', { id, categoryData });
+    updateMutation.mutate({ id, data: categoryData });
+  }, [updateMutation]);
 
   const handleDelete = useCallback((id) => {
-    if (confirm('Are you sure you want to delete this category?')) {
-      deleteMutation.mutate(id);
-    }
+    console.log('Handling delete for ID:', id);
+    deleteMutation.mutate(id);
   }, [deleteMutation]);
 
   const handleEdit = useCallback((category) => {
+    console.log('Edit clicked for:', category);
     setEditingCategory(category);
-    setIsModalOpen(true);
+    setIsUpdateModalOpen(true);
+  }, []);
+
+  const handleDeleteClick = useCallback((category) => {
+    console.log('Delete clicked for:', category);
+    setDeletingCategory(category);
+    setIsDeleteModalOpen(true);
+  }, []);
+
+  const closeAddModal = useCallback(() => {
+    setIsAddModalOpen(false);
+  }, []);
+
+  const closeUpdateModal = useCallback(() => {
+    setIsUpdateModalOpen(false);
+    setEditingCategory(null);
+  }, []);
+
+  const closeDeleteModal = useCallback(() => {
+    setIsDeleteModalOpen(false);
+    setDeletingCategory(null);
   }, []);
 
   // Actions for the layout
@@ -142,7 +200,10 @@ const Category = () => {
         placeholder="Search categories..."
       />
       <button
-        onClick={() => setIsModalOpen(true)}
+        onClick={() => {
+          console.log('Add category button clicked - current state:', { isAddModalOpen });
+          setIsAddModalOpen(true);
+        }}
         className="btn btn-primary"
       >
         <Plus className="w-4 h-4 mr-2" />
@@ -181,7 +242,7 @@ const Category = () => {
         <CategoryTable
           data={categories}
           onEdit={handleEdit}
-          onDelete={handleDelete}
+          onDelete={handleDeleteClick}
           sortField={sort}
           sortDirection={direction}
           onSortChange={handleSortChange}
@@ -200,16 +261,30 @@ const Category = () => {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Add Modal */}
       <AddCategory
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingCategory(null);
-        }}
-        onSave={handleSave}
-        editingCategory={editingCategory}
-        isLoading={addMutation.isLoading || updateMutation.isLoading}
+        isOpen={isAddModalOpen}
+        onClose={closeAddModal}
+        onSave={handleAdd}
+        isLoading={addMutation.isLoading}
+      />
+
+      {/* Update Modal */}
+      <UpdateCategory
+        isOpen={isUpdateModalOpen}
+        onClose={closeUpdateModal}
+        onUpdate={handleUpdate}
+        category={editingCategory}
+        isLoading={updateMutation.isLoading}
+      />
+
+      {/* Delete Modal */}
+      <DeleteCategory
+        isOpen={isDeleteModalOpen}
+        onClose={closeDeleteModal}
+        onDelete={handleDelete}
+        category={deletingCategory}
+        isLoading={deleteMutation.isLoading}
       />
     </PageLayout>
   );

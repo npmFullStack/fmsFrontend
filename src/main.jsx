@@ -25,19 +25,33 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         position="top-center"
         toastOptions={{
           duration: 4000,
-          className: 'toast-custom',
+          style: {
+            background: 'hsl(var(--b1))',
+            color: 'hsl(var(--bc))',
+            border: '1px solid hsl(var(--b3))',
+            borderRadius: '0.5rem',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+          },
           success: {
-            className: 'toast-success',
+            style: {
+              background: 'hsl(var(--su))',
+              color: 'hsl(var(--suc))',
+              border: '1px solid hsl(var(--su))',
+            },
             iconTheme: {
-              primary: '#ffffff',
-              secondary: '#10b981',
+              primary: 'hsl(var(--suc))',
+              secondary: 'hsl(var(--su))',
             },
           },
           error: {
-            className: 'toast-error',
+            style: {
+              background: 'hsl(var(--er))',
+              color: 'hsl(var(--erc))',
+              border: '1px solid hsl(var(--er))',
+            },
             iconTheme: {
-              primary: '#ffffff',
-              secondary: '#ef4444',
+              primary: 'hsl(var(--erc))',
+              secondary: 'hsl(var(--er))',
             },
           },
         }}

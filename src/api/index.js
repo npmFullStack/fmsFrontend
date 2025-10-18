@@ -5,34 +5,50 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000, // Add timeout
+  timeout: 10000,
 });
 
-// Request interceptor
+// Add detailed request logging
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`; // Fixed template literal
-    }
+    console.log('🚀 API Request:', {
+      method: config.method?.toUpperCase(),
+      url: config.baseURL + config.url,
+      data: config.data,
+      fullConfig: config
+    });
     return config;
   },
-  (error) => Promise.reject(error)
-);
-
-// Response interceptor
-api.interceptors.response.use(
-  (response) => response,
   (error) => {
-    console.error('API Error:', error);
-    
-    // Handle network errors specifically
-    if (error.code === 'ERR_NETWORK') {
-      console.error('Network error - check if backend is running and CORS is configured');
-    }
-    
+    console.error('❌ API Request Error:', error);
     return Promise.reject(error);
   }
 );
+
+// Add detailed response logging
+api.interceptors.response.use(
+  (response) => {
+    console.log('✅ API Response Success:', {
+      status: response.status,
+      data: response.data,
+      url: response.config.url
+    });
+    return response;
+  },
+  (error) => {
+    console.error('❌ API Response Error:', {
+      message: error.message,
+      code: error.code,
+      response: error.response,
+      config: error.config
+    });
+    return Promise.reject(error);
+  }
+);
+
+// Make api available globally for debugging (remove in production)
+if (import.meta.env.DEV) {
+  window.api = api;
+}
 
 export default api;

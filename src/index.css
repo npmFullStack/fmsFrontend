@@ -22,11 +22,11 @@
   }
 
   .page-title {
-    @apply text-2xl font-bold text-gray-800 dark:text-gray-100;
+    @apply text-2xl font-bold text-base-content;
   }
 
   .page-subtitle {
-    @apply text-gray-600 dark:text-gray-400 mt-2 text-base;
+    @apply text-base-content/70 mt-2 text-base;
   }
 
   .header-actions {
@@ -41,26 +41,26 @@
      Table Styles
      ======================================== */
   .table-wrapper {
-    @apply overflow-x-auto border rounded-lg shadow-sm bg-base-100;
+    @apply overflow-x-auto border border-base-300 rounded-lg shadow-sm bg-base-100;
   }
 
   .table-sort-btn {
-    @apply flex items-center gap-1 font-semibold hover:text-primary transition-colors;
+    @apply flex items-center gap-1 font-semibold hover:text-primary transition-colors text-base-content;
   }
 
   .empty-state {
-    @apply text-center py-8 text-gray-500;
+    @apply text-center py-8 text-base-content/60;
   }
 
   /* ========================================
      State Classes
      ======================================== */
   .error-container {
-    @apply text-center text-red-500 mt-10 p-4 font-medium;
+    @apply text-center text-error mt-10 p-4 font-medium;
   }
 
   .loading-container {
-    @apply flex flex-col justify-center items-center h-[60vh] text-gray-500;
+    @apply flex flex-col justify-center items-center h-[60vh] text-base-content/60;
   }
 
   /* ========================================
@@ -71,68 +71,114 @@
   }
 
   .form-label {
-    @apply block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300;
+    @apply block text-sm font-medium mb-1 text-base-content;
   }
 
   .form-error {
-    @apply text-sm text-red-500 mt-1;
+    @apply text-sm text-error mt-1;
   }
 
   /* ========================================
      Card Classes
      ======================================== */
   .card-wrapper {
-    @apply bg-base-100 rounded-lg shadow-md p-6;
+    @apply bg-base-100 rounded-lg shadow-md p-6 border border-base-300;
   }
 
   .card-header {
-    @apply text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100;
+    @apply text-xl font-semibold mb-4 text-base-content;
   }
 
   /* ========================================
      Button Variants
      ======================================== */
   .btn-icon {
-    @apply p-2 rounded-md hover:bg-base-200 transition-colors;
+    @apply p-2 rounded-md hover:bg-base-200 transition-colors text-base-content;
   }
 
   /* ========================================
      Utility Classes
      ======================================== */
   .text-muted {
-    @apply text-gray-500 dark:text-gray-400;
+    @apply text-base-content/60;
   }
 
   .divider-text {
-    @apply text-sm text-gray-500 uppercase tracking-wider;
+    @apply text-sm text-base-content/50 uppercase tracking-wider;
+  }
+
+  /* ========================================
+     Claude AI Style Loading Skeleton
+     ======================================== */
+  .claude-skeleton {
+    @apply animate-pulse;
+  }
+
+  .claude-skeleton-line {
+    @apply bg-gradient-to-r from-base-300 via-base-200 to-base-300 rounded-full;
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+
+  .claude-skeleton-block {
+    @apply bg-gradient-to-r from-base-300 via-base-200 to-base-300 rounded-lg;
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+}
+
+/* Shimmer Animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
   }
 }
 
 /* Toast Styles */
 .toast-success {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-  color: white !important;
+  background: linear-gradient(135deg, hsl(var(--su)) 0%, hsl(var(--su)/0.9) 100%) !important;
+  color: hsl(var(--suc)) !important;
   border: none !important;
-  box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.3) !important;
+  box-shadow: 0 10px 25px -5px hsl(var(--suc)/0.3) !important;
 }
 
 .toast-error {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
-  color: white !important;
+  background: linear-gradient(135deg, hsl(var(--er)) 0%, hsl(var(--er)/0.9) 100%) !important;
+  color: hsl(var(--erc)) !important;
   border: none !important;
-  box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.3) !important;
+  box-shadow: 0 10px 25px -5px hsl(var(--erc)/0.3) !important;
 }
 
 .toast-warning {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
-  color: white !important;
+  background: linear-gradient(135deg, hsl(var(--wa)) 0%, hsl(var(--wa)/0.9) 100%) !important;
+  color: hsl(var(--wac)) !important;
   border: none !important;
-  box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.3) !important;
+  box-shadow: 0 10px 25px -5px hsl(var(--wac)/0.3) !important;
 }
 
 .toast-info {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
-  color: white !important;
+  background: linear-gradient(135deg, hsl(var(--in)) 0%, hsl(var(--in)/0.9) 100%) !important;
+  color: hsl(var(--inc)) !important;
   border: none !important;
-  box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.3) !important;
+  box-shadow: 0 10px 25px -5px hsl(var(--inc)/0.3) !important;
+}
+
+/* Ensure text visibility in all themes */
+.text-base-content {
+  color: hsl(var(--bc));
+}
+
+.text-base-content\/70 {
+  color: hsl(var(--bc)/0.7);
+}
+
+.text-base-content\/60 {
+  color: hsl(var(--bc)/0.6);
+}
+
+.text-base-content\/50 {
+  color: hsl(var(--bc)/0.5);
 }

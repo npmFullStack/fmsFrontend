@@ -10,11 +10,11 @@ const PageLayout = ({
   return (
     <div className={`page-container p-6 ${className}`}>
       {/* Header */}
-      <div className="page-header mb-6">
+      <div className="page-header">
         <div className="flex-1">
           <h1 className="page-title text-2xl font-bold">{title}</h1>
           {subtitle && (
-            <p className="page-subtitle text-gray-600 dark:text-gray-400 mt-2">
+            <p className="page-subtitle mt-2">
               {subtitle}
             </p>
           )}
@@ -22,7 +22,7 @@ const PageLayout = ({
         
         {/* Actions */}
         {actions && (
-          <div className="header-actions flex items-center gap-4">
+          <div className="header-actions">
             {actions}
           </div>
         )}
