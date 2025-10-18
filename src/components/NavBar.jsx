@@ -22,9 +22,13 @@ const NavBar = ({ onMenuClick }) => {
         </button>
       </div>
 
-      <div className="navbar-center">
-        <span className="text-sm font-semibold tracking-wide text-center">
+      <div className="navbar-center lg:navbar-start">
+        {/* Full text on desktop, abbreviated on mobile */}
+        <span className="text-sm font-semibold tracking-wide hidden lg:block">
           X-TRA MILE FREIGHT FORWARDING INC.
+        </span>
+        <span className="text-sm font-semibold tracking-wide lg:hidden">
+          XMFFI
         </span>
       </div>
 
