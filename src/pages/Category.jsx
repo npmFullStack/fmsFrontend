@@ -3,6 +3,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useDebounce } from 'use-debounce';
 import { Plus } from 'lucide-react';
 import api from '../api';
+import PageLayout from '../components/layout/PageLayout';
 import CategoryTable from '../components/tables/CategoryTable';
 import AddCategory from '../components/modals/AddCategory';
 import SearchBar from '../components/ui/SearchBar';
@@ -21,9 +22,9 @@ const Category = () => {
 
   const queryClient = useQueryClient();
 
-  // Fetch categories WITHOUT sorting parameters (we'll sort locally)
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['categories', debouncedSearch, page], // Remove sort/direction from queryKey
+  // Fetch categories
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['categories', debouncedSearch, page],
     queryFn: async () => {
       const res = await api.get('/categories', {
         params: { 
@@ -47,7 +48,6 @@ const Category = () => {
       let aVal = a[sort];
       let bVal = b[sort];
       
-      // Handle string comparison
       if (typeof aVal === 'string') {
         aVal = aVal.toLowerCase();
         bVal = bVal.toLowerCase();
@@ -67,18 +67,18 @@ const Category = () => {
     last_page: data?.last_page || 1,
   };
 
-  // Client-side sort handler (no API call)
+  // Client-side sort handler
   const handleSortChange = useCallback((field, dir) => {
     setSort(field);
     setDirection(dir);
-    // Don't setPage(1) and don't trigger API call
   }, []);
 
-  // Rest of your mutations remain the same...
+  // Mutations with proper refetching
   const addMutation = useMutation({
     mutationFn: (categoryData) => api.post('/categories', categoryData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      refetch(); // Force refetch to ensure data is fresh
       toast.success('Category added successfully');
       setIsModalOpen(false);
     },
@@ -91,6 +91,7 @@ const Category = () => {
     mutationFn: ({ id, data }) => api.put(`/categories/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      refetch(); // Force refetch
       toast.success('Category updated successfully');
       setEditingCategory(null);
       setIsModalOpen(false);
@@ -104,6 +105,7 @@ const Category = () => {
     mutationFn: (id) => api.delete(`/categories/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      refetch(); // Force refetch
       toast.success('Category deleted successfully');
     },
     onError: (error) => {
@@ -130,42 +132,51 @@ const Category = () => {
     setIsModalOpen(true);
   }, []);
 
+  // Actions for the layout
+  const pageActions = (
+    <>
+      <SearchBar
+        value={searchTerm}
+        onChange={setSearchTerm}
+        onClear={() => setSearchTerm('')}
+        placeholder="Search categories..."
+      />
+      <button
+        onClick={() => setIsModalOpen(true)}
+        className="btn btn-primary"
+      >
+        <Plus className="w-4 h-4 mr-2" />
+        Add Category
+      </button>
+    </>
+  );
+
   // Only show loading on initial load
   if (isLoading && !data) {
-    return <LoadingSkeleton type="table" rows={5} columns={3} />; // 3 columns now (no actions)
+    return (
+      <PageLayout title="Category Management" subtitle="Manage your product categories">
+        <LoadingSkeleton type="table" rows={5} columns={3} />
+      </PageLayout>
+    );
   }
 
   if (isError) {
     return (
-      <div className="alert alert-error">
-        Failed to load categories. Please try again.
-      </div>
+      <PageLayout title="Category Management" subtitle="Manage your product categories">
+        <div className="alert alert-error">
+          Failed to load categories. Please try again.
+        </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="page-container p-4">
-      {/* Header */}
-      <div className="page-header mb-6">
-        <h1 className="page-title text-2xl font-bold">Category Management</h1>
-        <div className="header-actions flex items-center gap-4 mt-4">
-          <SearchBar
-            value={searchTerm}
-            onChange={setSearchTerm}
-            onClear={() => setSearchTerm('')}
-            placeholder="Search categories..."
-          />
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="btn btn-primary"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Category
-          </button>
-        </div>
-      </div>
-
-      {/* Table - No loading prop needed since we handle loading above */}
+    <PageLayout 
+      title="Category Management" 
+      subtitle="Manage your product categories and their base rates"
+      actions={pageActions}
+    >
+      {/* Table */}
       <div className="bg-base-100 rounded-lg shadow">
         <CategoryTable
           data={categories}
@@ -174,7 +185,7 @@ const Category = () => {
           sortField={sort}
           sortDirection={direction}
           onSortChange={handleSortChange}
-          isLoading={false} // No loading for client-side sorting
+          isLoading={false}
         />
       </div>
 
@@ -200,7 +211,7 @@ const Category = () => {
         editingCategory={editingCategory}
         isLoading={addMutation.isLoading || updateMutation.isLoading}
       />
-    </div>
+    </PageLayout>
   );
 };
 

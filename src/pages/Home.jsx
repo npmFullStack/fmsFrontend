@@ -1,25 +1,20 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import PageLayout from '../components/layout/PageLayout';
 
 const Home = () => {
   return (
-    <>
-      <div className="hero min-h-screen bg-base-100 text-base-content">
-        <div className="hero-content text-center">
-          <div className="max-w-md">
-            <h1 className="mb-5 text-5xl font-bold">Hello there</h1>
-            <p className="mb-5">
-              Provident cupiditate voluptatem et in. Quaerat fugiat ut assumenda
-              excepturi exercitationem quasi. In deleniti eaque aut repudiandae
-              et a id nisi.
-            </p>
-            <Link to="/category">
-              <button className="btn bg-blue-600 text-white">Get Started</button>
-            </Link>
-          </div>
+    <PageLayout 
+      title="Dashboard" 
+      subtitle="Welcome to X-TRA MILE FREIGHT FORWARDING INC. Management System"
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Add your dashboard cards here */}
+        <div className="card-wrapper">
+          <h3 className="card-header">Quick Stats</h3>
+          <p className="text-muted">Your dashboard content goes here...</p>
         </div>
       </div>
-    </>
+    </PageLayout>
   );
 };
 
