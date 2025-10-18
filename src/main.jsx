@@ -13,8 +13,8 @@ const queryClient = new QueryClient({
     queries: {
       refetchOnWindowFocus: false,
       retry: 1,
-      staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh
-      cacheTime: 10 * 60 * 1000, // 10 minutes - cache persists
+      staleTime: 5 * 60 * 1000,
+      cacheTime: 10 * 60 * 1000,
     },
   },
 });
@@ -27,24 +27,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         position="top-center"
         toastOptions={{
           duration: 3000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-          },
-          success: {
-            duration: 3000,
-            iconTheme: {
-              primary: '#4ade80',
-              secondary: '#fff',
-            },
-          },
-          error: {
-            duration: 4000,
-            iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
-            },
-          },
         }}
       />
     </QueryClientProvider>

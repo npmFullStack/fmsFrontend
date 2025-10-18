@@ -40,4 +40,4 @@ export const useCategoryStore = create(() => ({
       throw new Error(message);
     }
   },
-}));
+})); 

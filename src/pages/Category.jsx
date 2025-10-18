@@ -1,5 +1,4 @@
-// pages/Category.jsx
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useDebounce } from 'use-debounce';
 import { Plus } from 'lucide-react';
@@ -15,37 +14,71 @@ const Category = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearch] = useDebounce(searchTerm, 300);
+  const [debouncedSearch] = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState('id');
   const [direction, setDirection] = useState('asc');
 
   const queryClient = useQueryClient();
 
-  // Fetch categories
+  // Fetch categories WITHOUT sorting parameters (we'll sort locally)
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['categories', debouncedSearch, page, sort, direction],
+    queryKey: ['categories', debouncedSearch, page], // Remove sort/direction from queryKey
     queryFn: async () => {
       const res = await api.get('/categories', {
-        params: { search: debouncedSearch, page, sort, direction, per_page: 10 },
+        params: { 
+          search: debouncedSearch, 
+          page, 
+          per_page: 10 
+        },
       });
       return res.data;
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 5 * 60 * 1000,
+    cacheTime: 10 * 60 * 1000,
+    keepPreviousData: true,
   });
 
-  const categories = data?.data || [];
+  // Client-side sorting
+  const sortedCategories = useMemo(() => {
+    if (!data?.data) return [];
+    
+    return [...data.data].sort((a, b) => {
+      let aVal = a[sort];
+      let bVal = b[sort];
+      
+      // Handle string comparison
+      if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = bVal.toLowerCase();
+      }
+      
+      if (direction === 'asc') {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
+      }
+    });
+  }, [data?.data, sort, direction]);
+
+  const categories = sortedCategories;
   const pagination = {
     current_page: data?.current_page || 1,
     last_page: data?.last_page || 1,
   };
 
-  // Add mutation
+  // Client-side sort handler (no API call)
+  const handleSortChange = useCallback((field, dir) => {
+    setSort(field);
+    setDirection(dir);
+    // Don't setPage(1) and don't trigger API call
+  }, []);
+
+  // Rest of your mutations remain the same...
   const addMutation = useMutation({
     mutationFn: (categoryData) => api.post('/categories', categoryData),
     onSuccess: () => {
-      queryClient.invalidateQueries(['categories']);
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
       toast.success('Category added successfully');
       setIsModalOpen(false);
     },
@@ -54,11 +87,10 @@ const Category = () => {
     },
   });
 
-  // Update mutation
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => api.put(`/categories/${id}`, data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['categories']);
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
       toast.success('Category updated successfully');
       setEditingCategory(null);
       setIsModalOpen(false);
@@ -68,11 +100,10 @@ const Category = () => {
     },
   });
 
-  // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/categories/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries(['categories']);
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
       toast.success('Category deleted successfully');
     },
     onError: (error) => {
@@ -80,7 +111,6 @@ const Category = () => {
     },
   });
 
-  // Handlers
   const handleSave = useCallback((categoryData) => {
     if (editingCategory) {
       updateMutation.mutate({ id: editingCategory.id, data: categoryData });
@@ -90,7 +120,9 @@ const Category = () => {
   }, [editingCategory, addMutation, updateMutation]);
 
   const handleDelete = useCallback((id) => {
-    deleteMutation.mutate(id);
+    if (confirm('Are you sure you want to delete this category?')) {
+      deleteMutation.mutate(id);
+    }
   }, [deleteMutation]);
 
   const handleEdit = useCallback((category) => {
@@ -98,32 +130,25 @@ const Category = () => {
     setIsModalOpen(true);
   }, []);
 
-  const handleSortChange = useCallback((field, dir) => {
-    setSort(field);
-    setDirection(dir);
-    setPage(1);
-  }, []);
-
-  // Loading state
-  if (isLoading) {
-    return <LoadingSkeleton type="table" rows={5} columns={4} />;
+  // Only show loading on initial load
+  if (isLoading && !data) {
+    return <LoadingSkeleton type="table" rows={5} columns={3} />; // 3 columns now (no actions)
   }
 
-  // Error state
   if (isError) {
     return (
-      <div className="error-container">
-        Failed to load categories.
+      <div className="alert alert-error">
+        Failed to load categories. Please try again.
       </div>
     );
   }
 
   return (
-    <div className="page-container">
+    <div className="page-container p-4">
       {/* Header */}
-      <div className="page-header">
-        <h1 className="page-title">Category Management</h1>
-        <div className="header-actions">
+      <div className="page-header mb-6">
+        <h1 className="page-title text-2xl font-bold">Category Management</h1>
+        <div className="header-actions flex items-center gap-4 mt-4">
           <SearchBar
             value={searchTerm}
             onChange={setSearchTerm}
@@ -132,7 +157,7 @@ const Category = () => {
           />
           <button
             onClick={() => setIsModalOpen(true)}
-            className="btn btn-primary whitespace-nowrap"
+            className="btn btn-primary"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Category
@@ -140,23 +165,28 @@ const Category = () => {
         </div>
       </div>
 
-      {/* Table */}
-      <CategoryTable
-        data={categories}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        sortField={sort}
-        sortDirection={direction}
-        onSortChange={handleSortChange}
-      />
+      {/* Table - No loading prop needed since we handle loading above */}
+      <div className="bg-base-100 rounded-lg shadow">
+        <CategoryTable
+          data={categories}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          sortField={sort}
+          sortDirection={direction}
+          onSortChange={handleSortChange}
+          isLoading={false} // No loading for client-side sorting
+        />
+      </div>
 
       {/* Pagination */}
       {pagination.last_page > 1 && (
-        <Pagination
-          currentPage={pagination.current_page}
-          totalPages={pagination.last_page}
-          onPageChange={setPage}
-        />
+        <div className="mt-6">
+          <Pagination
+            currentPage={pagination.current_page}
+            totalPages={pagination.last_page}
+            onPageChange={setPage}
+          />
+        </div>
       )}
 
       {/* Modal */}

@@ -5,6 +5,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000, // Add timeout
 });
 
 // Request interceptor
@@ -12,7 +13,7 @@ api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('authToken');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${token}`; // Fixed template literal
     }
     return config;
   },
@@ -24,6 +25,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     console.error('API Error:', error);
+    
+    // Handle network errors specifically
+    if (error.code === 'ERR_NETWORK') {
+      console.error('Network error - check if backend is running and CORS is configured');
+    }
+    
     return Promise.reject(error);
   }
 );

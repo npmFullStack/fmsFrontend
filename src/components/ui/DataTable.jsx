@@ -27,15 +27,16 @@ const DataTable = ({
   }
 
   return (
-    <div className={clsx('table-wrapper', className)}>
-      <table className="table w-full table-zebra">
-        <thead>
+    <div className={clsx('w-full overflow-x-auto', className)}>
+      <table className="table table-lg w-full">
+        <thead className="bg-base-200">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
                   className={clsx(
+                    'font-bold text-sm uppercase tracking-wide',
                     header.column.columnDef.meta?.headerClassName
                   )}
                 >
@@ -53,8 +54,14 @@ const DataTable = ({
         <tbody>
           {table.getRowModel().rows.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="empty-state">
-                {emptyMessage}
+              <td 
+                colSpan={columns.length} 
+                className="text-center py-8 text-gray-500"
+              >
+                <div className="flex flex-col items-center justify-center">
+                  <div className="text-4xl mb-2">📊</div>
+                  <p className="text-lg font-medium">{emptyMessage}</p>
+                </div>
               </td>
             </tr>
           ) : (
@@ -63,6 +70,7 @@ const DataTable = ({
                 key={row.id}
                 onClick={() => onRowClick?.(row.original)}
                 className={clsx(
+                  'border-b border-base-200 transition-colors',
                   onRowClick && 'cursor-pointer hover:bg-base-200'
                 )}
               >
@@ -70,6 +78,7 @@ const DataTable = ({
                   <td
                     key={cell.id}
                     className={clsx(
+                      'py-3',
                       cell.column.columnDef.meta?.cellClassName
                     )}
                   >
