@@ -6,65 +6,27 @@ import SharedModal from '../ui/SharedModal';
 
 const categorySchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  base_rate: z.string().min(1, 'Base rate is required').regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid number'),
+  base_rate: z.string()
+    .min(1, 'Base rate is required')
+    .regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid number'),
 });
 
-const AddCategory = ({ 
-  isOpen, 
-  onClose, 
-  onSave, 
-  editingCategory,
-  isLoading = false 
-}) => {
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    formState: { errors, isValid }
-  } = useForm({
+const AddCategory = ({ isOpen, onClose, onSave, isLoading = false }) => {
+  const { register, handleSubmit, reset, formState: { errors, isValid } } = useForm({
     resolver: zodResolver(categorySchema),
-    mode: 'onChange' // Validate on change to see validation state
+    mode: 'onChange',
   });
 
   useEffect(() => {
-    console.log('AddCategory mounted/updated', { isOpen, editingCategory });
-    if (editingCategory) {
-      setValue('name', editingCategory.name);
-      setValue('base_rate', editingCategory.base_rate.toString());
-    } else {
-      reset();
-    }
-  }, [editingCategory, reset, setValue, isOpen]);
+    if (isOpen) reset();
+  }, [isOpen, reset]);
 
   const onSubmit = (data) => {
-    console.log('📝 Form submitted with data:', data);
-    console.log('✅ Form is valid:', isValid);
-    
-    const categoryData = {
-      ...data,
-      base_rate: parseFloat(data.base_rate)
-    };
-    
-    console.log('📤 Calling onSave with:', categoryData);
-    onSave(categoryData);
+    onSave({ ...data, base_rate: parseFloat(data.base_rate) });
   };
-
-  const handleClose = () => {
-    console.log('❌ Closing modal');
-    reset();
-    onClose();
-  };
-
-  console.log('🔄 AddCategory render', { isOpen, errors, isValid });
 
   return (
-    <SharedModal
-      isOpen={isOpen}
-      onClose={handleClose}
-      title={editingCategory ? 'Edit Category' : 'Add New Category'}
-      size="sm"
-    >
+    <SharedModal isOpen={isOpen} onClose={onClose} title="Add New Category" size="sm">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="form-control">
           <label className="label">
@@ -75,11 +37,8 @@ const AddCategory = ({
             placeholder="Enter category name"
             className="input input-bordered w-full"
             {...register('name')}
-            onChange={(e) => console.log('Name input:', e.target.value)}
           />
-          {errors.name && (
-            <span className="text-error text-sm mt-1">{errors.name.message}</span>
-          )}
+          {errors.name && <span className="text-error text-sm mt-1">{errors.name.message}</span>}
         </div>
 
         <div className="form-control">
@@ -92,28 +51,14 @@ const AddCategory = ({
             placeholder="0.00"
             className="input input-bordered w-full"
             {...register('base_rate')}
-            onChange={(e) => console.log('Base rate input:', e.target.value)}
           />
-          {errors.base_rate && (
-            <span className="text-error text-sm mt-1">{errors.base_rate.message}</span>
-          )}
+          {errors.base_rate && <span className="text-error text-sm mt-1">{errors.base_rate.message}</span>}
         </div>
 
         <div className="modal-action mt-6">
-          <button
-            type="button"
-            onClick={handleClose}
-            className="btn btn-ghost"
-            disabled={isLoading}
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={isLoading || !isValid}
-          >
-            {isLoading ? 'Saving...' : editingCategory ? 'Update' : 'Add'}
+          <button type="button" onClick={onClose} className="btn btn-ghost" disabled={isLoading}>Cancel</button>
+          <button type="submit" className="btn btn-primary" disabled={isLoading || !isValid}>
+            {isLoading ? 'Saving...' : 'Add'}
           </button>
         </div>
       </form>
