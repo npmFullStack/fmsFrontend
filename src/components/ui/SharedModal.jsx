@@ -15,27 +15,27 @@ const SharedModal = ({ isOpen, onClose, title, children, size = 'md', closeOnOve
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Overlay - fixed full screen */}
+            {/* Overlay */}
             <div
-                className="fixed inset-0 bg-black bg-opacity-50"
+                className="fixed inset-0 bg-black bg-opacity-70"
                 onClick={closeOnOverlayClick ? onClose : undefined}
             />
 
             {/* Modal */}
-            <div className={clsx('relative bg-base-100 rounded-lg shadow-xl w-full mx-auto border border-base-300', sizeClasses[size])}>
-                {/* Header with primary color */}
-                <div className="flex items-center justify-between p-6 border-b border-base-300 bg-primary">
-                    <h3 className="text-lg font-semibold text-primary-content">{title}</h3>
+            <div className={clsx('relative bg-gray-800 rounded-xl shadow-2xl w-full mx-auto', sizeClasses[size])}>
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
+                    <h3 className="text-xl font-semibold text-white">{title}</h3>
                     <button 
                         onClick={onClose} 
-                        className="btn btn-ghost btn-sm btn-circle hover:bg-primary-focus"
+                        className="text-gray-400 hover:text-white transition-colors p-1 hover:bg-gray-700 rounded"
                     >
-                        <X className="w-5 h-5 text-primary-content" />
+                        <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* Content */}
-                <div className="p-6 bg-base-100 rounded-b-lg">{children}</div>
+                <div className="p-6">{children}</div>
             </div>
         </div>
     );

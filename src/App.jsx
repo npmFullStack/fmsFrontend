@@ -14,7 +14,7 @@ function App() {
         <Layout>
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/category" element={<Category />} />
+            <Route path="/categories" element={<Category />} />
           </Routes>
         </Layout>
       </Suspense>

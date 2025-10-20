@@ -13,7 +13,7 @@ const Layout = ({ children }) => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <NavBar onMenuClick={() => setIsMobileOpen(true)} />
-        <main className="flex-1 overflow-y-auto bg-slate-900 p-6">
+        <main className="flex-1 overflow-y-auto bg-gray-900 p-6">
           {children}
         </main>
       </div>

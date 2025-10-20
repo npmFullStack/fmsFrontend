@@ -1,17 +1,23 @@
 // components/modals/DeleteCategory.jsx
 import React from 'react';
 import SharedModal from '../ui/SharedModal';
-import { Trash2, AlertTriangle, X, Loader2 } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 
 const DeleteCategory = ({ 
   isOpen, 
   onClose, 
   onDelete, 
   category,
+  categories, // ← NEW: for bulk delete
   isLoading = false 
 }) => {
-  // Simple check - if no category, don't render
-  if (!category) return null;
+  // Check if we have either single or bulk delete
+  if (!category && !categories) return null;
+
+  const isBulk = categories && categories.length > 0;
+  const displayName = isBulk 
+    ? `${categories.length} categories` 
+    : category?.name;
 
   const handleDelete = () => {
     onDelete(); 
@@ -21,52 +27,42 @@ const DeleteCategory = ({
     <SharedModal
       isOpen={isOpen}
       onClose={onClose}
-      title="Delete Category"
+      title={isBulk ? "Delete Categories" : "Delete Category"}
       size="sm"
     >
-      <div className="flex flex-col items-center text-center p-2">
+      <div className="flex flex-col items-center text-center py-2">
         {/* Icon */}
-        <div className="w-16 h-16 bg-error bg-opacity-20 rounded-full flex items-center justify-center mb-4">
-          <AlertTriangle className="w-8 h-8 text-error" />
+        <div className="w-16 h-16 bg-red-500 bg-opacity-20 rounded-full flex items-center justify-center mb-4">
+          <AlertTriangle className="w-8 h-8 text-red-500" />
         </div>
-
-        {/* Title */}
-        <h2 className="text-xl font-bold text-base-content mb-2">
-          Delete Category?
-        </h2>
 
         {/* Message */}
-        <div className="text-base-content mb-6">
-          <div>
+        <div className="text-gray-200 mb-6">
+          <p className="text-base">
             Are you sure you want to delete{' '}
-            <span className="font-semibold text-error">"{category.name}"</span>?
+            <span className="font-semibold text-red-400">
+              {isBulk ? displayName : `"${displayName}"`}
+            </span>?
+          </p>
+          <p className="text-sm text-gray-400 mt-2">
             This action cannot be undone.
-          </div>
-        </div>
-
-        {/* Warning Note */}
-        <div className="bg-base-300 text-base-content border border-base-300 border-opacity-30 rounded-lg p-3 mb-6 w-full">
-          <div className="flex items-center gap-2 text-warning-content text-sm font-medium">
-            <AlertTriangle className="w-4 h-4" />
-            This action cannot be undone
-          </div>
+          </p>
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 w-full">
+        <div className="flex justify-end gap-3 w-full pt-2">
           <button
             type="button"
             onClick={onClose}
-            className="btn btn-ghost flex-1 border border-base-300 gap-2"
+            className="px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isLoading}
           >
-            <X className="w-4 h-4" />
             Cancel
           </button>
           <button
             type="button"
             onClick={handleDelete}
-            className="btn btn-error flex-1 gap-2"
+            className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium flex items-center gap-2 min-w-[120px] justify-center disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isLoading}
           >
             {isLoading ? (
@@ -75,10 +71,7 @@ const DeleteCategory = ({
                 Deleting...
               </>
             ) : (
-              <>
-                <Trash2 className="w-4 h-4" />
-                Delete
-              </>
+              'Delete'
             )}
           </button>
         </div>

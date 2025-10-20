@@ -15,8 +15,8 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
   const linkClass = (path) =>
     `flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${
       location.pathname === path
-        ? 'bg-slate-700 text-white'
-        : 'text-gray-300 hover:bg-slate-700 hover:text-white'
+        ? 'bg-blue-800 text-white'
+        : 'text-gray-300 hover:bg-blue-800 hover:text-white'
     }`;
 
   return (
@@ -27,9 +27,6 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
           isCollapsed ? 'w-20' : 'w-64'
         } flex-col border-r border-slate-700 transition-all duration-300 relative bg-slate-800`}
       >
-        {/* Subtle gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-800 via-slate-800/90 to-indigo-900/30 pointer-events-none"></div>
-
         {/* Logo + Collapse */}
         <div className="p-4 flex items-center justify-between border-b border-slate-700 relative z-10">
           <div className="flex items-center gap-2">
@@ -40,7 +37,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
           </div>
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="text-gray-400 hover:text-white transition"
+            className="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-slate-700"
           >
             {isCollapsed ? (
               <ChevronsRight className="w-5 h-5" />
@@ -63,7 +60,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
                     )}
                   </div>
                   {item.badge && !isCollapsed && (
-                    <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
+                    <span className="bg-slate-600 text-white text-xs px-2 py-0.5 rounded-full">
                       {item.badge}
                     </span>
                   )}
@@ -93,9 +90,6 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
             className="absolute left-0 top-0 h-full w-64 bg-slate-800 border-r border-slate-700 shadow-lg flex flex-col relative"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Subtle gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-b from-slate-800 via-slate-800/90 to-indigo-900/30 pointer-events-none"></div>
-
             {/* Logo */}
             <div className="p-4 flex items-center justify-between border-b border-slate-700 relative z-10">
               <div className="flex items-center gap-3">
@@ -104,7 +98,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
               </div>
               <button
                 onClick={() => setIsMobileOpen(false)}
-                className="p-2 rounded-lg hover:bg-slate-700 text-gray-300"
+                className="p-2 rounded-lg hover:bg-slate-700 text-gray-300 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -125,7 +119,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
                         <span className="text-sm font-medium">{item.label}</span>
                       </div>
                       {item.badge && (
-                        <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
+                        <span className="bg-slate-600 text-white text-xs px-2 py-0.5 rounded-full">
                           {item.badge}
                         </span>
                       )}
@@ -137,7 +131,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
 
             {/* Footer */}
             <div className="p-4 border-t border-slate-700 text-center text-gray-400 text-sm relative z-10">
-              FMS
+              XMFFI | 2025©
             </div>
           </div>
         </div>

@@ -8,18 +8,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-      },
-      colors: {
-        primary: {
-          DEFAULT: '#38bdf8', // sky-400
-        },
-        background: {
-          DEFAULT: '#dbeafe', // blue-100
-        },
-        gray: {
-          750: '#2d3748', // Custom gray for hover effect
-        },
+        sans: ['Lexend', 'sans-serif'],
       },
       keyframes: {
         slideIn: {

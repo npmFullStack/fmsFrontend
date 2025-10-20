@@ -18,6 +18,7 @@ const Category = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [deletingCategory, setDeletingCategory] = useState(null);
+  const [deletingCategories, setDeletingCategories] = useState(null); // ← NEW: for bulk delete
   const [updatingCategory, setUpdatingCategory] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch] = useDebounce(searchTerm, 500);
@@ -105,9 +106,11 @@ const Category = () => {
       toast.success('Category deleted successfully');
       setIsDeleteModalOpen(false);
       setDeletingCategory(null);
+      setDeletingCategories(null); // ← Clear bulk delete state too
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || 'Failed to delete category');
+      // Don't close modal on error so user can see the error
     },
   });
 
@@ -117,9 +120,13 @@ const Category = () => {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       toast.success(data.message || 'Categories deleted successfully');
+      setIsDeleteModalOpen(false);
+      setDeletingCategory(null);
+      setDeletingCategories(null); // ← Clear bulk delete state
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || 'Failed to delete categories');
+      // Don't close modal on error
     },
   });
 
@@ -142,21 +149,30 @@ const Category = () => {
   const handleDeleteClick = useCallback(
     (categoryOrCategories) => {
       if (Array.isArray(categoryOrCategories)) {
-        const categoryIds = categoryOrCategories.map((cat) => cat.id);
-        bulkDeleteMutation.mutate(categoryIds);
+        // Bulk delete - open modal with multiple categories
+        setDeletingCategories(categoryOrCategories);
+        setDeletingCategory(null);
+        setIsDeleteModalOpen(true);
       } else {
+        // Single delete - open modal with single category
         setDeletingCategory(categoryOrCategories);
+        setDeletingCategories(null);
         setIsDeleteModalOpen(true);
       }
     },
-    [bulkDeleteMutation],
+    [],
   );
 
   const handleDelete = useCallback(() => {
-    if (deletingCategory) {
+    if (deletingCategories) {
+      // Bulk delete
+      const categoryIds = deletingCategories.map((cat) => cat.id);
+      bulkDeleteMutation.mutate(categoryIds);
+    } else if (deletingCategory) {
+      // Single delete
       deleteMutation.mutate(deletingCategory);
     }
-  }, [deleteMutation, deletingCategory]);
+  }, [deleteMutation, bulkDeleteMutation, deletingCategory, deletingCategories]);
 
   // Loading & error states
   if (isLoading && !data) {
@@ -194,7 +210,9 @@ const Category = () => {
           <>
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 bg-blue-800
+              hover:bg-blue-900 text-white rounded-lg font-medium
+              transition-colors"
             >
               <Plus className="w-4 h-4" />
               Add Category
@@ -249,10 +267,12 @@ const Category = () => {
         onClose={() => {
           setIsDeleteModalOpen(false);
           setDeletingCategory(null);
+          setDeletingCategories(null);
         }}
         onDelete={handleDelete}
         category={deletingCategory}
-        isLoading={deleteMutation.isPending}
+        categories={deletingCategories}
+        isLoading={deleteMutation.isPending || bulkDeleteMutation.isPending}
       />
     </div>
   );

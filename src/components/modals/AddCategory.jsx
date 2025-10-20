@@ -28,47 +28,46 @@ const AddCategory = ({ isOpen, onClose, onSave, isLoading = false }) => {
   };
 
   return (
-    <SharedModal isOpen={isOpen} onClose={onClose} title="Add New Category" size="sm">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="form-control">
-          <label className="label">
-            <span className="label-text">Category Name</span>
+    <SharedModal isOpen={isOpen} onClose={onClose} title="Add Category" size="sm">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Name
           </label>
           <input
             type="text"
-            placeholder="Enter category name"
-            className="input input-bordered w-full"
+            placeholder="Type category name"
+            className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
             {...register('name')}
           />
-          {errors.name && <span className="text-error text-sm mt-1">{errors.name.message}</span>}
+          {errors.name && <span className="text-red-400 text-sm mt-1 block">{errors.name.message}</span>}
         </div>
 
-        <div className="form-control">
-          <label className="label">
-            <span className="label-text">Base Rate (₱)</span>
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Price
           </label>
           <input
-            type="number"
-            step="0.01"
-            placeholder="0.00"
-            className="input input-bordered w-full"
+            type="text"
+            placeholder="₱0.00"
+            className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
             {...register('base_rate')}
           />
-          {errors.base_rate && <span className="text-error text-sm mt-1">{errors.base_rate.message}</span>}
+          {errors.base_rate && <span className="text-red-400 text-sm mt-1 block">{errors.base_rate.message}</span>}
         </div>
 
-        <div className="modal-action mt-6">
+        <div className="flex justify-end gap-3 pt-4">
           <button 
             type="button" 
             onClick={onClose} 
-            className="btn btn-ghost" 
+            className="px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors font-medium"
             disabled={isLoading}
           >
             Cancel
           </button>
           <button 
             type="submit" 
-            className="btn btn-primary gap-2 min-w-[120px]" 
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium flex items-center gap-2 min-w-[100px] justify-center" 
             disabled={isLoading || !isValid}
           >
             {isLoading ? (
@@ -77,7 +76,7 @@ const AddCategory = ({ isOpen, onClose, onSave, isLoading = false }) => {
                 Saving...
               </>
             ) : (
-              'Add Category'
+              'Add'
             )}
           </button>
         </div>

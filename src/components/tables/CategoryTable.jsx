@@ -130,7 +130,7 @@ const CategoryTable = ({
             onClick={() => handleSort('name')}
             className="flex items-center gap-2 font-medium text-gray-400 hover:text-gray-200 transition"
           >
-            Name {getSortIcon('name')}
+            NAME {getSortIcon('name')}
           </button>
         ),
         cell: ({ getValue }) => (
@@ -146,11 +146,11 @@ const CategoryTable = ({
             onClick={() => handleSort('base_rate')}
             className="flex items-center gap-2 font-medium text-gray-400 hover:text-gray-200 transition"
           >
-            Base Rate {getSortIcon('base_rate')}
+            BASE RATE {getSortIcon('base_rate')}
           </button>
         ),
         cell: ({ getValue }) => (
-          <span className="font-semibold text-blue-400">
+          <span className="font-medium text-blue-400">
             {formatCurrency(getValue())}
           </span>
         ),

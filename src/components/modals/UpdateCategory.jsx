@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Edit, X, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import SharedModal from '../ui/SharedModal';
 
 const categorySchema = z.object({
@@ -23,9 +23,10 @@ const UpdateCategory = ({
     handleSubmit,
     reset,
     setValue,
-    formState: { errors }
+    formState: { errors, isValid }
   } = useForm({
-    resolver: zodResolver(categorySchema)
+    resolver: zodResolver(categorySchema),
+    mode: 'onChange'
   });
 
   useEffect(() => {
@@ -59,66 +60,46 @@ const UpdateCategory = ({
       title="Update Category"
       size="sm"
     >
-      {/* Header with primary color */}
-      <div className="flex items-center gap-3 mb-6 p-3 bg-primary bg-opacity-10 rounded-lg border border-primary border-opacity-20">
-        <Edit className="w-5 h-5 text-primary" />
-        <p className="text-base-content">
-          Editing: <span className="font-semibold text-primary">{category.name}</span>
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="form-control">
-          <label className="label">
-            <span className="label-text font-semibold text-base-content">Category Name</span>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Name
           </label>
           <input
             type="text"
-            placeholder="Enter category name"
-            className="input input-bordered w-full focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20"
+            placeholder="Type category name"
+            className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
             {...register('name')}
           />
-          {errors.name && (
-            <span className="text-error text-sm mt-2 flex items-center gap-1">
-              {errors.name.message}
-            </span>
-          )}
+          {errors.name && <span className="text-red-400 text-sm mt-1 block">{errors.name.message}</span>}
         </div>
 
-        <div className="form-control">
-          <label className="label">
-            <span className="label-text font-semibold text-base-content">Base Rate (₱)</span>
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Price
           </label>
           <input
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder="0.00"
-            className="input input-bordered w-full focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20"
+            type="text"
+            placeholder="₱0.00"
+            className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
             {...register('base_rate')}
           />
-          {errors.base_rate && (
-            <span className="text-error text-sm mt-2 flex items-center gap-1">
-              {errors.base_rate.message}
-            </span>
-          )}
+          {errors.base_rate && <span className="text-red-400 text-sm mt-1 block">{errors.base_rate.message}</span>}
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-3 pt-4 border-t border-base-300">
+        <div className="flex justify-end gap-3 pt-4">
           <button
             type="button"
             onClick={handleClose}
-            className="btn btn-ghost flex-1 gap-2 border border-base-300"
+            className="px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors font-medium"
             disabled={isLoading}
           >
-            <X className="w-4 h-4" />
             Cancel
           </button>
           <button
             type="submit"
-            className="btn btn-primary flex-1 gap-2"
-            disabled={isLoading}
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium flex items-center gap-2 min-w-[100px] justify-center"
+            disabled={isLoading || !isValid}
           >
             {isLoading ? (
               <>
@@ -126,10 +107,7 @@ const UpdateCategory = ({
                 Updating...
               </>
             ) : (
-              <>
-                <Edit className="w-4 h-4" />
-                Update Category
-              </>
+              'Update'
             )}
           </button>
         </div>
