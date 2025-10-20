@@ -1,73 +1,54 @@
-import React from 'react';
-import { Navbar, Dropdown } from 'flowbite-react';
-import { Menu, Bell } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Bell, User, Menu, Sun, Moon } from 'lucide-react';
 
 const NavBar = ({ onMenuClick }) => {
+  const [isDarkMode, setIsDarkMode] = useState(true);
+
+  // Apply dark/light mode to <html>
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
+
   return (
-    <Navbar
-      fluid
-      rounded
-      className="bg-white border-b border-blue-200 shadow-sm px-4 py-2 sticky top-0 z-40"
-    >
-      {/* Left: Mobile Menu Button + Logo */}
-      <div className="flex items-center gap-2">
+    <header className="bg-slate-800 border-b border-slate-700 px-6 py-3 flex items-center justify-between">
+      {/* Left: Mobile Menu Button */}
+      <div className="flex items-center gap-4">
         <button
           onClick={onMenuClick}
-          className="p-2 rounded-lg hover:bg-blue-100 text-gray-700 lg:hidden focus:outline-none focus:ring-2 focus:ring-sky-400"
+          className="p-2 rounded-lg hover:bg-slate-700 text-gray-300 lg:hidden focus:outline-none focus:ring-2 focus:ring-blue-500"
           aria-label="Open sidebar menu"
         >
           <Menu className="w-5 h-5" />
         </button>
-
-        <span className="text-lg font-semibold text-sky-600 hidden lg:block">
-          X-TRA MILE FREIGHT FORWARDING INC.
-        </span>
-        <span className="text-lg font-semibold text-sky-600 lg:hidden">
-          XMFFI
-        </span>
       </div>
 
-      {/* Right: Actions */}
-      <div className="flex items-center gap-4">
+      {/* Right: Icons */}
+      <div className="flex items-center gap-3">
+        {/* Light/Dark Mode Toggle */}
+        <button
+          onClick={() => setIsDarkMode(!isDarkMode)}
+          className="p-2 hover:bg-slate-700 rounded-lg transition-colors text-gray-300"
+          aria-label="Toggle theme"
+        >
+          {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        </button>
+
         {/* Notifications */}
-        <Dropdown
-          label={
-            <div className="relative cursor-pointer">
-              <Bell className="w-5 h-5 text-gray-700" />
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-sky-400 rounded-full"></span>
-            </div>
-          }
-          inline
-          arrowIcon={false}
-        >
-          <Dropdown.Header>
-            <span className="font-semibold text-gray-700">Notifications</span>
-          </Dropdown.Header>
-          <Dropdown.Item>No new notifications</Dropdown.Item>
-        </Dropdown>
+        <button className="p-2 hover:bg-slate-700 rounded-lg transition-colors relative">
+          <Bell className="w-5 h-5 text-gray-300" />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-500 rounded-full"></span>
+        </button>
 
-        {/* Profile */}
-        <Dropdown
-          inline
-          label={
-            <div className="w-8 h-8 bg-sky-400 text-white rounded-full flex items-center justify-center font-semibold cursor-pointer">
-              U
-            </div>
-          }
-        >
-          <Dropdown.Header>
-            <span className="block text-sm font-semibold">User Name</span>
-            <span className="block truncate text-sm text-gray-500">
-              user@email.com
-            </span>
-          </Dropdown.Header>
-          <Dropdown.Item>Profile</Dropdown.Item>
-          <Dropdown.Item>Settings</Dropdown.Item>
-          <Dropdown.Divider />
-          <Dropdown.Item>Logout</Dropdown.Item>
-        </Dropdown>
+        {/* User Icon */}
+        <button className="p-2 hover:bg-slate-700 rounded-lg transition-colors">
+          <User className="w-5 h-5 text-gray-300" />
+        </button>
       </div>
-    </Navbar>
+    </header>
   );
 };
 

@@ -1,86 +1,85 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, List, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Home, List, X, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import logo from '../assets/images/logo.png';
 
 const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  const menuItems = [
+    { icon: Home, label: 'Home', path: '/' },
+    { icon: List, label: 'Categories', path: '/categories' },
+  ];
+
   const linkClass = (path) =>
-    `flex items-center gap-3 py-2 rounded-md transition-all duration-300 ${
+    `flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${
       location.pathname === path
-        ? 'bg-sky-400 text-white font-semibold shadow-sm'
-        : 'hover:bg-blue-100 text-gray-700'
-    } ${isCollapsed ? 'justify-center px-2' : 'justify-start px-3'}`;
+        ? 'bg-slate-700 text-white'
+        : 'text-gray-300 hover:bg-slate-700 hover:text-white'
+    }`;
 
   return (
     <>
       {/* Desktop Sidebar */}
       <aside
-        className={`hidden lg:flex flex-col bg-white border-r border-blue-200 h-screen transition-all duration-300 shadow-sm overflow-hidden ${
-          isCollapsed ? 'w-20 px-2' : 'w-64 px-4'
-        } py-3`}
+        className={`hidden lg:flex ${
+          isCollapsed ? 'w-20' : 'w-64'
+        } flex-col border-r border-slate-700 transition-all duration-300 relative bg-slate-800`}
       >
-        {/* Header with Collapse Button */}
-        <div className="flex items-center justify-between mb-6">
-          <div
-            className={`transition-all duration-300 ${
-              isCollapsed
-                ? 'opacity-0 translate-x-4 w-0 overflow-hidden'
-                : 'opacity-100 translate-x-0'
-            }`}
-          >
-            <h2 className="text-sm text-sky-600 font-bold whitespace-nowrap">Menu</h2>
+        {/* Subtle gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-800 via-slate-800/90 to-indigo-900/30 pointer-events-none"></div>
+
+        {/* Logo + Collapse */}
+        <div className="p-4 flex items-center justify-between border-b border-slate-700 relative z-10">
+          <div className="flex items-center gap-2">
+            <img src={logo} alt="XMFFI Logo" className="w-8 h-8 rounded-lg object-contain" />
+            {!isCollapsed && (
+              <span className="text-xl font-bold text-white whitespace-nowrap">XMFFI</span>
+            )}
           </div>
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-2 rounded-md hover:bg-blue-100 text-gray-700"
-            title={isCollapsed ? 'Expand' : 'Collapse'}
+            className="text-gray-400 hover:text-white transition"
           >
             {isCollapsed ? (
-              <ChevronRight className="w-5 h-5" />
+              <ChevronsRight className="w-5 h-5" />
             ) : (
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronsLeft className="w-5 h-5" />
             )}
           </button>
         </div>
 
-        {/* Menu Links */}
-        <nav className="flex-1 space-y-1">
-          <Link to="/" className={linkClass('/')}>
-            <Home className="w-5 h-5 flex-shrink-0" />
-            <span
-              className={`transition-all duration-300 ${
-                isCollapsed
-                  ? 'opacity-0 translate-x-3 max-w-0 overflow-hidden'
-                  : 'opacity-100 translate-x-0 max-w-xs'
-              }`}
-            >
-              Home
-            </span>
-          </Link>
-
-          <Link to="/category" className={linkClass('/category')}>
-            <List className="w-5 h-5 flex-shrink-0" />
-            <span
-              className={`transition-all duration-300 ${
-                isCollapsed
-                  ? 'opacity-0 translate-x-3 max-w-0 overflow-hidden'
-                  : 'opacity-100 translate-x-0 max-w-xs'
-              }`}
-            >
-              Category
-            </span>
-          </Link>
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto p-3 relative z-10">
+          <ul className="space-y-1">
+            {menuItems.map((item, index) => (
+              <li key={index}>
+                <Link to={item.path} className={linkClass(item.path)}>
+                  <div className="flex items-center gap-3">
+                    <item.icon className="w-5 h-5 flex-shrink-0" />
+                    {!isCollapsed && (
+                      <span className="text-sm font-medium">{item.label}</span>
+                    )}
+                  </div>
+                  {item.badge && !isCollapsed && (
+                    <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </nav>
 
         {/* Footer */}
         <div
-          className={`mt-auto text-xs text-gray-500 text-center transition-all duration-300 ${
-            isCollapsed ? 'opacity-0 translate-x-3 w-0' : 'opacity-100 translate-x-0'
+          className={`p-4 border-t border-slate-700 text-center text-gray-400 text-sm relative z-10 transition-all duration-300 ${
+            isCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'
           }`}
         >
-          <p>© 2025 XMFFI</p>
+          XMFFI | 2025©
         </div>
       </aside>
 
@@ -91,46 +90,55 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
           onClick={() => setIsMobileOpen(false)}
         >
           <div
-            className="absolute left-0 top-0 h-full w-64 bg-white border-r border-blue-200 px-4 py-3 shadow-lg animate-slideIn"
+            className="absolute left-0 top-0 h-full w-64 bg-slate-800 border-r border-slate-700 shadow-lg flex flex-col relative"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-sm font-bold text-sky-600">Menu</h2>
+            {/* Subtle gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-b from-slate-800 via-slate-800/90 to-indigo-900/30 pointer-events-none"></div>
+
+            {/* Logo */}
+            <div className="p-4 flex items-center justify-between border-b border-slate-700 relative z-10">
+              <div className="flex items-center gap-3">
+                <img src={logo} alt="XMFFI Logo" className="w-8 h-8 rounded-lg object-contain" />
+                <span className="text-xl font-semibold text-white">XMFFI</span>
+              </div>
               <button
                 onClick={() => setIsMobileOpen(false)}
-                className="p-2 rounded-md hover:bg-blue-100 text-gray-700"
+                className="p-2 rounded-lg hover:bg-slate-700 text-gray-300"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <nav className="space-y-1">
-              <Link
-                to="/"
-                onClick={() => setIsMobileOpen(false)}
-                className={`flex items-center gap-3 py-2 px-4 rounded-md transition-colors duration-200 ${
-                  location.pathname === '/'
-                    ? 'bg-sky-400 text-white font-semibold shadow-sm'
-                    : 'hover:bg-blue-100 text-gray-700'
-                }`}
-              >
-                <Home className="w-5 h-5" />
-                <span>Home</span>
-              </Link>
-
-              <Link
-                to="/category"
-                onClick={() => setIsMobileOpen(false)}
-                className={`flex items-center gap-3 py-2 px-4 rounded-md transition-colors duration-200 ${
-                  location.pathname === '/category'
-                    ? 'bg-sky-400 text-white font-semibold shadow-sm'
-                    : 'hover:bg-blue-100 text-gray-700'
-                }`}
-              >
-                <List className="w-5 h-5" />
-                <span>Category</span>
-              </Link>
+            {/* Navigation */}
+            <nav className="flex-1 p-3 overflow-y-auto relative z-10">
+              <ul className="space-y-1">
+                {menuItems.map((item, index) => (
+                  <li key={index}>
+                    <Link
+                      to={item.path}
+                      onClick={() => setIsMobileOpen(false)}
+                      className={linkClass(item.path)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <item.icon className="w-5 h-5" />
+                        <span className="text-sm font-medium">{item.label}</span>
+                      </div>
+                      {item.badge && (
+                        <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </nav>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-700 text-center text-gray-400 text-sm relative z-10">
+              FMS
+            </div>
           </div>
         </div>
       )}
