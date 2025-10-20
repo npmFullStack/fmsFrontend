@@ -1,3 +1,4 @@
+// main.jsx
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -26,32 +27,49 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         toastOptions={{
           duration: 4000,
           style: {
-            background: 'hsl(var(--b1))',
-            color: 'hsl(var(--bc))',
-            border: '1px solid hsl(var(--b3))',
+            background: '#ffffff',
+            color: '#1f2937',
+            border: '1px solid #e5e7eb',
             borderRadius: '0.5rem',
             boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
           },
           success: {
             style: {
-              background: 'hsl(var(--su))',
-              color: 'hsl(var(--suc))',
-              border: '1px solid hsl(var(--su))',
+              background: '#10b981',
+              color: '#ffffff',
+              border: '1px solid #059669',
+              borderRadius: '0.5rem',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
             },
             iconTheme: {
-              primary: 'hsl(var(--suc))',
-              secondary: 'hsl(var(--su))',
+              primary: '#ffffff',
+              secondary: '#10b981',
             },
           },
           error: {
             style: {
-              background: 'hsl(var(--er))',
-              color: 'hsl(var(--erc))',
-              border: '1px solid hsl(var(--er))',
+              background: '#ef4444',
+              color: '#ffffff',
+              border: '1px solid #dc2626',
+              borderRadius: '0.5rem',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
             },
             iconTheme: {
-              primary: 'hsl(var(--erc))',
-              secondary: 'hsl(var(--er))',
+              primary: '#ffffff',
+              secondary: '#ef4444',
+            },
+          },
+          loading: {
+            style: {
+              background: '#3b82f6',
+              color: '#ffffff',
+              border: '1px solid #2563eb',
+              borderRadius: '0.5rem',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+            },
+            iconTheme: {
+              primary: '#ffffff',
+              secondary: '#3b82f6',
             },
           },
         }}

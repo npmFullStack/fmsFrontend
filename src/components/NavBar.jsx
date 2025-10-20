@@ -1,131 +1,73 @@
 import React from 'react';
-import { Menu, Bell, Palette, Crown, Building2, Leaf, Sun, Moon } from 'lucide-react';
-import { useTheme } from '../contexts/ThemeContext';
+import { Navbar, Dropdown } from 'flowbite-react';
+import { Menu, Bell } from 'lucide-react';
 
 const NavBar = ({ onMenuClick }) => {
-  const { theme, isDarkMode, themeInfo, switchTheme, toggleDarkMode, isThemeActive } = useTheme();
-  const [showThemeDropdown, setShowThemeDropdown] = React.useState(false);
-
-  // Theme icons mapping
-  const themeIcons = {
-    'luxury-gold': <Crown className="w-4 h-4" />,
-    'corporate-blue': <Building2 className="w-4 h-4" />,
-    'emerald-luxury': <Leaf className="w-4 h-4" />,
-  };
-
-  const handleThemeClick = (themeBase) => {
-    switchTheme(themeBase);
-    setShowThemeDropdown(false);
-  };
-
-  const handleToggleClick = (e) => {
-    e.stopPropagation();
-    toggleDarkMode();
-  };
-
   return (
-    <div className="navbar bg-base-100 shadow-lg border-b border-base-300 px-4">
-      <div className="navbar-start">
-        <button 
-          onClick={onMenuClick} 
-          className="btn btn-ghost btn-circle lg:hidden"
+    <Navbar
+      fluid
+      rounded
+      className="bg-white border-b border-blue-200 shadow-sm px-4 py-2 sticky top-0 z-40"
+    >
+      {/* Left: Mobile Menu Button + Logo */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onMenuClick}
+          className="p-2 rounded-lg hover:bg-blue-100 text-gray-700 lg:hidden focus:outline-none focus:ring-2 focus:ring-sky-400"
+          aria-label="Open sidebar menu"
         >
           <Menu className="w-5 h-5" />
         </button>
 
-        <div className="flex items-center ml-2">
-          <span className="text-lg font-bold text-primary hidden lg:block">
-            X-TRA MILE FREIGHT FORWARDING INC.
-          </span>
-          <span className="text-lg font-bold text-primary lg:hidden">
-            XMFFI
-          </span>
-        </div>
+        <span className="text-lg font-semibold text-sky-600 hidden lg:block">
+          X-TRA MILE FREIGHT FORWARDING INC.
+        </span>
+        <span className="text-lg font-semibold text-sky-600 lg:hidden">
+          XMFFI
+        </span>
       </div>
 
-      <div className="navbar-end flex items-center gap-4">
-        {/* Theme Selector Dropdown */}
-        <div className="dropdown dropdown-end dropdown-bottom">
-          <button 
-            className="btn btn-ghost btn-circle"
-            onClick={() => setShowThemeDropdown(!showThemeDropdown)}
-          >
-            <Palette className="w-5 h-5" />
-          </button>
-          {showThemeDropdown && (
-            <ul className="dropdown-content menu p-2 shadow-2xl bg-base-100 rounded-box w-[90vw] max-w-80 z-50 border border-base-300 left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0">
-              <li className="menu-title py-1">
-                <span className="text-sm font-bold">Color Themes</span>
-              </li>
-              
-              {Object.entries(themeInfo).map(([themeBase, themeData]) => (
-                <li key={themeBase} className="border-b border-base-300 last:border-b-0">
-                  <button 
-                    className={`flex items-center justify-between w-full p-2 rounded-lg transition-colors text-left ${
-                      isThemeActive(themeBase) 
-                        ? 'bg-primary/20 border border-primary/30' 
-                        : 'hover:bg-base-200'
-                    }`}
-                    onClick={() => handleThemeClick(themeBase)}
-                  >
-                    {/* Left: Icon and Theme Info */}
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className={`p-2 rounded-lg flex-shrink-0 ${
-                        isThemeActive(themeBase) 
-                          ? 'bg-primary text-primary-content' 
-                          : 'bg-base-300 text-base-content'
-                      }`}>
-                        {themeIcons[themeBase]}
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold truncate">{themeData.name}</div>
-                        <div className="text-xs opacity-70 mt-0.5">{themeData.colors}</div>
-                        
-                        {/* Active Badge */}
-                        {isThemeActive(themeBase) && (
-                          <div className="badge badge-primary badge-xs mt-0.5">
-                            {isDarkMode ? 'Dark' : 'Light'} Mode
-                          </div>
-                        )}
-                      </div>
-                    </div>
+      {/* Right: Actions */}
+      <div className="flex items-center gap-4">
+        {/* Notifications */}
+        <Dropdown
+          label={
+            <div className="relative cursor-pointer">
+              <Bell className="w-5 h-5 text-gray-700" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-sky-400 rounded-full"></span>
+            </div>
+          }
+          inline
+          arrowIcon={false}
+        >
+          <Dropdown.Header>
+            <span className="font-semibold text-gray-700">Notifications</span>
+          </Dropdown.Header>
+          <Dropdown.Item>No new notifications</Dropdown.Item>
+        </Dropdown>
 
-                    {/* Right: Toggle Switch */}
-                    <div 
-                      className="flex items-center gap-2"
-                      onClick={handleToggleClick}
-                    >
-                      <Sun className={`w-3 h-3 ${
-                        !isDarkMode ? 'text-primary' : 'text-base-content/50'
-                      }`} />
-                      <input
-                        type="checkbox"
-                        className="toggle toggle-sm"
-                        checked={isDarkMode}
-                        onChange={handleToggleClick}
-                        onClick={handleToggleClick}
-                      />
-                      <Moon className={`w-3 h-3 ${
-                        isDarkMode ? 'text-primary' : 'text-base-content/50'
-                      }`} />
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* Notification bell */}
-        <button className="btn btn-ghost btn-circle">
-          <div className="indicator">
-            <Bell className="w-5 h-5" />
-            <span className="badge badge-xs badge-primary indicator-item"></span>
-          </div>
-        </button>
+        {/* Profile */}
+        <Dropdown
+          inline
+          label={
+            <div className="w-8 h-8 bg-sky-400 text-white rounded-full flex items-center justify-center font-semibold cursor-pointer">
+              U
+            </div>
+          }
+        >
+          <Dropdown.Header>
+            <span className="block text-sm font-semibold">User Name</span>
+            <span className="block truncate text-sm text-gray-500">
+              user@email.com
+            </span>
+          </Dropdown.Header>
+          <Dropdown.Item>Profile</Dropdown.Item>
+          <Dropdown.Item>Settings</Dropdown.Item>
+          <Dropdown.Divider />
+          <Dropdown.Item>Logout</Dropdown.Item>
+        </Dropdown>
       </div>
-    </div>
+    </Navbar>
   );
 };
 

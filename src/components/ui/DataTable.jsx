@@ -1,4 +1,3 @@
-// components/ui/DataTable.jsx
 import React from 'react';
 import {
   flexRender,
@@ -6,6 +5,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import clsx from 'clsx';
+import { BarChart3 } from 'lucide-react';
 import LoadingSkeleton from './LoadingSkeleton';
 
 const DataTable = ({
@@ -27,16 +27,17 @@ const DataTable = ({
   }
 
   return (
-    <div className={clsx('w-full overflow-x-auto', className)}>
-      <table className="table table-lg w-full">
-        <thead className="bg-base-200">
+    <div className={clsx('w-full overflow-x-auto rounded-lg', className)}>
+      <table className="w-full text-sm text-left">
+        <thead className="text-xs uppercase bg-gray-700 text-gray-400">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
+                  scope="col"
                   className={clsx(
-                    'font-bold text-sm uppercase tracking-wide',
+                    'px-6 py-4 font-medium tracking-wider',
                     header.column.columnDef.meta?.headerClassName
                   )}
                 >
@@ -51,16 +52,16 @@ const DataTable = ({
             </tr>
           ))}
         </thead>
-        <tbody>
+        <tbody className="bg-gray-800 divide-y divide-gray-700">
           {table.getRowModel().rows.length === 0 ? (
             <tr>
-              <td 
-                colSpan={columns.length} 
-                className="text-center py-8 text-gray-500"
+              <td
+                colSpan={columns.length}
+                className="text-center py-12 text-gray-400"
               >
                 <div className="flex flex-col items-center justify-center">
-                  <div className="text-4xl mb-2">📊</div>
-                  <p className="text-lg font-medium">{emptyMessage}</p>
+                  <BarChart3 className="w-12 h-12 text-gray-600 mb-3" />
+                  <p className="text-base font-medium">{emptyMessage}</p>
                 </div>
               </td>
             </tr>
@@ -70,15 +71,15 @@ const DataTable = ({
                 key={row.id}
                 onClick={() => onRowClick?.(row.original)}
                 className={clsx(
-                  'border-b border-base-200 transition-colors',
-                  onRowClick && 'cursor-pointer hover:bg-base-200'
+                  'hover:bg-gray-750 transition-colors',
+                  onRowClick && 'cursor-pointer'
                 )}
               >
                 {row.getVisibleCells().map((cell) => (
                   <td
                     key={cell.id}
                     className={clsx(
-                      'py-3',
+                      'px-6 py-4 text-gray-300',
                       cell.column.columnDef.meta?.cellClassName
                     )}
                   >

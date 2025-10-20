@@ -1,6 +1,5 @@
 import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider } from './contexts/ThemeContext';
 import Layout from './components/Layout';
 import LoadingSkeleton from './components/ui/LoadingSkeleton';
 
@@ -10,18 +9,16 @@ const Category = lazy(() => import('./pages/Category'));
 
 function App() {
   return (
-    <ThemeProvider>
-      <Router>
-        <Suspense fallback={<LoadingSkeleton type="generic" />}>
-          <Layout>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/category" element={<Category />} />
-            </Routes>
-          </Layout>
-        </Suspense>
-      </Router>
-    </ThemeProvider>
+    <Router>
+      <Suspense fallback={<LoadingSkeleton type="generic" />}>
+        <Layout>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/category" element={<Category />} />
+          </Routes>
+        </Layout>
+      </Suspense>
+    </Router>
   );
 }
 

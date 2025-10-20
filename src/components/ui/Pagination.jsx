@@ -10,27 +10,62 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
     if (currentPage < totalPages) onPageChange(currentPage + 1);
   };
 
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        pages.push(1, 2, 3, '...', totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1, '...', totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(1, '...', currentPage, '...', totalPages);
+      }
+    }
+
+    return pages;
+  };
+
   return (
-    <div className="flex justify-center items-center space-x-3 mt-4">
+    <div className="flex justify-center items-center space-x-2 py-4">
       <button
         onClick={handlePrev}
         disabled={currentPage === 1}
-        className="btn btn-sm btn-ghost"
+        className="p-2 rounded-lg bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
       >
         <ChevronLeft className="w-4 h-4" />
-        Prev
       </button>
 
-      <span className="text-sm text-gray-600">
-        Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong>
-      </span>
+      {getPageNumbers().map((page, index) => (
+        <React.Fragment key={index}>
+          {page === '...' ? (
+            <span className="px-3 py-2 text-gray-500">...</span>
+          ) : (
+            <button
+              onClick={() => onPageChange(page)}
+              className={`px-3 py-2 rounded-lg transition-all ${
+                currentPage === page
+                  ? 'bg-blue-600 text-white font-medium'
+                  : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-gray-200'
+              }`}
+            >
+              {page}
+            </button>
+          )}
+        </React.Fragment>
+      ))}
 
       <button
         onClick={handleNext}
         disabled={currentPage === totalPages}
-        className="btn btn-sm btn-ghost"
+        className="p-2 rounded-lg bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
       >
-        Next
         <ChevronRight className="w-4 h-4" />
       </button>
     </div>

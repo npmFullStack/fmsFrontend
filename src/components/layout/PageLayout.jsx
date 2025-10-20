@@ -1,28 +1,26 @@
 import React from 'react';
 
-const PageLayout = ({ 
-  title, 
-  subtitle, 
-  children, 
+const PageLayout = ({
+  title,
+  subtitle,
+  children,
   actions,
-  className = '' 
+  className = '',
 }) => {
   return (
-    <div className={`page-container p-6 ${className}`}>
+    <div className={`p-6 bg-white rounded-2xl shadow-sm ${className}`}>
       {/* Header */}
-      <div className="page-header">
-        <div className="flex-1">
-          <h1 className="page-title text-2xl font-bold">{title}</h1>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 border-b border-blue-200 pb-4">
+        <div>
+          <h1 className="text-2xl font-bold text-sky-600">{title}</h1>
           {subtitle && (
-            <p className="page-subtitle mt-2">
-              {subtitle}
-            </p>
+            <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
           )}
         </div>
-        
+
         {/* Actions */}
         {actions && (
-          <div className="header-actions">
+          <div className="mt-4 md:mt-0 flex gap-2">
             {actions}
           </div>
         )}

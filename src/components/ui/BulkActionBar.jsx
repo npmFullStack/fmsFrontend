@@ -1,5 +1,6 @@
 import React from 'react';
 import { Edit, Trash2, X, CheckSquare } from 'lucide-react';
+import clsx from 'clsx';
 
 const BulkActionBar = ({
   selectedCount = 0,
@@ -11,50 +12,51 @@ const BulkActionBar = ({
   if (selectedCount === 0) return null;
 
   return (
-   <div
-  className="
-    fixed bottom-6 left-1/2 -translate-x-1/2
-    bg-base-100 border shadow-xl rounded-xl
-    px-5 py-3 flex flex-col sm:flex-row
-    items-center sm:items-center justify-center sm:justify-between
-    gap-3 sm:gap-4
-    z-50 transition-all duration-300
-    animate-fadeInUp
-    w-[90%] sm:w-auto
-  "
->
+    <div
+      className={clsx(
+        'fixed bottom-6 left-1/2 -translate-x-1/2 z-50',
+        'flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4',
+        'px-6 py-4 w-[90%] sm:w-auto rounded-lg border shadow-2xl',
+        'bg-gray-800 border-gray-700 text-gray-200 animate-slideUpBounce'
+      )}
+    >
       {/* Selected indicator */}
-      <div className="flex items-center gap-2">
-        <CheckSquare className="w-4 h-4 text-primary" />
-        <span className="text-sm font-medium">
-          {selectedCount} selected
+      <div className="flex items-center gap-2 text-gray-200">
+        <CheckSquare className="w-5 h-5 text-blue-400" />
+        <span className="text-sm font-semibold">
+          {selectedCount} {selectedCount === 1 ? 'item' : 'items'} selected
         </span>
       </div>
 
-      {/* Buttons */}
+      {/* Action buttons */}
       <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
         <button
           onClick={onEdit}
           disabled={disableEdit}
-          className="btn btn-sm btn-warning min-w-[90px]"
+          className={clsx(
+            'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
+            disableEdit
+              ? 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50'
+              : 'bg-yellow-500 hover:bg-yellow-600 text-white shadow-md hover:shadow-lg'
+          )}
         >
-          <Edit className="w-4 h-4 mr-1" />
+          <Edit className="w-4 h-4" />
           Edit
         </button>
 
         <button
           onClick={onDelete}
-          className="btn btn-sm btn-error min-w-[90px]"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-700 text-white shadow-md hover:shadow-lg transition-all"
         >
-          <Trash2 className="w-4 h-4 mr-1" />
+          <Trash2 className="w-4 h-4" />
           Delete
         </button>
 
         <button
           onClick={onCancel}
-          className="btn btn-sm btn-ghost min-w-[90px]"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-700 transition-all"
         >
-          <X className="w-4 h-4 mr-1" />
+          <X className="w-4 h-4" />
           Cancel
         </button>
       </div>
