@@ -5,6 +5,7 @@ import { useDebounce } from 'use-debounce';
 import { Plus, Filter } from 'lucide-react';
 import api from '../api';
 import TableLayout from '../components/layout/TableLayout';
+import PageHeaderLayout from '../components/layout/PageHeaderLayout'; // ← NEW IMPORT
 import CategoryTable from '../components/tables/CategoryTable';
 import AddCategory from '../components/modals/AddCategory';
 import DeleteCategory from '../components/modals/DeleteCategory';
@@ -18,7 +19,7 @@ const Category = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [deletingCategory, setDeletingCategory] = useState(null);
-  const [deletingCategories, setDeletingCategories] = useState(null); // ← NEW: for bulk delete
+  const [deletingCategories, setDeletingCategories] = useState(null);
   const [updatingCategory, setUpdatingCategory] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch] = useDebounce(searchTerm, 500);
@@ -106,11 +107,10 @@ const Category = () => {
       toast.success('Category deleted successfully');
       setIsDeleteModalOpen(false);
       setDeletingCategory(null);
-      setDeletingCategories(null); // ← Clear bulk delete state too
+      setDeletingCategories(null);
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || 'Failed to delete category');
-      // Don't close modal on error so user can see the error
     },
   });
 
@@ -122,11 +122,10 @@ const Category = () => {
       toast.success(data.message || 'Categories deleted successfully');
       setIsDeleteModalOpen(false);
       setDeletingCategory(null);
-      setDeletingCategories(null); // ← Clear bulk delete state
+      setDeletingCategories(null);
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || 'Failed to delete categories');
-      // Don't close modal on error
     },
   });
 
@@ -149,12 +148,10 @@ const Category = () => {
   const handleDeleteClick = useCallback(
     (categoryOrCategories) => {
       if (Array.isArray(categoryOrCategories)) {
-        // Bulk delete - open modal with multiple categories
         setDeletingCategories(categoryOrCategories);
         setDeletingCategory(null);
         setIsDeleteModalOpen(true);
       } else {
-        // Single delete - open modal with single category
         setDeletingCategory(categoryOrCategories);
         setDeletingCategories(null);
         setIsDeleteModalOpen(true);
@@ -165,11 +162,9 @@ const Category = () => {
 
   const handleDelete = useCallback(() => {
     if (deletingCategories) {
-      // Bulk delete
       const categoryIds = deletingCategories.map((cat) => cat.id);
       bulkDeleteMutation.mutate(categoryIds);
     } else if (deletingCategory) {
-      // Single delete
       deleteMutation.mutate(deletingCategory);
     }
   }, [deleteMutation, bulkDeleteMutation, deletingCategory, deletingCategories]);
@@ -196,7 +191,14 @@ const Category = () => {
   const showingText = `Showing ${pagination.from}-${pagination.to} of ${pagination.total}`;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6"> 
+      {/* Page Header */}
+      <PageHeaderLayout
+        title="Category Management"
+        subtitle="Manage your categories and their base rates"
+      />
+
+      {/* Table Section */}
       <TableLayout
         searchBar={
           <SearchBar
@@ -210,9 +212,7 @@ const Category = () => {
           <>
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-800
-              hover:bg-blue-900 text-white rounded-lg font-medium
-              transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
             >
               <Plus className="w-4 h-4" />
               Add Category
