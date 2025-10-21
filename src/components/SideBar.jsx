@@ -16,7 +16,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
   const linkClass = (path) =>
     `flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${
       location.pathname === path
-        ? 'bg-blue-800 text-white'
+        ? 'bg-blue-600 text-white'
         : 'text-content hover:bg-blue-800 hover:text-white'
     }`;
 

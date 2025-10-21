@@ -31,7 +31,7 @@ export default {
         slideUpBounce: 'slideUpBounce 0.5s ease-out',
       },
       colors: {
-        // Shared primary color (blue-800)
+        // Shared primary color 
         primary: '#2563eb',
         
         // Dark theme
@@ -45,7 +45,7 @@ export default {
         // Light theme
         'light-bg': '#f8fafc',       // slate-50
         'light-surface': '#ffffff',  // white
-        'light-border': '#e2e8f0',   // slate-200
+        'light-border': '#334155',   // slate-200
         'light-content': '#334155',  // slate-700
         'light-heading': '#0f172a',  // slate-900
         'light-muted': '#64748b',    // slate-500

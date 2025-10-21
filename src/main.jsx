@@ -36,7 +36,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             },
             success: {
               style: {
-                background: '#10b981',
+                background: '#22c55e',
                 color: '#ffffff',
                 border: '1px solid #059669',
                 borderRadius: '0.5rem',
