@@ -24,7 +24,6 @@
     "react-dom": "^19.1.1",
     "react-hook-form": "^7.65.0",
     "react-hot-toast": "^2.6.0",
-    "react-loading-skeleton": "^3.5.0",
     "react-number-format": "^5.4.4",
     "react-router-dom": "^7.9.4",
     "react-select": "^5.10.2",

@@ -1,3 +1,4 @@
+// src/components/SideBar.jsx
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, List, X, ChevronsLeft, ChevronsRight } from 'lucide-react';
@@ -16,7 +17,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
     `flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${
       location.pathname === path
         ? 'bg-blue-800 text-white'
-        : 'text-gray-300 hover:bg-blue-800 hover:text-white'
+        : 'text-content hover:bg-blue-800 hover:text-white'
     }`;
 
   return (
@@ -25,19 +26,19 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
       <aside
         className={`hidden lg:flex ${
           isCollapsed ? 'w-20' : 'w-64'
-        } flex-col border-r border-slate-700 transition-all duration-300 relative bg-slate-800`}
+        } flex-col border-r border-main transition-all duration-300 relative bg-surface`}
       >
         {/* Logo + Collapse */}
-        <div className="p-4 flex items-center justify-between border-b border-slate-700 relative z-10">
+        <div className="p-4 flex items-center justify-between border-b border-main relative z-10">
           <div className="flex items-center gap-2">
             <img src={logo} alt="XMFFI Logo" className="w-8 h-8 rounded-lg object-contain" />
             {!isCollapsed && (
-              <span className="text-xl font-bold text-white whitespace-nowrap">XMFFI</span>
+              <span className="text-xl font-bold text-heading whitespace-nowrap">XMFFI</span>
             )}
           </div>
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-slate-700"
+            className="text-muted hover:text-content transition-colors p-1 rounded hover-surface"
           >
             {isCollapsed ? (
               <ChevronsRight className="w-5 h-5" />
@@ -60,7 +61,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
                     )}
                   </div>
                   {item.badge && !isCollapsed && (
-                    <span className="bg-slate-600 text-white text-xs px-2 py-0.5 rounded-full">
+                    <span className="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
                       {item.badge}
                     </span>
                   )}
@@ -72,7 +73,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
 
         {/* Footer */}
         <div
-          className={`p-4 border-t border-slate-700 text-center text-gray-400 text-sm relative z-10 transition-all duration-300 ${
+          className={`p-4 border-t border-main text-center text-muted text-sm relative z-10 transition-all duration-300 ${
             isCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'
           }`}
         >
@@ -87,18 +88,18 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
           onClick={() => setIsMobileOpen(false)}
         >
           <div
-            className="absolute left-0 top-0 h-full w-64 bg-slate-800 border-r border-slate-700 shadow-lg flex flex-col relative"
+            className="absolute left-0 top-0 h-full w-64 bg-surface border-r border-main shadow-lg flex flex-col relative"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Logo */}
-            <div className="p-4 flex items-center justify-between border-b border-slate-700 relative z-10">
+            <div className="p-4 flex items-center justify-between border-b border-main relative z-10">
               <div className="flex items-center gap-3">
                 <img src={logo} alt="XMFFI Logo" className="w-8 h-8 rounded-lg object-contain" />
-                <span className="text-xl font-semibold text-white">XMFFI</span>
+                <span className="text-xl font-semibold text-heading">XMFFI</span>
               </div>
               <button
                 onClick={() => setIsMobileOpen(false)}
-                className="p-2 rounded-lg hover:bg-slate-700 text-gray-300 transition-colors"
+                className="p-2 rounded-lg hover-surface text-content transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -119,7 +120,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
                         <span className="text-sm font-medium">{item.label}</span>
                       </div>
                       {item.badge && (
-                        <span className="bg-slate-600 text-white text-xs px-2 py-0.5 rounded-full">
+                        <span className="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
                           {item.badge}
                         </span>
                       )}
@@ -130,7 +131,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
             </nav>
 
             {/* Footer */}
-            <div className="p-4 border-t border-slate-700 text-center text-gray-400 text-sm relative z-10">
+            <div className="p-4 border-t border-main text-center text-muted text-sm relative z-10">
               XMFFI | 2025©
             </div>
           </div>

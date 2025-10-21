@@ -1,3 +1,4 @@
+// src/components/ui/DataTable.jsx
 import React from 'react';
 import {
   flexRender,
@@ -29,7 +30,7 @@ const DataTable = ({
   return (
     <div className={clsx('w-full overflow-x-auto rounded-lg', className)}>
       <table className="w-full text-sm text-left">
-        <thead className="text-xs uppercase bg-gray-700 text-gray-400">
+        <thead className="text-xs uppercase bg-surface text-muted border-b border-main">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
@@ -52,15 +53,15 @@ const DataTable = ({
             </tr>
           ))}
         </thead>
-        <tbody className="bg-gray-800 divide-y divide-gray-700">
+        <tbody className="bg-surface divide-y divide-main">
           {table.getRowModel().rows.length === 0 ? (
             <tr>
               <td
                 colSpan={columns.length}
-                className="text-center py-12 text-gray-400"
+                className="text-center py-12 text-muted"
               >
                 <div className="flex flex-col items-center justify-center">
-                  <BarChart3 className="w-12 h-12 text-gray-600 mb-3" />
+                  <BarChart3 className="w-12 h-12 text-muted mb-3 opacity-50" />
                   <p className="text-base font-medium">{emptyMessage}</p>
                 </div>
               </td>
@@ -71,7 +72,7 @@ const DataTable = ({
                 key={row.id}
                 onClick={() => onRowClick?.(row.original)}
                 className={clsx(
-                  'hover:bg-gray-750 transition-colors',
+                  'hover-surface transition-colors',
                   onRowClick && 'cursor-pointer'
                 )}
               >
@@ -79,7 +80,7 @@ const DataTable = ({
                   <td
                     key={cell.id}
                     className={clsx(
-                      'px-6 py-4 text-gray-300',
+                      'px-6 py-4 text-content',
                       cell.column.columnDef.meta?.cellClassName
                     )}
                   >

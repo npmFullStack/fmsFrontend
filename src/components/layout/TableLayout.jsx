@@ -1,10 +1,11 @@
+// src/components/layout/TableLayout.jsx
 import React from 'react';
 
 const TableLayout = ({ children, searchBar, actions, showingText }) => {
   return (
-    <div className="bg-gray-800 rounded-lg border border-slate-700 overflow-hidden">
+    <div className="bg-surface rounded-lg border border-main overflow-hidden">
       {/* Top Bar - Search and Actions */}
-      <div className="bg-gray-900 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-700">
+      <div className="bg-surface px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-main">
         {/* Left - Search Bar */}
         <div className="flex-1 max-w-md">
           {searchBar}
@@ -23,8 +24,8 @@ const TableLayout = ({ children, searchBar, actions, showingText }) => {
 
       {/* Bottom Bar - Showing text */}
       {showingText && (
-        <div className="bg-gray-900 px-6 py-3 border-t border-gray-700">
-          <p className="text-sm text-gray-400">{showingText}</p>
+        <div className="bg-surface px-6 py-3 border-t border-main">
+          <p className="text-sm text-muted">{showingText}</p>
         </div>
       )}
     </div>

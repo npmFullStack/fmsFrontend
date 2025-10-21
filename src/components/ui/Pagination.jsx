@@ -1,3 +1,4 @@
+// src/components/ui/Pagination.jsx
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -37,7 +38,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
       <button
         onClick={handlePrev}
         disabled={currentPage === 1}
-        className="p-2 rounded-lg bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+        className="p-2 rounded-lg bg-surface text-muted hover-surface hover:text-content disabled:opacity-40 disabled:cursor-not-allowed transition-all border border-main"
       >
         <ChevronLeft className="w-4 h-4" />
       </button>
@@ -45,14 +46,14 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
       {getPageNumbers().map((page, index) => (
         <React.Fragment key={index}>
           {page === '...' ? (
-            <span className="px-3 py-2 text-gray-500">...</span>
+            <span className="px-3 py-2 text-muted">...</span>
           ) : (
             <button
               onClick={() => onPageChange(page)}
               className={`px-3 py-2 rounded-lg transition-all ${
                 currentPage === page
                   ? 'bg-blue-600 text-white font-medium'
-                  : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-gray-200'
+                  : 'bg-surface text-muted hover-surface hover:text-content border border-main'
               }`}
             >
               {page}
@@ -64,7 +65,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
       <button
         onClick={handleNext}
         disabled={currentPage === totalPages}
-        className="p-2 rounded-lg bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+        className="p-2 rounded-lg bg-surface text-muted hover-surface hover:text-content disabled:opacity-40 disabled:cursor-not-allowed transition-all border border-main"
       >
         <ChevronRight className="w-4 h-4" />
       </button>

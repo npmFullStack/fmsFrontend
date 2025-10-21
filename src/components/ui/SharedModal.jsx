@@ -1,4 +1,4 @@
-// components/ui/SharedModal.jsx
+// src/components/ui/SharedModal.jsx
 import React from 'react';
 import { X } from 'lucide-react';
 import clsx from 'clsx';
@@ -22,13 +22,13 @@ const SharedModal = ({ isOpen, onClose, title, children, size = 'md', closeOnOve
             />
 
             {/* Modal */}
-            <div className={clsx('relative bg-gray-800 rounded-xl shadow-2xl w-full mx-auto', sizeClasses[size])}>
+            <div className={clsx('relative bg-surface rounded-xl shadow-2xl w-full mx-auto', sizeClasses[size])}>
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
-                    <h3 className="text-xl font-semibold text-white">{title}</h3>
+                <div className="flex items-center justify-between px-6 py-4 border-b border-main">
+                    <h3 className="text-xl font-semibold text-heading">{title}</h3>
                     <button 
                         onClick={onClose} 
-                        className="text-gray-400 hover:text-white transition-colors p-1 hover:bg-gray-700 rounded"
+                        className="text-muted hover:text-content transition-colors p-1 hover-surface rounded"
                     >
                         <X className="w-5 h-5" />
                     </button>

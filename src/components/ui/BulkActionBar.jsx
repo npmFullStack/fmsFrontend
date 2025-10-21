@@ -1,3 +1,4 @@
+// src/components/ui/BulkActionBar.jsx
 import React from 'react';
 import { Edit, Trash2, X, CheckSquare } from 'lucide-react';
 import clsx from 'clsx';
@@ -17,11 +18,11 @@ const BulkActionBar = ({
         'fixed bottom-6 left-1/2 -translate-x-1/2 z-50',
         'flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4',
         'px-6 py-4 w-[90%] sm:w-auto rounded-lg border shadow-2xl',
-        'bg-gray-800 border-gray-700 text-gray-200 animate-slideUpBounce'
+        'bg-surface border-main text-content animate-slideUpBounce'
       )}
     >
       {/* Selected indicator */}
-      <div className="flex items-center gap-2 text-gray-200">
+      <div className="flex items-center gap-2 text-content">
         <CheckSquare className="w-5 h-5 text-blue-400" />
         <span className="text-sm font-semibold">
           {selectedCount} {selectedCount === 1 ? 'item' : 'items'} selected
@@ -36,7 +37,7 @@ const BulkActionBar = ({
           className={clsx(
             'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
             disableEdit
-              ? 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50'
+              ? 'bg-surface text-muted cursor-not-allowed opacity-50 border border-main'
               : 'bg-yellow-500 hover:bg-yellow-600 text-white shadow-md hover:shadow-lg'
           )}
         >
@@ -54,7 +55,7 @@ const BulkActionBar = ({
 
         <button
           onClick={onCancel}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-700 transition-all"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-content hover-surface transition-all"
         >
           <X className="w-4 h-4" />
           Cancel

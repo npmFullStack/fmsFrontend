@@ -1,3 +1,4 @@
+// src/components/tables/CategoryTable.jsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import DataTable from '../ui/DataTable';
 import BulkActionBar from '../ui/BulkActionBar';
@@ -73,7 +74,7 @@ const CategoryTable = ({
   const getSortIcon = useCallback(
     (field) =>
       sortField !== field ? (
-        <ChevronUp className="w-3 h-3 text-gray-500 opacity-50" />
+        <ChevronUp className="w-3 h-3 text-muted opacity-50" />
       ) : sortDirection === 'asc' ? (
         <ChevronUp className="w-3 h-3 text-blue-400" />
       ) : (
@@ -90,7 +91,7 @@ const CategoryTable = ({
           <div className="flex justify-center">
             <input
               type="checkbox"
-              className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-600 focus:ring-2"
+              className="w-4 h-4 text-blue-600 bg-surface border-main rounded focus:ring-blue-600 focus:ring-2"
               checked={allSelected}
               onChange={toggleSelectAll}
             />
@@ -100,7 +101,7 @@ const CategoryTable = ({
           <div className="flex justify-center">
             <input
               type="checkbox"
-              className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-600 focus:ring-2"
+              className="w-4 h-4 text-blue-600 bg-surface border-main rounded focus:ring-blue-600 focus:ring-2"
               checked={selected.includes(row.original.id)}
               onChange={() => toggleSelect(row.original.id)}
             />
@@ -113,13 +114,13 @@ const CategoryTable = ({
         header: () => (
           <button
             onClick={() => handleSort('id')}
-            className="flex items-center gap-2 font-medium text-gray-400 hover:text-gray-200 transition"
+            className="flex items-center gap-2 font-medium text-muted hover:text-content transition"
           >
             ID {getSortIcon('id')}
           </button>
         ),
         cell: ({ getValue }) => (
-          <span className="font-mono text-sm text-gray-300">{getValue()}</span>
+          <span className="font-mono text-sm text-content">{getValue()}</span>
         ),
         meta: { cellClassName: 'text-center' },
       },
@@ -128,13 +129,13 @@ const CategoryTable = ({
         header: () => (
           <button
             onClick={() => handleSort('name')}
-            className="flex items-center gap-2 font-medium text-gray-400 hover:text-gray-200 transition"
+            className="flex items-center gap-2 font-medium text-muted hover:text-content transition"
           >
             NAME {getSortIcon('name')}
           </button>
         ),
         cell: ({ getValue }) => (
-          <span className="font-medium text-gray-200">
+          <span className="font-medium text-heading">
             {toUpperCase(getValue())}
           </span>
         ),
@@ -144,7 +145,7 @@ const CategoryTable = ({
         header: () => (
           <button
             onClick={() => handleSort('base_rate')}
-            className="flex items-center gap-2 font-medium text-gray-400 hover:text-gray-200 transition"
+            className="flex items-center gap-2 font-medium text-muted hover:text-content transition"
           >
             BASE RATE {getSortIcon('base_rate')}
           </button>

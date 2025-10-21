@@ -1,3 +1,4 @@
+// src/components/layout/PageHeaderLayout.jsx
 import React from 'react';
 
 const PageHeader = ({ 
@@ -8,9 +9,9 @@ const PageHeader = ({
   return (
     <div className={`${className}`}>
       <div>
-        <h1 className="text-4xl font-bold text-white">{title}</h1>
+        <h1 className="text-4xl font-bold text-heading">{title}</h1>
         {subtitle && (
-          <p className="mt-3 text-lg text-gray-400">{subtitle}</p>
+          <p className="mt-3 text-lg text-muted">{subtitle}</p>
         )}
       </div>
     </div>

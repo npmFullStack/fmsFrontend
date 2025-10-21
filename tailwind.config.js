@@ -30,8 +30,29 @@ export default {
         fadeInUp: 'fadeInUp 0.3s ease-out',
         slideUpBounce: 'slideUpBounce 0.5s ease-out',
       },
+      colors: {
+        // Shared primary color (blue-800)
+        primary: '#2563eb',
+        
+        // Dark theme
+        'dark-bg': '#0f172a',        // slate-900
+        'dark-surface': '#1e293b',   // slate-800
+        'dark-border': '#334155',    // slate-700
+        'dark-content': '#e2e8f0',   // slate-200
+        'dark-heading': '#f1f5f9',   // slate-100
+        'dark-muted': '#94a3b8',     // slate-400
+        
+        // Light theme
+        'light-bg': '#f8fafc',       // slate-50
+        'light-surface': '#ffffff',  // white
+        'light-border': '#e2e8f0',   // slate-200
+        'light-content': '#334155',  // slate-700
+        'light-heading': '#0f172a',  // slate-900
+        'light-muted': '#64748b',    // slate-500
+      },
     },
   },
  
   plugins: [require('flowbite/plugin')],
 };
+

@@ -5,7 +5,7 @@ import { useDebounce } from 'use-debounce';
 import { Plus, Filter } from 'lucide-react';
 import api from '../api';
 import TableLayout from '../components/layout/TableLayout';
-import PageHeaderLayout from '../components/layout/PageHeaderLayout'; // ← NEW IMPORT
+import PageHeaderLayout from '../components/layout/PageHeaderLayout';
 import CategoryTable from '../components/tables/CategoryTable';
 import AddCategory from '../components/modals/AddCategory';
 import DeleteCategory from '../components/modals/DeleteCategory';
@@ -217,7 +217,7 @@ const Category = () => {
               <Plus className="w-4 h-4" />
               Add Category
             </button>
-            <button className="flex items-center gap-2 px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg font-medium transition-colors">
+            <button className="flex items-center gap-2 px-4 py-2.5 bg-surface hover-surface text-content rounded-lg font-medium transition-colors border border-main">
               <Filter className="w-4 h-4" />
               Filter
             </button>

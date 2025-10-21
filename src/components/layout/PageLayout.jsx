@@ -1,3 +1,4 @@
+// src/components/layout/PageLayout.jsx
 import React from 'react';
 
 const PageLayout = ({
@@ -8,13 +9,13 @@ const PageLayout = ({
   className = '',
 }) => {
   return (
-    <div className={`p-6 bg-white rounded-2xl shadow-sm ${className}`}>
+    <div className={`p-6 bg-surface rounded-2xl shadow-sm ${className}`}>
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 border-b border-blue-200 pb-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 border-b border-main pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-sky-600">{title}</h1>
+          <h1 className="text-2xl font-bold text-blue-600">{title}</h1>
           {subtitle && (
-            <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
+            <p className="mt-1 text-sm text-muted">{subtitle}</p>
           )}
         </div>
 

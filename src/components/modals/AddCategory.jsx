@@ -1,4 +1,4 @@
-// components/modals/AddCategory.jsx
+// src/components/modals/AddCategory.jsx
 import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -31,26 +31,26 @@ const AddCategory = ({ isOpen, onClose, onSave, isLoading = false }) => {
     <SharedModal isOpen={isOpen} onClose={onClose} title="Add Category" size="sm">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
+          <label className="block text-sm font-medium text-content mb-2">
             Name
           </label>
           <input
             type="text"
             placeholder="Type category name"
-            className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+            className="w-full px-4 py-2.5 bg-surface border border-main rounded-lg text-content placeholder-muted focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
             {...register('name')}
           />
           {errors.name && <span className="text-red-400 text-sm mt-1 block">{errors.name.message}</span>}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
+          <label className="block text-sm font-medium text-content mb-2">
             Price
           </label>
           <input
             type="text"
             placeholder="₱0.00"
-            className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+            className="w-full px-4 py-2.5 bg-surface border border-main rounded-lg text-content placeholder-muted focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
             {...register('base_rate')}
           />
           {errors.base_rate && <span className="text-red-400 text-sm mt-1 block">{errors.base_rate.message}</span>}
@@ -60,7 +60,7 @@ const AddCategory = ({ isOpen, onClose, onSave, isLoading = false }) => {
           <button 
             type="button" 
             onClick={onClose} 
-            className="px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors font-medium"
+            className="px-5 py-2.5 bg-surface hover-surface border border-main text-content rounded-lg transition-colors font-medium"
             disabled={isLoading}
           >
             Cancel

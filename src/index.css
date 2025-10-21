@@ -1,4 +1,4 @@
-/* index.css */
+/* src/index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,5 +7,60 @@
   body {
     @apply font-sans;
   }
+
+  /* Dark theme (default) */
+  .dark {
+    --color-bg: 15 23 42;           /* slate-900 */
+    --color-surface: 30 41 59;      /* slate-800 */
+    --color-border: 51 65 85;       /* slate-700 */
+    --color-content: 226 232 240;   /* slate-200 */
+    --color-heading: 241 245 249;   /* slate-100 */
+    --color-muted: 148 163 184;     /* slate-400 */
+  }
+
+  /* Light theme */
+  .light {
+    --color-bg: 248 250 252;        /* slate-50 */
+    --color-surface: 255 255 255;   /* white */
+    --color-border: 226 232 240;    /* slate-200 */
+    --color-content: 51 65 85;      /* slate-700 */
+    --color-heading: 15 23 42;      /* slate-900 */
+    --color-muted: 100 116 139;     /* slate-500 */
+  }
+
+  /* Smooth theme transition */
+  * {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  }
 }
 
+@layer utilities {
+  /* Background colors */
+  .bg-main {
+    background-color: rgb(var(--color-bg));
+  }
+  .bg-surface {
+    background-color: rgb(var(--color-surface));
+  }
+  
+  /* Border colors */
+  .border-main {
+    border-color: rgb(var(--color-border));
+  }
+  
+  /* Text colors */
+  .text-content {
+    color: rgb(var(--color-content));
+  }
+  .text-heading {
+    color: rgb(var(--color-heading));
+  }
+  .text-muted {
+    color: rgb(var(--color-muted));
+  }
+  
+  /* Hover states */
+  .hover-surface:hover {
+    background-color: rgb(var(--color-surface) / 0.8);
+  }
+}

@@ -1,4 +1,4 @@
-// components/modals/DeleteCategory.jsx
+// src/components/modals/DeleteCategory.jsx
 import React from 'react';
 import SharedModal from '../ui/SharedModal';
 import { AlertTriangle, Loader2 } from 'lucide-react';
@@ -8,7 +8,7 @@ const DeleteCategory = ({
   onClose, 
   onDelete, 
   category,
-  categories, // ← NEW: for bulk delete
+  categories,
   isLoading = false 
 }) => {
   // Check if we have either single or bulk delete
@@ -37,14 +37,14 @@ const DeleteCategory = ({
         </div>
 
         {/* Message */}
-        <div className="text-gray-200 mb-6">
+        <div className="text-content mb-6">
           <p className="text-base">
             Are you sure you want to delete{' '}
             <span className="font-semibold text-red-400">
               {isBulk ? displayName : `"${displayName}"`}
             </span>?
           </p>
-          <p className="text-sm text-gray-400 mt-2">
+          <p className="text-sm text-muted mt-2">
             This action cannot be undone.
           </p>
         </div>
@@ -54,7 +54,7 @@ const DeleteCategory = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-5 py-2.5 bg-surface hover-surface border border-main text-content rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isLoading}
           >
             Cancel
