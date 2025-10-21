@@ -29,7 +29,7 @@ const DataTable = ({
 
   return (
     <div className={clsx('w-full overflow-x-auto rounded-lg', className)}>
-      <table className="w-full text-sm text-left">
+      <table className="w-full text-sm text-left border-collapse">
         <thead className="text-xs uppercase bg-surface text-muted border-b border-main">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
@@ -38,7 +38,7 @@ const DataTable = ({
                   key={header.id}
                   scope="col"
                   className={clsx(
-                    'px-6 py-4 font-medium tracking-wider',
+                    'px-6 py-4 font-medium tracking-wider select-none',
                     header.column.columnDef.meta?.headerClassName
                   )}
                 >
@@ -53,7 +53,8 @@ const DataTable = ({
             </tr>
           ))}
         </thead>
-        <tbody className="bg-surface divide-y divide-main">
+
+        <tbody className="bg-surface">
           {table.getRowModel().rows.length === 0 ? (
             <tr>
               <td
@@ -67,12 +68,16 @@ const DataTable = ({
               </td>
             </tr>
           ) : (
-            table.getRowModel().rows.map((row) => (
+            table.getRowModel().rows.map((row, i) => (
               <tr
                 key={row.id}
                 onClick={() => onRowClick?.(row.original)}
                 className={clsx(
-                  'hover-surface transition-colors',
+                  'transition-colors border-b border-main last:border-b-0',
+                  'hover:bg-[rgb(var(--color-surface)/0.85)]',
+                  i % 2 === 0
+                    ? 'bg-[rgb(var(--color-surface))]'
+                    : 'bg-[rgb(var(--color-bg)/0.6)]',
                   onRowClick && 'cursor-pointer'
                 )}
               >
@@ -80,7 +85,7 @@ const DataTable = ({
                   <td
                     key={cell.id}
                     className={clsx(
-                      'px-6 py-4 text-content',
+                      'px-6 py-4 text-content align-middle',
                       cell.column.columnDef.meta?.cellClassName
                     )}
                   >
