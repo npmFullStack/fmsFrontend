@@ -1,3 +1,4 @@
+// src/App.jsx
 import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
@@ -6,6 +7,8 @@ import LoadingSkeleton from './components/ui/LoadingSkeleton';
 // Lazy-loaded pages
 const Home = lazy(() => import('./pages/Home'));
 const Category = lazy(() => import('./pages/Category'));
+const ContainerType = lazy(() => import('./pages/ContainerType'));
+const Port = lazy(() => import('./pages/Port'));
 
 function App() {
   return (
@@ -15,6 +18,9 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/categories" element={<Category />} />
+            <Route path="/container-types" element={<ContainerType />} />
+            <Route path="/ports" element={<Port
+                        />} />
           </Routes>
         </Layout>
       </Suspense>

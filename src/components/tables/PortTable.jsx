@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import DataTable from '../ui/DataTable';
 import BulkActionBar from '../ui/BulkActionBar';
-import DeleteCategory from '../modals/DeleteCategory';
+import DeletePort from '../modals/DeletePort';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { formatCurrency, toUpperCase } from '../../utils/formatters';
 
-const CategoryTable = ({
+const PortTable = ({
   data = [],
   onEdit,
   onDelete,
@@ -17,7 +16,7 @@ const CategoryTable = ({
 }) => {
   const [selected, setSelected] = useState([]);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [deletingCategories, setDeletingCategories] = useState([]);
+  const [deletingPorts, setDeletingPorts] = useState([]);
 
   useEffect(() => setSelected([]), [data]);
 
@@ -35,29 +34,29 @@ const CategoryTable = ({
 
   const handleBulkDelete = useCallback(() => {
     if (!selected.length) return;
-    const categoriesToDelete = data.filter(item => selected.includes(item.id));
-    setDeletingCategories(categoriesToDelete);
+    const portsToDelete = data.filter(item => selected.includes(item.id));
+    setDeletingPorts(portsToDelete);
     setDeleteModalOpen(true);
   }, [selected, data]);
 
   const handleConfirmDelete = useCallback(async () => {
     try {
-      onDelete(deletingCategories);
+      onDelete(deletingPorts);
       setDeleteModalOpen(false);
-      setDeletingCategories([]);
+      setDeletingPorts([]);
     } catch (err) {
-      toast.error(err.message || 'Failed to delete categories');
+      toast.error(err.message || 'Failed to delete ports');
     }
-  }, [deletingCategories, onDelete]);
+  }, [deletingPorts, onDelete]);
 
   const handleBulkEdit = useCallback(() => {
     if (selected.length === 1) {
-      const categoryToEdit = data.find(item => item.id === selected[0]);
-      if (categoryToEdit && onEdit) {
-        onEdit(categoryToEdit);
+      const portToEdit = data.find(item => item.id === selected[0]);
+      if (portToEdit && onEdit) {
+        onEdit(portToEdit);
       }
     } else {
-      toast.error('Please select only one category to edit');
+      toast.error("Please select only one port to edit");
     }
   }, [selected, data, onEdit]);
 
@@ -125,33 +124,45 @@ const CategoryTable = ({
         meta: { cellClassName: 'table-cell-center' },
       },
       {
+        accessorKey: 'route_name',
+        header: () => (
+          <button
+            onClick={() => handleSort('route_name')}
+            className="table-header-button"
+          >
+            ROUTE NAME {getSortIcon('route_name')}
+          </button>
+        ),
+        cell: ({ getValue }) => (
+          <span className="table-cell-heading">{getValue()}</span>
+        ),
+      },
+      {
         accessorKey: 'name',
         header: () => (
           <button
             onClick={() => handleSort('name')}
             className="table-header-button"
           >
-            NAME {getSortIcon('name')}
+            PORT NAME {getSortIcon('name')}
           </button>
         ),
         cell: ({ getValue }) => (
-          <span className="table-cell-heading">{toUpperCase(getValue())}</span>
+          <span className="table-cell-content">{getValue()}</span>
         ),
       },
       {
-        accessorKey: 'base_rate',
+        accessorKey: 'address',
         header: () => (
           <button
-            onClick={() => handleSort('base_rate')}
+            onClick={() => handleSort('address')}
             className="table-header-button"
           >
-            BASE RATE {getSortIcon('base_rate')}
+            ADDRESS {getSortIcon('address')}
           </button>
         ),
         cell: ({ getValue }) => (
-          <span className="font-medium text-blue-400">
-            {formatCurrency(getValue())}
-          </span>
+          <span className="table-cell-content">{getValue() || 'N/A'}</span>
         ),
       },
     ],
@@ -164,18 +175,18 @@ const CategoryTable = ({
         columns={columns}
         data={data}
         isLoading={isLoading}
-        emptyMessage="No categories found. Add your first category above."
+        emptyMessage="No ports found. Add your first port above."
       />
 
-      <DeleteCategory
+      <DeletePort
         isOpen={deleteModalOpen}
         onClose={() => {
           setDeleteModalOpen(false);
-          setDeletingCategories([]);
+          setDeletingPorts([]);
         }}
         onDelete={handleConfirmDelete}
-        category={deletingCategories.length === 1 ? deletingCategories[0] : null}
-        categories={deletingCategories.length > 1 ? deletingCategories : null}
+        port={deletingPorts.length === 1 ? deletingPorts[0] : null}
+        ports={deletingPorts.length > 1 ? deletingPorts : null}
         isLoading={false}
       />
 
@@ -190,4 +201,4 @@ const CategoryTable = ({
   );
 };
 
-export default CategoryTable;
+export default PortTable;

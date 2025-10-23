@@ -14,28 +14,28 @@ const SharedModal = ({ isOpen, onClose, title, children, size = 'md', closeOnOve
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="modal-overlay">
             {/* Overlay */}
             <div
-                className="fixed inset-0 bg-black bg-opacity-70"
+                className="modal-backdrop"
                 onClick={closeOnOverlayClick ? onClose : undefined}
             />
 
             {/* Modal */}
-            <div className={clsx('relative bg-surface rounded-xl shadow-2xl w-full mx-auto', sizeClasses[size])}>
+            <div className={clsx('modal-container', sizeClasses[size])}>
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-main">
-                    <h3 className="text-xl font-semibold text-heading">{title}</h3>
+                <div className="modal-header">
+                    <h3 className="modal-title">{title}</h3>
                     <button 
                         onClick={onClose} 
-                        className="text-muted hover:text-content transition-colors p-1 hover-surface rounded"
+                        className="modal-close-btn"
                     >
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* Content */}
-                <div className="p-6">{children}</div>
+                <div className="modal-content">{children}</div>
             </div>
         </div>
     );

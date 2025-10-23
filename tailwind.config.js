@@ -3,7 +3,7 @@ export default {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
-    "node_modules/flowbite-react/**/*.{js,jsx,ts,tsx}",
+    // Remove the Flowbite line below
   ],
   theme: {
     extend: {
@@ -47,5 +47,7 @@ export default {
       },
     },
   },
-  plugins: [require('flowbite/plugin')],
+  plugins: [
+    // Remove the Flowbite plugin
+  ],
 };

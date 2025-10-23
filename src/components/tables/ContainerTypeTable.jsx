@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import DataTable from '../ui/DataTable';
 import BulkActionBar from '../ui/BulkActionBar';
-import DeleteCategory from '../modals/DeleteCategory';
+import DeleteContainerType from '../modals/DeleteContainerType';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency, toUpperCase } from '../../utils/formatters';
 
-const CategoryTable = ({
+const ContainerTypeTable = ({
   data = [],
   onEdit,
   onDelete,
@@ -17,7 +17,7 @@ const CategoryTable = ({
 }) => {
   const [selected, setSelected] = useState([]);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [deletingCategories, setDeletingCategories] = useState([]);
+  const [deletingContainerTypes, setDeletingContainerTypes] = useState([]);
 
   useEffect(() => setSelected([]), [data]);
 
@@ -35,29 +35,29 @@ const CategoryTable = ({
 
   const handleBulkDelete = useCallback(() => {
     if (!selected.length) return;
-    const categoriesToDelete = data.filter(item => selected.includes(item.id));
-    setDeletingCategories(categoriesToDelete);
+    const containerTypesToDelete = data.filter(item => selected.includes(item.id));
+    setDeletingContainerTypes(containerTypesToDelete);
     setDeleteModalOpen(true);
   }, [selected, data]);
 
   const handleConfirmDelete = useCallback(async () => {
     try {
-      onDelete(deletingCategories);
+      onDelete(deletingContainerTypes);
       setDeleteModalOpen(false);
-      setDeletingCategories([]);
+      setDeletingContainerTypes([]);
     } catch (err) {
-      toast.error(err.message || 'Failed to delete categories');
+      toast.error(err.message || 'Failed to delete container types');
     }
-  }, [deletingCategories, onDelete]);
+  }, [deletingContainerTypes, onDelete]);
 
   const handleBulkEdit = useCallback(() => {
     if (selected.length === 1) {
-      const categoryToEdit = data.find(item => item.id === selected[0]);
-      if (categoryToEdit && onEdit) {
-        onEdit(categoryToEdit);
+      const containerTypeToEdit = data.find(item => item.id === selected[0]);
+      if (containerTypeToEdit && onEdit) {
+        onEdit(containerTypeToEdit);
       }
     } else {
-      toast.error('Please select only one category to edit');
+      toast.error("Please select only one container type to edit");
     }
   }, [selected, data, onEdit]);
 
@@ -82,6 +82,27 @@ const CategoryTable = ({
     },
     [sortField, sortDirection]
   );
+
+  const getLoadTypeDisplay = useCallback((loadType) => {
+    const baseClass = "badge";
+    if (loadType === 'LCL') {
+      return <span className={`${baseClass} badge-lcl`}>LCL</span>;
+    } else {
+      return <span className={`${baseClass} badge-fcl`}>FCL</span>;
+    }
+  }, []);
+
+  const getFclRateDisplay = useCallback((fclRate, loadType) => {
+    if (loadType === 'LCL') {
+      return <span className="badge-neutral">Individual Items</span>;
+    } else {
+      return fclRate ? (
+        <span className="font-medium text-content">{formatCurrency(fclRate)}</span>
+      ) : (
+        <span className="text-muted">Not set</span>
+      );
+    }
+  }, []);
 
   const columns = useMemo(
     () => [
@@ -125,13 +146,13 @@ const CategoryTable = ({
         meta: { cellClassName: 'table-cell-center' },
       },
       {
-        accessorKey: 'name',
+        accessorKey: 'size',
         header: () => (
           <button
-            onClick={() => handleSort('name')}
+            onClick={() => handleSort('size')}
             className="table-header-button"
           >
-            NAME {getSortIcon('name')}
+            SIZE {getSortIcon('size')}
           </button>
         ),
         cell: ({ getValue }) => (
@@ -139,23 +160,45 @@ const CategoryTable = ({
         ),
       },
       {
-        accessorKey: 'base_rate',
+        accessorKey: 'load_type',
         header: () => (
           <button
-            onClick={() => handleSort('base_rate')}
+            onClick={() => handleSort('load_type')}
             className="table-header-button"
           >
-            BASE RATE {getSortIcon('base_rate')}
+            LOAD TYPE {getSortIcon('load_type')}
+          </button>
+        ),
+        cell: ({ getValue }) => getLoadTypeDisplay(getValue()),
+      },
+      {
+        accessorKey: 'max_weight',
+        header: () => (
+          <button
+            onClick={() => handleSort('max_weight')}
+            className="table-header-button"
+          >
+            MAX WEIGHT {getSortIcon('max_weight')}
           </button>
         ),
         cell: ({ getValue }) => (
-          <span className="font-medium text-blue-400">
-            {formatCurrency(getValue())}
-          </span>
+          <span className="table-cell-content font-medium">{getValue()} kg</span>
         ),
       },
+      {
+        accessorKey: 'fcl_rate',
+        header: () => (
+          <button
+            onClick={() => handleSort('fcl_rate')}
+            className="table-header-button"
+          >
+            FCL RATE {getSortIcon('fcl_rate')}
+          </button>
+        ),
+        cell: ({ row }) => getFclRateDisplay(row.original.fcl_rate, row.original.load_type),
+      },
     ],
-    [selected, allSelected, sortField, sortDirection, toggleSelectAll, toggleSelect, handleSort, getSortIcon]
+    [selected, allSelected, sortField, sortDirection, toggleSelectAll, toggleSelect, handleSort, getSortIcon, getLoadTypeDisplay, getFclRateDisplay]
   );
 
   return (
@@ -164,18 +207,18 @@ const CategoryTable = ({
         columns={columns}
         data={data}
         isLoading={isLoading}
-        emptyMessage="No categories found. Add your first category above."
+        emptyMessage="No container types found. Add your first container type above."
       />
 
-      <DeleteCategory
+      <DeleteContainerType
         isOpen={deleteModalOpen}
         onClose={() => {
           setDeleteModalOpen(false);
-          setDeletingCategories([]);
+          setDeletingContainerTypes([]);
         }}
         onDelete={handleConfirmDelete}
-        category={deletingCategories.length === 1 ? deletingCategories[0] : null}
-        categories={deletingCategories.length > 1 ? deletingCategories : null}
+        containerType={deletingContainerTypes.length === 1 ? deletingContainerTypes[0] : null}
+        containerTypes={deletingContainerTypes.length > 1 ? deletingContainerTypes : null}
         isLoading={false}
       />
 
@@ -190,4 +233,4 @@ const CategoryTable = ({
   );
 };
 
-export default CategoryTable;
+export default ContainerTypeTable;

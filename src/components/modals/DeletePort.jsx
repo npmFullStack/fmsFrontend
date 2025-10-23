@@ -2,21 +2,21 @@ import React from 'react';
 import SharedModal from '../ui/SharedModal';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 
-const DeleteCategory = ({ 
+const DeletePort = ({ 
   isOpen, 
   onClose, 
   onDelete, 
-  category,
-  categories,
+  port,
+  ports,
   isLoading = false 
 }) => {
   // Check if we have either single or bulk delete
-  if (!category && !categories) return null;
+  if (!port && !ports) return null;
 
-  const isBulk = categories && categories.length > 0;
+  const isBulk = ports && ports.length > 0;
   const displayName = isBulk 
-    ? `${categories.length} categories` 
-    : category?.name;
+    ? `${ports.length} ports` 
+    : port?.name;
 
   const handleDelete = () => {
     onDelete(); 
@@ -26,7 +26,7 @@ const DeleteCategory = ({
     <SharedModal
       isOpen={isOpen}
       onClose={onClose}
-      title={isBulk ? "Delete Categories" : "Delete Category"}
+      title={isBulk ? "Delete Ports" : "Delete Port"}
       size="sm"
     >
       <div className="flex flex-col items-center text-center py-2">
@@ -61,7 +61,7 @@ const DeleteCategory = ({
           <button
             type="button"
             onClick={handleDelete}
-            className={`modal-btn-danger ${isLoading ? 'modal-btn-disabled' : ''}`}
+            className={`modal-btn-danger  ${isLoading ? 'modal-btn-disabled' : ''}`}
             disabled={isLoading}
           >
             {isLoading ? (
@@ -79,4 +79,4 @@ const DeleteCategory = ({
   );
 };
 
-export default DeleteCategory;
+export default DeletePort;

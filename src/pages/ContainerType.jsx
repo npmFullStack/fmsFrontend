@@ -4,21 +4,21 @@ import { useDebounce } from 'use-debounce';
 import { Plus, Filter } from 'lucide-react';
 import api from '../api';
 import TableLayout from '../components/layout/TableLayout';
-import CategoryTable from '../components/tables/CategoryTable';
-import AddCategory from '../components/modals/AddCategory';
-import DeleteCategory from '../components/modals/DeleteCategory';
-import UpdateCategory from '../components/modals/UpdateCategory';
+import ContainerTypeTable from '../components/tables/ContainerTypeTable';
+import AddContainerType from '../components/modals/AddContainerType';
+import DeleteContainerType from '../components/modals/DeleteContainerType';
+import UpdateContainerType from '../components/modals/UpdateContainerType';
 import SearchBar from '../components/ui/SearchBar';
 import Pagination from '../components/ui/Pagination';
 import toast from 'react-hot-toast';
 
-const Category = () => {
+const ContainerType = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
-  const [deletingCategory, setDeletingCategory] = useState(null);
-  const [deletingCategories, setDeletingCategories] = useState(null);
-  const [updatingCategory, setUpdatingCategory] = useState(null);
+  const [deletingContainerType, setDeletingContainerType] = useState(null);
+  const [deletingContainerTypes, setDeletingContainerTypes] = useState(null);
+  const [updatingContainerType, setUpdatingContainerType] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch] = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
@@ -27,11 +27,11 @@ const Category = () => {
 
   const queryClient = useQueryClient();
 
-  // Fetch categories
+  // Fetch container types
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['categories', debouncedSearch, page],
+    queryKey: ['containerTypes', debouncedSearch, page],
     queryFn: async () => {
-      const res = await api.get('/categories', {
+      const res = await api.get('/container-types', {
         params: { search: debouncedSearch, page, per_page: 10 },
       });
       return res.data;
@@ -42,7 +42,7 @@ const Category = () => {
   });
 
   // Client-side sorting
-  const sortedCategories = useMemo(() => {
+  const sortedContainerTypes = useMemo(() => {
     if (!data?.data) return [];
     return [...data.data].sort((a, b) => {
       let aVal = a[sort];
@@ -57,7 +57,7 @@ const Category = () => {
     });
   }, [data?.data, sort, direction]);
 
-  const categories = sortedCategories;
+  const containerTypes = sortedContainerTypes;
   const pagination = {
     current_page: data?.current_page || 1,
     last_page: data?.last_page || 1,
@@ -73,99 +73,99 @@ const Category = () => {
 
   // Mutations
   const addMutation = useMutation({
-    mutationFn: async (categoryData) => (await api.post('/categories', categoryData)).data,
+    mutationFn: async (containerTypeData) => (await api.post('/container-types', containerTypeData)).data,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-      toast.success('Category added successfully');
+      queryClient.invalidateQueries({ queryKey: ['containerTypes'] });
+      toast.success('Container type added successfully');
       setIsAddModalOpen(false);
     },
     onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to add category');
+      toast.error(error.response?.data?.message || 'Failed to add container type');
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, categoryData }) =>
-      (await api.put(`/categories/${id}`, categoryData)).data,
+    mutationFn: async ({ id, containerTypeData }) =>
+      (await api.put(`/container-types/${id}`, containerTypeData)).data,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-      toast.success('Category updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['containerTypes'] });
+      toast.success('Container type updated successfully');
       setIsUpdateModalOpen(false);
-      setUpdatingCategory(null);
+      setUpdatingContainerType(null);
     },
     onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to update category');
+      toast.error(error.response?.data?.message || 'Failed to update container type');
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (category) => (await api.delete(`/categories/${category.id}`)).data,
+    mutationFn: async (containerType) => (await api.delete(`/container-types/${containerType.id}`)).data,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-      toast.success('Category deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['containerTypes'] });
+      toast.success('Container type deleted successfully');
       setIsDeleteModalOpen(false);
-      setDeletingCategory(null);
-      setDeletingCategories(null);
+      setDeletingContainerType(null);
+      setDeletingContainerTypes(null);
     },
     onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to delete category');
+      toast.error(error.response?.data?.message || 'Failed to delete container type');
     },
   });
 
   const bulkDeleteMutation = useMutation({
-    mutationFn: async (categoryIds) =>
-      (await api.post('/categories/bulk-delete', { ids: categoryIds })).data,
+    mutationFn: async (containerTypeIds) => 
+      (await api.post('/container-types/bulk-delete', { ids: containerTypeIds })).data,
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-      toast.success(data.message || 'Categories deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['containerTypes'] });
+      toast.success(data.message || 'Container types deleted successfully');
       setIsDeleteModalOpen(false);
-      setDeletingCategory(null);
-      setDeletingCategories(null);
+      setDeletingContainerType(null);
+      setDeletingContainerTypes(null);
     },
     onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to delete categories');
+      toast.error(error.response?.data?.message || 'Failed to delete container types');
     },
   });
 
   // Handlers
   const handleAdd = useCallback(
-    (categoryData) => addMutation.mutate(categoryData),
-    [addMutation],
+    (containerTypeData) => addMutation.mutate(containerTypeData),
+    [addMutation]
   );
 
   const handleUpdate = useCallback(
-    (id, categoryData) => updateMutation.mutate({ id, categoryData }),
-    [updateMutation],
+    (id, containerTypeData) => updateMutation.mutate({ id, containerTypeData }),
+    [updateMutation]
   );
 
-  const handleEditClick = useCallback((category) => {
-    setUpdatingCategory(category);
+  const handleEditClick = useCallback((containerType) => {
+    setUpdatingContainerType(containerType);
     setIsUpdateModalOpen(true);
   }, []);
 
   const handleDeleteClick = useCallback(
-    (categoryOrCategories) => {
-      if (Array.isArray(categoryOrCategories)) {
-        setDeletingCategories(categoryOrCategories);
-        setDeletingCategory(null);
+    (containerTypeOrContainerTypes) => {
+      if (Array.isArray(containerTypeOrContainerTypes)) {
+        setDeletingContainerTypes(containerTypeOrContainerTypes);
+        setDeletingContainerType(null);
         setIsDeleteModalOpen(true);
       } else {
-        setDeletingCategory(categoryOrCategories);
-        setDeletingCategories(null);
+        setDeletingContainerType(containerTypeOrContainerTypes);
+        setDeletingContainerTypes(null);
         setIsDeleteModalOpen(true);
       }
     },
-    [],
+    []
   );
 
   const handleDelete = useCallback(() => {
-    if (deletingCategories) {
-      const categoryIds = deletingCategories.map((cat) => cat.id);
-      bulkDeleteMutation.mutate(categoryIds);
-    } else if (deletingCategory) {
-      deleteMutation.mutate(deletingCategory);
+    if (deletingContainerTypes) {
+      const containerTypeIds = deletingContainerTypes.map((ct) => ct.id);
+      bulkDeleteMutation.mutate(containerTypeIds);
+    } else if (deletingContainerType) {
+      deleteMutation.mutate(deletingContainerType);
     }
-  }, [deleteMutation, bulkDeleteMutation, deletingCategory, deletingCategories]);
+  }, [deleteMutation, bulkDeleteMutation, deletingContainerType, deletingContainerTypes]);
 
   // Loading & error states
   if (isLoading && !data) {
@@ -180,7 +180,7 @@ const Category = () => {
     return (
       <div className="page-error">
         <div className="page-error-content">
-          Failed to load categories. Please try again.
+          Failed to load container types. Please try again.
         </div>
       </div>
     );
@@ -190,8 +190,8 @@ const Category = () => {
     <div className="page-container">
       {/* Page Header */}
       <div className="page-header">
-        <h1 className="page-title">Category Management</h1>
-        <p className="page-subtitle">Manage your categories and their base rates</p>
+        <h1 className="page-title">Container Type Management</h1>
+        <p className="page-subtitle">Manage your container types and their specifications</p>
       </div>
 
       {/* Table Section */}
@@ -202,7 +202,7 @@ const Category = () => {
               value={searchTerm}
               onChange={setSearchTerm}
               onClear={() => setSearchTerm('')}
-              placeholder="Search categories"
+              placeholder="Search container types"
             />
           }
           actions={
@@ -212,7 +212,7 @@ const Category = () => {
                 className="page-btn-primary"
               >
                 <Plus className="page-btn-icon" />
-                Add Category
+                Add Container Type
               </button>
               <button className="page-btn-secondary">
                 <Filter className="page-btn-icon" />
@@ -221,8 +221,8 @@ const Category = () => {
             </div>
           }
         >
-          <CategoryTable
-            data={categories}
+          <ContainerTypeTable
+            data={containerTypes}
             onEdit={handleEditClick}
             onDelete={handleDeleteClick}
             sortField={sort}
@@ -243,38 +243,38 @@ const Category = () => {
         </div>
       )}
 
-      <AddCategory
+      <AddContainerType
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSave={handleAdd}
         isLoading={addMutation.isPending}
       />
 
-      <UpdateCategory
+      <UpdateContainerType
         isOpen={isUpdateModalOpen}
         onClose={() => {
           setIsUpdateModalOpen(false);
-          setUpdatingCategory(null);
+          setUpdatingContainerType(null);
         }}
         onUpdate={handleUpdate}
-        category={updatingCategory}
+        containerType={updatingContainerType}
         isLoading={updateMutation.isPending}
       />
 
-      <DeleteCategory
+      <DeleteContainerType
         isOpen={isDeleteModalOpen}
         onClose={() => {
           setIsDeleteModalOpen(false);
-          setDeletingCategory(null);
-          setDeletingCategories(null);
+          setDeletingContainerType(null);
+          setDeletingContainerTypes(null);
         }}
         onDelete={handleDelete}
-        category={deletingCategory}
-        categories={deletingCategories}
+        containerType={deletingContainerType}
+        containerTypes={deletingContainerTypes}
         isLoading={deleteMutation.isPending || bulkDeleteMutation.isPending}
       />
     </div>
   );
 };
 
-export default Category;
+export default ContainerType;

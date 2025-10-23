@@ -1,4 +1,3 @@
-// src/components/modals/UpdateCategory.jsx
 import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -62,43 +61,43 @@ const UpdateCategory = ({
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <div>
-          <label className="block text-sm font-medium text-content mb-2">
+          <label className="modal-label">
             Name
           </label>
           <input
             type="text"
             placeholder="Type category name"
-            className="w-full px-4 py-2.5 bg-surface border border-main rounded-lg text-content placeholder-muted focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+            className="modal-input"
             {...register('name')}
           />
-          {errors.name && <span className="text-red-400 text-sm mt-1 block">{errors.name.message}</span>}
+          {errors.name && <span className="modal-error">{errors.name.message}</span>}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-content mb-2">
+          <label className="modal-label">
             Price
           </label>
           <input
             type="text"
             placeholder="₱0.00"
-            className="w-full px-4 py-2.5 bg-surface border border-main rounded-lg text-content placeholder-muted focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+            className="modal-input"
             {...register('base_rate')}
           />
-          {errors.base_rate && <span className="text-red-400 text-sm mt-1 block">{errors.base_rate.message}</span>}
+          {errors.base_rate && <span className="modal-error">{errors.base_rate.message}</span>}
         </div>
 
         <div className="flex justify-end gap-3 pt-4">
           <button
             type="button"
             onClick={handleClose}
-            className="px-5 py-2.5 bg-surface hover-surface border border-main text-content rounded-lg transition-colors font-medium"
+            className={`modal-btn-cancel ${isLoading ? 'modal-btn-disabled' : ''}`}
             disabled={isLoading}
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium flex items-center gap-2 min-w-[100px] justify-center"
+            className={`modal-btn-primary ${(!isValid || isLoading) ? 'modal-btn-disabled' : ''}`}
             disabled={isLoading || !isValid}
           >
             {isLoading ? (

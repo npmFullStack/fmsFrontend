@@ -1,7 +1,7 @@
 // src/components/SideBar.jsx
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, List, X, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Home, List, Container, MapPin, X, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import logo from '../assets/images/logo.png';
 
 const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
@@ -11,6 +11,8 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
   const menuItems = [
     { icon: Home, label: 'Home', path: '/' },
     { icon: List, label: 'Categories', path: '/categories' },
+    { icon: Container, label: 'Container Types', path: '/container-types' },
+    { icon: MapPin, label: 'Ports', path: '/ports' },
   ];
 
   const linkClass = (path) =>
