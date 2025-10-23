@@ -205,7 +205,6 @@ const AddPort = ({ isOpen, onClose, onSave, isLoading = false }) => {
       ...data,
       latitude: parseFloat(data.latitude),
       longitude: parseFloat(data.longitude),
-      is_active: true,
     };
     onSave(portData);
   };

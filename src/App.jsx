@@ -9,6 +9,7 @@ const Home = lazy(() => import('./pages/Home'));
 const Category = lazy(() => import('./pages/Category'));
 const ContainerType = lazy(() => import('./pages/ContainerType'));
 const Port = lazy(() => import('./pages/Port'));
+const Item = lazy(() => import('./pages/Item'));
 
 function App() {
   return (
@@ -20,6 +21,8 @@ function App() {
             <Route path="/categories" element={<Category />} />
             <Route path="/container-types" element={<ContainerType />} />
             <Route path="/ports" element={<Port
+                        />} />
+            <Route path="/items" element={<Item
                         />} />
           </Routes>
         </Layout>

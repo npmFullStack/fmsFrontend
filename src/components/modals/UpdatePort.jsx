@@ -220,7 +220,6 @@ const UpdatePort = ({
       ...data,
       latitude: parseFloat(data.latitude),
       longitude: parseFloat(data.longitude),
-      is_active: true,
     };
     onUpdate(port.id, portData);
   };
