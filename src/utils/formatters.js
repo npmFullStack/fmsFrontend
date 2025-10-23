@@ -25,3 +25,10 @@ export const toTitleCase = (text) => {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 };
+
+
+
+export const formatPercentage = (value) => {
+  if (value == null || isNaN(value)) return '0%';
+  return `${parseFloat(value).toFixed(2)}%`;
+};

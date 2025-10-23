@@ -4,7 +4,7 @@ import BulkActionBar from '../ui/BulkActionBar';
 import DeleteCategory from '../modals/DeleteCategory';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { formatCurrency, toUpperCase } from '../../utils/formatters';
+import { formatCurrency, toUpperCase, formatPercentage } from '../../utils/formatters';
 
 const CategoryTable = ({
   data = [],
@@ -83,6 +83,12 @@ const CategoryTable = ({
     [sortField, sortDirection]
   );
 
+  const getSurchargeBadge = useCallback((percentage) => {
+    if (percentage === 0) return <span className="badge badge-success">No Surcharge</span>;
+    if (percentage <= 15) return <span className="badge badge-warning">{formatPercentage(percentage)}</span>;
+    return <span className="badge badge-danger">{formatPercentage(percentage)}</span>;
+  }, []);
+
   const columns = useMemo(
     () => [
       {
@@ -131,7 +137,7 @@ const CategoryTable = ({
             onClick={() => handleSort('name')}
             className="table-header-button"
           >
-            NAME {getSortIcon('name')}
+            CATEGORY {getSortIcon('name')}
           </button>
         ),
         cell: ({ getValue }) => (
@@ -154,8 +160,37 @@ const CategoryTable = ({
           </span>
         ),
       },
+      {
+        accessorKey: 'weight_multiplier',
+        header: () => (
+          <button
+            onClick={() => handleSort('weight_multiplier')}
+            className="table-header-button"
+          >
+            WEIGHT RATE {getSortIcon('weight_multiplier')}
+          </button>
+        ),
+        cell: ({ getValue }) => (
+          <span className="font-medium text-green-400">
+            {formatCurrency(getValue())}/kg
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'surcharge_percentage',
+        header: () => (
+          <button
+            onClick={() => handleSort('surcharge_percentage')}
+            className="table-header-button"
+          >
+            SURCHARGE {getSortIcon('surcharge_percentage')}
+          </button>
+        ),
+        cell: ({ getValue }) => getSurchargeBadge(getValue()),
+        meta: { cellClassName: 'table-cell-center' },
+      },
     ],
-    [selected, allSelected, sortField, sortDirection, toggleSelectAll, toggleSelect, handleSort, getSortIcon]
+    [selected, allSelected, sortField, sortDirection, toggleSelectAll, toggleSelect, handleSort, getSortIcon, getSurchargeBadge]
   );
 
   return (
