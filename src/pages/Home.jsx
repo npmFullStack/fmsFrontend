@@ -1,20 +1,316 @@
 import React from 'react';
-import PageLayout from '../components/layout/PageLayout';
+import { useNavigate } from 'react-router-dom';
+import { Ship, Truck, Package, Clock, Shield, TrendingUp, MapPin, CheckCircle, Phone, Mail } from 'lucide-react';
 
 const Home = () => {
+  const navigate = useNavigate();
+
+  const services = [
+    {
+      icon: <Ship className="w-12 h-12" />,
+      title: 'Sea Freight',
+      description: 'Comprehensive ocean freight solutions for FCL and LCL shipments worldwide.',
+      features: ['FCL & LCL Options', 'Door-to-Door Service', 'Customs Clearance']
+    },
+    {
+      icon: <Truck className="w-12 h-12" />,
+      title: 'Land Transport',
+      description: 'Reliable ground transportation across the Philippines with real-time tracking.',
+      features: ['Nationwide Coverage', 'Express Delivery', 'Secure Handling']
+    },
+    {
+      icon: <Package className="w-12 h-12" />,
+      title: 'Warehousing',
+      description: 'State-of-the-art storage facilities with inventory management systems.',
+      features: ['Climate Control', '24/7 Security', 'Flexible Storage']
+    },
+  ];
+
+  const features = [
+    {
+      icon: <Clock className="w-8 h-8 text-blue-500" />,
+      title: 'On-Time Delivery',
+      description: '98% on-time delivery rate with real-time tracking'
+    },
+    {
+      icon: <Shield className="w-8 h-8 text-blue-500" />,
+      title: 'Secure & Insured',
+      description: 'Full insurance coverage for your cargo'
+    },
+    {
+      icon: <TrendingUp className="w-8 h-8 text-blue-500" />,
+      title: 'Competitive Rates',
+      description: 'Best pricing without compromising quality'
+    },
+    {
+      icon: <MapPin className="w-8 h-8 text-blue-500" />,
+      title: 'Wide Network',
+      description: 'Coverage across major ports and cities'
+    },
+  ];
+
   return (
-    <PageLayout 
-      title="Dashboard" 
-      subtitle="Welcome to X-TRA MILE FREIGHT FORWARDING INC. Management System"
-    >
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Add your dashboard cards here */}
-        <div className="card-wrapper">
-          <h3 className="card-header">Quick Stats</h3>
-          <p className="text-muted">Your dashboard content goes here...</p>
+    <div className="relative">
+      {/* Home Section */}
+      <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden">
+        {/* Gradient Background */}
+        <div className="absolute inset-0 -z-10 h-full w-full items-center px-5 py-24 [background:radial-gradient(125%_125%_at_50%_10%,#000_40%,#2563eb_100%)]"></div>
+        
+        {/* Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
+          <div className="animate-fadeInUp">
+            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">
+              Need Reliable Shipping<br />
+              <span className="text-blue-400">Solutions?</span>
+            </h1>
+            <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto">
+              Your trusted partner for sea and land logistics. Fast, secure, and affordable shipping across the Philippines and beyond.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <button
+                onClick={() => navigate('/quote')}
+                className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white text-lg font-semibold rounded-lg transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                Get a Quote Now
+              </button>
+              <a
+                href="#services"
+                className="px-8 py-4 bg-transparent border-2 border-white text-white text-lg font-semibold rounded-lg hover:bg-white hover:text-blue-600 transition-all"
+              >
+                Learn More
+              </a>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-20 max-w-4xl mx-auto">
+              {[
+                { number: '10+', label: 'Years Experience' },
+                { number: '5000+', label: 'Shipments Delivered' },
+                { number: '98%', label: 'On-Time Rate' },
+                { number: '24/7', label: 'Customer Support' },
+              ].map((stat, index) => (
+                <div key={index} className="text-center">
+                  <div className="text-4xl md:text-5xl font-bold text-white mb-2">{stat.number}</div>
+                  <div className="text-gray-400 text-sm md:text-base">{stat.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
-    </PageLayout>
+
+        {/* Scroll Indicator */}
+        <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 animate-bounce">
+          <div className="w-6 h-10 border-2 border-white rounded-full flex items-start justify-center p-2">
+            <div className="w-1 h-3 bg-white rounded-full"></div>
+          </div>
+        </div>
+      </section>
+
+      {/* About Section */}
+      <section id="about" className="bg-surface py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-heading mb-4">About XMFFI</h2>
+            <p className="text-xl text-muted max-w-3xl mx-auto">
+              Leading logistics provider specializing in sea and land freight solutions
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div>
+              <h3 className="text-3xl font-bold text-heading mb-6">Who We Are</h3>
+              <p className="text-muted text-lg mb-6 leading-relaxed">
+                XMFFI is a premier logistics company dedicated to providing comprehensive shipping solutions across the Philippines and international routes. With over a decade of experience, we've built a reputation for reliability, efficiency, and customer satisfaction.
+              </p>
+              <p className="text-muted text-lg mb-6 leading-relaxed">
+                Our team of logistics experts ensures your cargo reaches its destination safely and on time, every time. We leverage cutting-edge technology and an extensive network to provide seamless shipping experiences.
+              </p>
+              <div className="grid grid-cols-2 gap-4 mt-8">
+                {features.map((feature, index) => (
+                  <div key={index} className="flex items-start gap-3">
+                    <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-1" />
+                    <div>
+                      <h4 className="font-semibold text-heading">{feature.title}</h4>
+                      <p className="text-sm text-muted">{feature.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-blue-600 rounded-2xl p-8 text-white transform hover:scale-105 transition-transform">
+                <Ship className="w-12 h-12 mb-4" />
+                <h4 className="text-2xl font-bold mb-2">Sea Freight</h4>
+                <p className="text-blue-100">International & domestic ocean shipping</p>
+              </div>
+              <div className="bg-orange-600 rounded-2xl p-8 text-white transform hover:scale-105 transition-transform mt-8">
+                <Truck className="w-12 h-12 mb-4" />
+                <h4 className="text-2xl font-bold mb-2">Land Transport</h4>
+                <p className="text-orange-100">Nationwide ground delivery</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Services Section */}
+      <section id="services" className="bg-main py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-heading mb-4">Our Services</h2>
+            <p className="text-xl text-muted max-w-3xl mx-auto">
+              Comprehensive logistics solutions tailored to your needs
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {services.map((service, index) => (
+              <div
+                key={index}
+                className="bg-surface border border-main rounded-2xl p-8 hover:shadow-2xl transition-all transform hover:scale-105"
+              >
+                <div className="text-blue-500 mb-6">{service.icon}</div>
+                <h3 className="text-2xl font-bold text-heading mb-4">{service.title}</h3>
+                <p className="text-muted mb-6 leading-relaxed">{service.description}</p>
+                <ul className="space-y-3">
+                  {service.features.map((feature, idx) => (
+                    <li key={idx} className="flex items-center gap-2 text-content">
+                      <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-12">
+            <button
+              onClick={() => navigate('/quote')}
+              className="px-8 py-4 bg-primary hover:bg-blue-700 text-white text-lg font-semibold rounded-lg transition-all shadow-lg hover:shadow-xl inline-flex items-center gap-2"
+            >
+              Request a Quote
+              <Package className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Section */}
+      <section id="contact" className="bg-surface py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-heading mb-4">Get In Touch</h2>
+            <p className="text-xl text-muted max-w-3xl mx-auto">
+              Ready to ship? Contact us today for a personalized quote
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-12">
+            {/* Contact Form */}
+            <div className="bg-main border border-main rounded-2xl p-8">
+              <h3 className="text-2xl font-bold text-heading mb-6">Send us a message</h3>
+              <form className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-content mb-2">Name</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 bg-surface border border-main rounded-lg text-content focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+                    placeholder="Your name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-content mb-2">Email</label>
+                  <input
+                    type="email"
+                    className="w-full px-4 py-3 bg-surface border border-main rounded-lg text-content focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+                    placeholder="your@email.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-content mb-2">Message</label>
+                  <textarea
+                    rows="4"
+                    className="w-full px-4 py-3 bg-surface border border-main rounded-lg text-content focus:outline-none focus:ring-2 focus:ring-primary transition-all resize-none"
+                    placeholder="Tell us about your shipping needs..."
+                  ></textarea>
+                </div>
+                <button
+                  type="submit"
+                  className="w-full px-6 py-3 bg-primary hover:bg-blue-700 text-white font-semibold rounded-lg transition-all"
+                >
+                  Send Message
+                </button>
+              </form>
+            </div>
+
+            {/* Contact Info */}
+            <div className="space-y-8">
+              <div className="bg-main border border-main rounded-2xl p-8">
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="p-3 bg-blue-600 rounded-lg">
+                    <Phone className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-heading mb-2">Phone</h4>
+                    <p className="text-muted">+63 123 456 7890</p>
+                    <p className="text-muted">+63 098 765 4321</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="p-3 bg-blue-600 rounded-lg">
+                    <Mail className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-heading mb-2">Email</h4>
+                    <p className="text-muted">info@xmffi.com</p>
+                    <p className="text-muted">support@xmffi.com</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-blue-600 rounded-lg">
+                    <MapPin className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-heading mb-2">Office</h4>
+                    <p className="text-muted">123 Business St., Quezon City</p>
+                    <p className="text-muted">Metro Manila, Philippines</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-blue-600 rounded-2xl p-8 text-white">
+                <h3 className="text-2xl font-bold mb-4">Business Hours</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Monday - Friday</span>
+                    <span className="font-semibold">8:00 AM - 6:00 PM</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Saturday</span>
+                    <span className="font-semibold">9:00 AM - 3:00 PM</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Sunday</span>
+                    <span className="font-semibold">Closed</span>
+                  </div>
+                </div>
+                <p className="mt-6 text-blue-100 text-sm">
+                  *24/7 customer support available for urgent shipping inquiries
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-gray-400 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <p>&copy; 2025 XMFFI. All rights reserved.</p>
+        </div>
+      </footer>
+    </div>
   );
 };
 

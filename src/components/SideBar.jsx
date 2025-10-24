@@ -1,7 +1,7 @@
 // src/components/SideBar.jsx
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, List, Package, Container, MapPin, X, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Home, BarChart3, List, Package, Container, MapPin, X, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import logo from '../assets/images/logo.png';
 
 const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
@@ -10,6 +10,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
 
   const menuItems = [
     { icon: Home, label: 'Home', path: '/' },
+    { icon: BarChart3, label: 'Dashboard', path: '/dashboard' },
     { icon: List, label: 'Categories', path: '/categories' },
     { icon: Package, label: 'Items', path: '/items' },
     { icon: Container, label: 'Container Types', path: '/container-types' },
