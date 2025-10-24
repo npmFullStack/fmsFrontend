@@ -40,6 +40,22 @@ const PublicNavBar = () => {
           </span>
         </a>
 
+        {/* Desktop Navigation Links - Centered */}
+        <div className="hidden md:flex md:items-center md:absolute md:left-1/2 md:transform md:-translate-x-1/2">
+          <ul className="flex flex-col font-medium p-4 md:p-0 mt-4 border border-main rounded-lg md:space-x-8 rtl:space-x-reverse md:flex-row md:mt-0 md:border-0 bg-main md:bg-main">
+            {navItems.map((item, index) => (
+              <li key={index}>
+                <button
+                  onClick={() => scrollToSection(item.id)}
+                  className="block py-2 px-3 md:p-0 rounded-sm transition-colors text-content hover:text-primary md:hover:bg-transparent w-full text-left md:w-auto"
+                >
+                  {item.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+
         {/* Right side: Theme toggle and buttons */}
         <div className="flex items-center md:order-2 space-x-3 rtl:space-x-reverse">
           {/* Theme Toggle Switch */}
@@ -64,7 +80,7 @@ const PublicNavBar = () => {
           {/* Get Started Button */}
           <button
             onClick={handleGetStarted}
-            className="px-4 py-2 bg-primary hover:bg-blue-700 text-white font-medium rounded-lg text-sm transition-colors"
+            className="hidden md:block px-4 py-2 bg-primary hover:bg-blue-700 text-white font-medium rounded-lg text-sm transition-colors"
           >
             Get started
           </button>
@@ -85,26 +101,33 @@ const PublicNavBar = () => {
           </button>
         </div>
 
-        {/* Navigation Links */}
+        {/* Mobile Navigation Menu */}
         <div
-          className={`items-center justify-between w-full md:flex md:w-auto md:order-1 ${
+          className={`items-center justify-between w-full md:hidden ${
             isMobileMenuOpen ? 'block' : 'hidden'
           }`}
           id="navbar-cta"
         >
-          <ul className="flex flex-col font-medium p-4 md:p-0 mt-4 border
-          border-main rounded-lg md:space-x-8 rtl:space-x-reverse md:flex-row
-          md:mt-0 md:border-0 bg-main md:bg-main">
+          <ul className="flex flex-col font-medium p-4 mt-4 border border-main rounded-lg bg-main">
             {navItems.map((item, index) => (
               <li key={index}>
                 <button
                   onClick={() => scrollToSection(item.id)}
-                  className="block py-2 px-3 md:p-0 rounded-sm transition-colors text-content hover:text-primary md:hover:bg-transparent w-full text-left md:w-auto"
+                  className="block py-2 px-3 rounded-sm transition-colors text-content hover:text-primary w-full text-left"
                 >
                   {item.label}
                 </button>
               </li>
             ))}
+            {/* Mobile Get Started Button */}
+            <li className="border-t border-main mt-2 pt-2">
+              <button
+                onClick={handleGetStarted}
+                className="w-full text-left block py-2 px-3 bg-primary hover:bg-blue-700 text-white font-medium rounded-lg text-sm transition-colors mt-2"
+              >
+                Get started
+              </button>
+            </li>
           </ul>
         </div>
       </div>

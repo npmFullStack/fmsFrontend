@@ -1,44 +1,71 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Ship, Truck, Package, Clock, Shield, TrendingUp, MapPin, CheckCircle, Phone, Mail } from 'lucide-react';
+import {
+  Ship,
+  Truck,
+  Package,
+  Clock,
+  Shield,
+  TrendingUp,
+  MapPin,
+  CheckCircle,
+  Phone,
+  Mail,
+} from 'lucide-react';
 import playstore from '../assets/images/playstore.png';
 import loudSound from '../assets/sounds/moan.mp3';
+import CardTilt from '../components/CardTilt';
+import TextShine from '../components/TextShine';
 
 const Home = () => {
   const navigate = useNavigate();
-
-const audio = new Audio(loudSound);
+  const audio = new Audio(loudSound);
 
   const handleDownloadClick = () => {
     audio.play();
   };
-  
+
   const services = [
     {
       icon: <Ship className="w-12 h-12" />,
       title: 'Sea Freight',
-      description: 'Comprehensive ocean freight solutions for FCL and LCL shipments worldwide.',
-      features: ['FCL & LCL Options', 'Door-to-Door Service', 'Customs Clearance']
+      description:
+        'Comprehensive ocean freight solutions for FCL and LCL shipments worldwide.',
+      features: ['FCL & LCL Options', 'Door-to-Door Service', 'Customs Clearance'],
     },
     {
       icon: <Truck className="w-12 h-12" />,
       title: 'Land Transport',
-      description: 'Reliable ground transportation across the Philippines with real-time tracking.',
-      features: ['Nationwide Coverage', 'Express Delivery', 'Secure Handling']
+      description:
+        'Reliable ground transportation across the Philippines with real-time tracking.',
+      features: ['Nationwide Coverage', 'Express Delivery', 'Secure Handling'],
     },
     {
       icon: <Package className="w-12 h-12" />,
       title: 'Warehousing',
-      description: 'State-of-the-art storage facilities with inventory management systems.',
-      features: ['Climate Control', '24/7 Security', 'Flexible Storage']
+      description:
+        'State-of-the-art storage facilities with inventory management systems.',
+      features: ['Climate Control', '24/7 Security', 'Flexible Storage'],
     },
   ];
 
   const features = [
-    { icon: <Clock className="w-8 h-8 text-blue-500" />, title: 'On-Time Delivery', description: '98% on-time delivery rate with real-time tracking' },
-    { icon: <Shield className="w-8 h-8 text-blue-500" />, title: 'Secure & Insured', description: 'Full insurance coverage for your cargo' },
-    { icon: <TrendingUp className="w-8 h-8 text-blue-500" />, title: 'Competitive Rates', description: 'Best pricing without compromising quality' },
-    { icon: <MapPin className="w-8 h-8 text-blue-500" />, title: 'Wide Network', description: 'Coverage across major ports and cities' },
+    {
+      title: 'On-Time Delivery',
+      description: '98% on-time delivery rate with real-time tracking',
+    },
+    {
+      title: 'Secure & Insured',
+      description: 'Full insurance coverage for your cargo',
+    },
+    {
+      title: 'Competitive Rates',
+      description: 'Best pricing without compromising quality',
+    },
+    {
+      title: 'Wide Network',
+      description: 'Coverage across major ports and cities',
+    },
   ];
 
   const stats = [
@@ -50,21 +77,31 @@ const audio = new Audio(loudSound);
 
   return (
     <div className="relative pt-16">
-    <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background with primary gradient */}
-      <div className="absolute inset-0 -z-10 h-full w-full items-center px-5 py-24 
-        [background:radial-gradient(125%_125%_at_50%_10%,#000_40%,#2563eb_100%)]"></div>
+      {/* Home Section */}
+      <section
+        id="home"
+        className="relative min-h-screen flex items-center justify-center overflow-hidden bg-main"
+      >
+        {/* Adaptive Background */}
+        <div
+          className="absolute inset-0 z-0 h-full w-full"
+          style={{
+            background:
+              'radial-gradient(125% 125% at 50% 10%, rgb(var(--color-bg)) 40%, #1d4ed8 100%)',
+          }}
+        ></div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
-        <div className="animate-fadeInUp">
-          <h1 className="text-content text-5xl md:text-7xl font-bold mb-6">
-            Need Reliable Shipping<br />
+        {/* Content */}
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
+          <h1 className="text-5xl md:text-7xl font-bold mb-6">
+            <TextShine>Need Reliable Shipping</TextShine>
+            <br />
             <span className="text-primary">Solutions?</span>
           </h1>
+
           <p className="text-xl md:text-2xl text-content mb-8 max-w-3xl mx-auto">
-            Your trusted partner for sea and land logistics. Fast, secure, and
-            affordable shipping across the Philippines.
+            Your trusted partner for sea and land logistics. Fast, secure, and affordable
+            shipping across the Philippines.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -84,22 +121,22 @@ const audio = new Audio(loudSound);
             </button>
           </div>
 
-          {/* Stats Section */}
+          {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-20 max-w-4xl mx-auto">
             {stats.map((stat, index) => (
               <div key={index} className="text-center">
-                <div className="text-4xl md:text-5xl font-bold text-content mb-2">{stat.number}</div>
+                <div className="text-4xl md:text-5xl font-bold text-content mb-2">
+                  {stat.number}
+                </div>
                 <div className="text-content text-sm md:text-base">{stat.label}</div>
               </div>
             ))}
           </div>
         </div>
-      </div>
-    </section>
-
+      </section>
 
       {/* About Section */}
-      <section id="about" className="bg-surface py-20">
+      <section id="about" className="bg-surface py-20 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-heading mb-4">About XMFFI</h2>
@@ -112,15 +149,20 @@ const audio = new Audio(loudSound);
             <div>
               <h3 className="text-3xl font-bold text-heading mb-6">Who We Are</h3>
               <p className="text-muted text-lg mb-6 leading-relaxed">
-                XMFFI is a premier logistics company dedicated to providing comprehensive shipping solutions across the Philippines and international routes. With over a decade of experience, we've built a reputation for reliability, efficiency, and customer satisfaction.
+                XMFFI is a premier logistics company dedicated to providing comprehensive
+                shipping solutions across the Philippines and international routes. With over a
+                decade of experience, we've built a reputation for reliability, efficiency, and
+                customer satisfaction.
               </p>
               <p className="text-muted text-lg mb-6 leading-relaxed">
-                Our team of logistics experts ensures your cargo reaches its destination safely and on time, every time. We leverage cutting-edge technology and an extensive network to provide seamless shipping experiences.
+                Our team of logistics experts ensures your cargo reaches its destination safely
+                and on time, every time. We leverage cutting-edge technology and an extensive
+                network to provide seamless shipping experiences.
               </p>
               <div className="grid grid-cols-2 gap-4 mt-8">
                 {features.map((feature, index) => (
                   <div key={index} className="flex items-start gap-3">
-                    <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-1"/>
+                    <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0 mt-1" />
                     <div>
                       <h4 className="font-semibold text-heading">{feature.title}</h4>
                       <p className="text-sm text-muted">{feature.description}</p>
@@ -129,17 +171,23 @@ const audio = new Audio(loudSound);
                 ))}
               </div>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-primary rounded-2xl p-8 text-white transform hover:scale-105 transition-transform">
-                <Ship className="w-12 h-12 mb-4"/>
-                <h4 className="text-2xl font-bold mb-2">Sea Freight</h4>
-                <p className="text-blue-100">International & domestic ocean shipping</p>
-              </div>
-              <div className="bg-orange-600 rounded-2xl p-8 text-white transform hover:scale-105 transition-transform mt-8">
-                <Truck className="w-12 h-12 mb-4"/>
-                <h4 className="text-2xl font-bold mb-2">Land Transport</h4>
-                <p className="text-orange-100">Nationwide ground delivery</p>
-              </div>
+              <CardTilt>
+                <div className="bg-primary rounded-2xl p-8 text-white">
+                  <Ship className="w-12 h-12 mb-4" />
+                  <h4 className="text-2xl font-bold mb-2">Sea Freight</h4>
+                  <p className="text-blue-100">International & domestic ocean shipping</p>
+                </div>
+              </CardTilt>
+
+              <CardTilt>
+                <div className="bg-orange-600 rounded-2xl p-8 text-white mt-8">
+                  <Truck className="w-12 h-12 mb-4" />
+                  <h4 className="text-2xl font-bold mb-2">Land Transport</h4>
+                  <p className="text-orange-100">Nationwide ground delivery</p>
+                </div>
+              </CardTilt>
             </div>
           </div>
         </div>
@@ -167,7 +215,7 @@ const audio = new Audio(loudSound);
                 <ul className="space-y-3">
                   {service.features.map((feature, idx) => (
                     <li key={idx} className="flex items-center gap-2 text-content">
-                      <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0"/>
+                      <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
                       <span>{feature}</span>
                     </li>
                   ))}
