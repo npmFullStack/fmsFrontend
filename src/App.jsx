@@ -21,24 +21,20 @@ function App() {
       <Suspense fallback={<LoadingSkeleton type="generic" />}>
         <Routes>
           {/* Public Routes */}
-            <PublicLayout>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/quote" element={<Quote />} />
-              </Routes>
-            </PublicLayout>
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/quote" element={<Quote />} />
+          </Route>
           
           {/* Authenticated Routes */}
-            <Layout>
-              <Routes>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/categories" element={<Category />} />
-                <Route path="/container-types" element={<ContainerType />} />
-                <Route path="/ports" element={<Port />} />
-                <Route path="/items" element={<Item />} />
-              </Routes>
-            </Layout>
+          <Route element={<Layout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/categories" element={<Category />} />
+            <Route path="/container-types" element={<ContainerType />} />
+            <Route path="/ports" element={<Port />} />
+            <Route path="/items" element={<Item />} />
+          </Route>
         </Routes>
       </Suspense>
     </Router>

@@ -1,9 +1,10 @@
 // src/components/Layout.jsx
 import React, { useState } from 'react';
+import { Outlet } from 'react-router-dom';
 import NavBar from '../components/NavBar';
 import SideBar from '../components/SideBar';
 
-const Layout = ({ children }) => {
+const Layout = () => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   return (
@@ -15,7 +16,7 @@ const Layout = ({ children }) => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <NavBar onMenuClick={() => setIsMobileOpen(true)} />
         <main className="flex-1 overflow-y-auto bg-main p-6">
-          {children}
+          <Outlet /> 
         </main>
       </div>
     </div>
