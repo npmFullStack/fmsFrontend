@@ -1,50 +1,83 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Lottie from 'lottie-react';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { X } from 'lucide-react';
+import Select from 'react-select';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import GizmoTutorial from './GizmoTutorial';
 import chatbotAnimation from '../assets/lottie/Chatbot.json';
 
 const Quote = () => {
   const [showTutorial, setShowTutorial] = useState(true);
   const [tutorialStep, setTutorialStep] = useState(0);
   const [items, setItems] = useState([{ id: 1, name: '', weight: '', quantity: '', category: '' }]);
+  const [departureDate, setDepartureDate] = useState(null);
+  const [deliveryDate, setDeliveryDate] = useState(null);
+  const [currentSection, setCurrentSection] = useState(1);
+  
+  const sectionRefs = {
+    1: useRef(null),
+    2: useRef(null),
+    3: useRef(null),
+    4: useRef(null),
+    5: useRef(null)
+  };
 
-  const tutorialSteps = [
-    {
-      title: "Hi! I'm your shipping assistant! 🚢",
-      description: "I'll help you get a quote for your shipping needs. Let me guide you through the process step by step."
-    },
-    {
-      title: "Personal Information",
-      description: "First, we'll need your basic contact details so we can send you the quote and keep you updated."
-    },
-    {
-      title: "Shipper Details",
-      description: "Next, tell us about the sender - who's shipping the goods and where they'll be picked up from."
-    },
-    {
-      title: "Consignee Information",
-      description: "Now, let's get the receiver's details and where the goods should be delivered."
-    },
-    {
-      title: "Item Details",
-      description: "What are you shipping? Tell us about your items, their weight, quantity, and category. You can add multiple items!"
-    },
-    {
-      title: "Shipping Preferences",
-      description: "Finally, choose your shipping mode, container size, route, and preferred dates. We'll calculate the best quote for you!"
-    },
-    {
-      title: "All Set! Ready to Quote? 🎉",
-      description: "That's all we need! Fill out the form and we'll get you a competitive quote right away."
-    }
+  const categoryOptions = [
+    { value: 'general-cargo', label: 'General Cargo' },
+    { value: 'electronics', label: 'Electronics' },
+    { value: 'food-beverage', label: 'Food & Beverage' },
+    { value: 'clothing-textiles', label: 'Clothing & Textiles' },
+    { value: 'furniture', label: 'Furniture' },
+    { value: 'automotive', label: 'Automotive Parts' },
+    { value: 'machinery', label: 'Machinery' },
+    { value: 'chemicals', label: 'Chemicals' },
+    { value: 'other', label: 'Other' }
   ];
+
+  const cities = [
+    'Manila', 'Cebu', 'Davao', 'Cagayan de Oro', 'Iloilo',
+    'Zamboanga', 'Bacolod', 'General Santos', 'Batangas', 'Subic'
+  ];
+
+  const gizmoMessages = {
+    1: "Let's start with your personal information. This helps us contact you with your quote!",
+    2: "Great! Now tell me about the shipper - who's sending the package?",
+    3: "Perfect! Now let's get the consignee details - who's receiving the package?",
+    4: "Awesome! What items are you shipping? Don't forget you can add multiple items!",
+    5: "Almost done! Just need your shipping preferences and we'll calculate your quote. You're doing great! 🎉"
+  };
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const section = parseInt(entry.target.dataset.section);
+            setCurrentSection(section);
+          }
+        });
+      },
+      { threshold: 0.5 }
+    );
+
+    Object.values(sectionRefs).forEach(ref => {
+      if (ref.current) observer.observe(ref.current);
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   const handleSkipTutorial = () => {
     setShowTutorial(false);
   };
 
+  const handleGetStarted = () => {
+    setTutorialStep(1);
+  };
+
   const handleNextStep = () => {
-    if (tutorialStep < tutorialSteps.length - 1) {
+    if (tutorialStep < 6) {
       setTutorialStep(tutorialStep + 1);
     } else {
       setShowTutorial(false);
@@ -52,13 +85,9 @@ const Quote = () => {
   };
 
   const handlePrevStep = () => {
-    if (tutorialStep > 0) {
+    if (tutorialStep > 1) {
       setTutorialStep(tutorialStep - 1);
     }
-  };
-
-  const handleGetStarted = () => {
-    setShowTutorial(false);
   };
 
   const addItem = () => {
@@ -73,129 +102,23 @@ const Quote = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Handle form submission
     console.log('Form submitted');
   };
 
-  // Philippine cities with ports (dummy data)
-  const cities = [
-    'Manila', 'Cebu', 'Davao', 'Cagayan de Oro', 'Iloilo', 
-    'Zamboanga', 'Bacolod', 'General Santos', 'Batangas', 'Subic'
-  ];
-
-  if (showTutorial && tutorialStep === 0) {
+  if (showTutorial) {
     return (
-      <div className="min-h-screen bg-main flex items-center justify-center p-4">
-        <div className="bg-surface rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden border border-main">
-          <div className="flex flex-col md:flex-row">
-            {/* Left side - Lottie Animation (40%) */}
-            <div className="md:w-2/5 bg-[#36C2FD] p-8 flex items-center justify-center">
-              <Lottie animationData={chatbotAnimation} loop={true} className="w-full max-w-xs" />
-            </div>
-            
-            {/* Right side - Welcome content (60%) */}
-            <div className="md:w-3/5 p-8 flex flex-col justify-between">
-              <div className="flex-1 flex flex-col justify-center">
-<h2 className="text-3xl font-bold text-heading mb-4">Hi! Gizmo here to help you out!</h2>
-                <p className="text-muted text-lg mb-8">
-                  I'll be helping you get a shipping quote today. Let me guide you through 
-                  a quick tutorial to make this process smooth and easy!
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <button
-                  onClick={handleGetStarted}
-                  className="w-full px-6 py-4 bg-primary hover:bg-blue-700 text-white text-lg font-semibold rounded-lg transition-all shadow-lg hover:shadow-xl"
-                >
-                  Get Started with Tutorial
-                </button>
-                <button
-                  onClick={handleSkipTutorial}
-                  className="w-full px-6 py-4 bg-surface hover:bg-surface border-2 border-main text-content text-lg font-semibold rounded-lg transition-all"
-                >
-                  Continue Without Tutorial
-                </button>
-                <button
-                  onClick={handleSkipTutorial}
-                  className="w-full text-muted hover:text-content text-sm transition-colors"
-                >
-                  Skip tutorial
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (showTutorial && tutorialStep > 0) {
-    return (
-      <div className="min-h-screen bg-main flex items-center justify-center p-4">
-        <div className="bg-surface rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden border border-main">
-          <div className="flex flex-col md:flex-row">
-            {/* Left side - Lottie Animation (40%) */}
-            <div className="md:w-2/5 bg-gradient-to-br from-primary to-blue-700 p-8 flex items-center justify-center">
-              <Lottie animationData={chatbotAnimation} loop={true} className="w-full max-w-xs" />
-            </div>
-            
-            {/* Right side - Tutorial steps (60%) */}
-            <div className="md:w-3/5 p-8 flex flex-col justify-between">
-              <div className="flex-1 flex flex-col justify-center">
-                <div className="mb-4">
-                  <span className="text-primary font-semibold text-sm">
-                    Step {tutorialStep} of {tutorialSteps.length - 1}
-                  </span>
-                </div>
-                <h2 className="text-3xl font-bold text-heading mb-4">
-                  {tutorialSteps[tutorialStep].title}
-                </h2>
-                <p className="text-muted text-lg">
-                  {tutorialSteps[tutorialStep].description}
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between pt-6">
-                <button
-                  onClick={handleSkipTutorial}
-                  className="text-muted hover:text-content text-sm transition-colors"
-                >
-                  Skip tutorial
-                </button>
-                
-                <div className="flex items-center gap-3">
-                  {tutorialStep > 1 && (
-                    <button
-                      onClick={handlePrevStep}
-                      className="p-3 bg-surface hover:bg-surface border border-main text-content rounded-lg transition-all"
-                    >
-                      <ChevronLeft className="w-5 h-5" />
-                    </button>
-                  )}
-                  <button
-                    onClick={handleNextStep}
-                    className="px-6 py-3 bg-primary hover:bg-blue-700 text-white font-semibold rounded-lg transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
-                  >
-                    {tutorialStep === tutorialSteps.length - 1 ? (
-                      <>Start Quoting</>
-                    ) : (
-                      <>
-                        Next <ChevronRight className="w-5 h-5" />
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <GizmoTutorial
+        tutorialStep={tutorialStep}
+        onSkip={handleSkipTutorial}
+        onNext={handleNextStep}
+        onPrev={handlePrevStep}
+        onGetStarted={handleGetStarted}
+      />
     );
   }
 
   return (
-    <div className="min-h-screen bg-main py-20 px-4">
+    <div className="min-h-screen bg-main py-20 px-4 pb-32">
       <div className="max-w-4xl mx-auto">
         <div className="bg-surface rounded-2xl shadow-xl border border-main p-8">
           <div className="mb-8">
@@ -205,7 +128,7 @@ const Quote = () => {
 
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* Section 1: Personal Information */}
-            <div className="space-y-4">
+            <div className="space-y-4" ref={sectionRefs[1]} data-section="1">
               <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">
                 1. Personal Information
               </h2>
@@ -230,7 +153,7 @@ const Quote = () => {
             </div>
 
             {/* Section 2: Shipper Information */}
-            <div className="space-y-4">
+            <div className="space-y-4" ref={sectionRefs[2]} data-section="2">
               <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">
                 2. Shipper Information
               </h2>
@@ -255,7 +178,7 @@ const Quote = () => {
             </div>
 
             {/* Section 3: Consignee Information */}
-            <div className="space-y-4">
+            <div className="space-y-4" ref={sectionRefs[3]} data-section="3">
               <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">
                 3. Consignee Information
               </h2>
@@ -280,7 +203,7 @@ const Quote = () => {
             </div>
 
             {/* Section 4: Item/Commodity Information */}
-            <div className="space-y-4">
+            <div className="space-y-4" ref={sectionRefs[4]} data-section="4">
               <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">
                 4. Item/Commodity Information
               </h2>
@@ -305,7 +228,12 @@ const Quote = () => {
                     </div>
                     <div>
                       <label className="modal-label">Category</label>
-                      <input type="text" className="modal-input" placeholder="General Cargo" required />
+                      <Select
+                        options={categoryOptions}
+                        className="react-select-container"
+                        classNamePrefix="react-select"
+                        placeholder="Select category"
+                      />
                     </div>
                     <div>
                       <label className="modal-label">Weight (kg)</label>
@@ -328,7 +256,7 @@ const Quote = () => {
             </div>
 
             {/* Section 5: Shipping Preferences */}
-            <div className="space-y-4">
+            <div className="space-y-4" ref={sectionRefs[5]} data-section="5">
               <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">
                 5. Shipping Preferences
               </h2>
@@ -377,11 +305,26 @@ const Quote = () => {
                 </div>
                 <div>
                   <label className="modal-label">Preferred Departure Date</label>
-                  <input type="date" className="modal-input" required />
+                  <DatePicker
+                    selected={departureDate}
+                    onChange={(date) => setDepartureDate(date)}
+                    className="modal-input w-full"
+                    placeholderText="Select date"
+                    dateFormat="MMMM d, yyyy"
+                    minDate={new Date()}
+                    required
+                  />
                 </div>
                 <div>
                   <label className="modal-label">Preferred Delivery Date</label>
-                  <input type="date" className="modal-input" />
+                  <DatePicker
+                    selected={deliveryDate}
+                    onChange={(date) => setDeliveryDate(date)}
+                    className="modal-input w-full"
+                    placeholderText="Select date"
+                    dateFormat="MMMM d, yyyy"
+                    minDate={departureDate || new Date()}
+                  />
                   <p className="text-xs text-muted mt-1">Required for Door to Door bookings</p>
                 </div>
                 <div>
@@ -401,6 +344,21 @@ const Quote = () => {
               </button>
             </div>
           </form>
+        </div>
+      </div>
+
+      {/* Floating Gizmo Helper */}
+      <div className="fixed bottom-6 left-6 flex items-end gap-4 z-50 max-w-md">
+        {/* Lottie Animation */}
+        <div className="w-24 h-24 flex-shrink-0">
+          <Lottie animationData={chatbotAnimation} loop={true} />
+        </div>
+        
+        {/* Message Bubble */}
+        <div className="bg-white rounded-2xl rounded-bl-none shadow-2xl p-4 border border-gray-200">
+          <p className="text-gray-800 text-sm font-medium">
+            {gizmoMessages[currentSection]}
+          </p>
         </div>
       </div>
     </div>
