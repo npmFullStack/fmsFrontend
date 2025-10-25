@@ -105,12 +105,12 @@ const Home = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <button
-              onClick={() => navigate('/quote')}
-              className="px-8 py-4 bg-primary hover:bg-blue-800 text-white text-lg font-semibold rounded-lg transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
-            >
-              Get a Quote Now
-            </button>
+<button
+  onClick={() => navigate('/quote')}
+  className="px-8 py-4 bg-primary hover:bg-blue-800 text-white text-lg font-semibold rounded-lg transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+>
+  Get a Quote Now
+</button>
 
             <button
               onClick={handleDownloadClick}
@@ -225,13 +225,12 @@ const Home = () => {
           </div>
 
           <div className="text-center mt-12">
-            <button
-              onClick={() => navigate('/quote')}
-              className="px-8 py-4 bg-primary hover:bg-blue-700 text-white text-lg font-semibold rounded-lg transition-all shadow-lg hover:shadow-xl inline-flex items-center gap-2"
-            >
-              Request a Quote
-              <Package className="w-5 h-5" />
-            </button>
+<button
+  onClick={() => navigate('/quote')}
+  className="px-8 py-4 bg-primary hover:bg-blue-700 text-white text-lg font-semibold rounded-lg transition-all shadow-lg hover:shadow-xl inline-flex items-center gap-2"
+>
+  Request a Quote
+</button>
           </div>
         </div>
       </section>
