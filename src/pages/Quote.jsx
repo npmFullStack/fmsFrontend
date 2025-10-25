@@ -15,6 +15,30 @@ const Quote = () => {
   const [deliveryDate, setDeliveryDate] = useState(null);
   const [currentSection, setCurrentSection] = useState(1);
   
+  // Form state for tracking completion
+  const [formData, setFormData] = useState({
+    // Section 1
+    firstName: '',
+    lastName: '',
+    email: '',
+    contactNumber: '',
+    // Section 2
+    shipperFirstName: '',
+    shipperLastName: '',
+    shipperContact: '',
+    pickupLocation: '',
+    // Section 3
+    consigneeFirstName: '',
+    consigneeLastName: '',
+    consigneeContact: '',
+    deliveryLocation: '',
+    // Section 5
+    modeOfService: null,
+    containerSize: null,
+    origin: null,
+    destination: null,
+  });
+
   const sectionRefs = {
     1: useRef(null),
     2: useRef(null),
@@ -35,9 +59,43 @@ const Quote = () => {
     { value: 'other', label: 'Other' }
   ];
 
-  const cities = [
-    'Manila', 'Cebu', 'Davao', 'Cagayan de Oro', 'Iloilo',
-    'Zamboanga', 'Bacolod', 'General Santos', 'Batangas', 'Subic'
+  const modeOptions = [
+    { value: 'port-to-port', label: 'Port to Port' },
+    { value: 'pier-to-pier', label: 'Pier to Pier' },
+    { value: 'door-to-door', label: 'Door to Door' },
+    { value: 'port-to-door', label: 'Port to Door' },
+    { value: 'door-to-port', label: 'Door to Port' }
+  ];
+
+  const containerOptions = [
+    { value: '20ft', label: '20ft Container' },
+    { value: '40ft', label: '40ft Container' },
+    { value: 'lcl', label: 'LCL (Less than Container Load)' }
+  ];
+
+  const cityOptions = [
+    { value: 'Manila', label: 'Manila' },
+    { value: 'Cebu', label: 'Cebu' },
+    { value: 'Davao', label: 'Davao' },
+    { value: 'Cagayan de Oro', label: 'Cagayan de Oro' },
+    { value: 'Iloilo', label: 'Iloilo' },
+    { value: 'Zamboanga', label: 'Zamboanga' },
+    { value: 'Bacolod', label: 'Bacolod' },
+    { value: 'General Santos', label: 'General Santos' },
+    { value: 'Batangas', label: 'Batangas' },
+    { value: 'Subic', label: 'Subic' }
+  ];
+
+  const shippingLineOptions = [
+    { value: 'maersk', label: 'Maersk Line' },
+    { value: 'msc', label: 'MSC (Mediterranean Shipping Company)' },
+    { value: 'cosco', label: 'COSCO Shipping' },
+    { value: 'hapag-lloyd', label: 'Hapag-Lloyd' },
+    { value: 'evergreen', label: 'Evergreen Line' },
+    { value: 'cma-cgm', label: 'CMA CGM' },
+    { value: 'yang-ming', label: 'Yang Ming Marine Transport' },
+    { value: 'one', label: 'Ocean Network Express (ONE)' },
+    { value: 'other', label: 'Other' }
   ];
 
   const gizmoMessages = {
@@ -48,25 +106,41 @@ const Quote = () => {
     5: "Almost done! Just need your shipping preferences and we'll calculate your quote. You're doing great! 🎉"
   };
 
+  // Check if sections are complete
+  const isSectionComplete = (section) => {
+    switch(section) {
+      case 1:
+        return formData.firstName && formData.lastName && formData.email && formData.contactNumber;
+      case 2:
+        return formData.shipperFirstName && formData.shipperLastName && formData.shipperContact && formData.pickupLocation;
+      case 3:
+        return formData.consigneeFirstName && formData.consigneeLastName && formData.consigneeContact && formData.deliveryLocation;
+      case 4:
+        return items.every(item => item.name && item.weight && item.quantity && item.category);
+      case 5:
+        return formData.modeOfService && formData.containerSize && formData.origin && formData.destination && departureDate;
+      default:
+        return false;
+    }
+  };
+
+  // Auto-advance to next section when current is complete
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const section = parseInt(entry.target.dataset.section);
-            setCurrentSection(section);
-          }
-        });
-      },
-      { threshold: 0.5 }
-    );
+    if (isSectionComplete(currentSection) && currentSection < 5) {
+      const nextSection = currentSection + 1;
+      const nextRef = sectionRefs[nextSection];
+      if (nextRef.current) {
+        setTimeout(() => {
+          setCurrentSection(nextSection);
+          nextRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+      }
+    }
+  }, [formData, items, departureDate, currentSection]);
 
-    Object.values(sectionRefs).forEach(ref => {
-      if (ref.current) observer.observe(ref.current);
-    });
-
-    return () => observer.disconnect();
-  }, []);
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
 
   const handleSkipTutorial = () => {
     setShowTutorial(false);
@@ -100,9 +174,15 @@ const Quote = () => {
     }
   };
 
+  const handleItemChange = (id, field, value) => {
+    setItems(items.map(item => 
+      item.id === id ? { ...item, [field]: value } : item
+    ));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('Form submitted');
+    console.log('Form submitted', { formData, items, departureDate, deliveryDate });
   };
 
   if (showTutorial) {
@@ -135,19 +215,47 @@ const Quote = () => {
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="modal-label">First Name</label>
-                  <input type="text" className="modal-input" placeholder="Juan" required />
+                  <input 
+                    type="text" 
+                    className="modal-input" 
+                    placeholder="Juan" 
+                    value={formData.firstName}
+                    onChange={(e) => handleInputChange('firstName', e.target.value)}
+                    required 
+                  />
                 </div>
                 <div>
                   <label className="modal-label">Last Name</label>
-                  <input type="text" className="modal-input" placeholder="Dela Cruz" required />
+                  <input 
+                    type="text" 
+                    className="modal-input" 
+                    placeholder="Dela Cruz" 
+                    value={formData.lastName}
+                    onChange={(e) => handleInputChange('lastName', e.target.value)}
+                    required 
+                  />
                 </div>
                 <div>
                   <label className="modal-label">Email</label>
-                  <input type="email" className="modal-input" placeholder="juan@email.com" required />
+                  <input 
+                    type="email" 
+                    className="modal-input" 
+                    placeholder="juan@email.com" 
+                    value={formData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    required 
+                  />
                 </div>
                 <div>
                   <label className="modal-label">Contact Number</label>
-                  <input type="tel" className="modal-input" placeholder="+63 912 345 6789" required />
+                  <input 
+                    type="tel" 
+                    className="modal-input" 
+                    placeholder="+63 912 345 6789" 
+                    value={formData.contactNumber}
+                    onChange={(e) => handleInputChange('contactNumber', e.target.value)}
+                    required 
+                  />
                 </div>
               </div>
             </div>
@@ -160,19 +268,47 @@ const Quote = () => {
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="modal-label">Shipper First Name</label>
-                  <input type="text" className="modal-input" placeholder="Maria" required />
+                  <input 
+                    type="text" 
+                    className="modal-input" 
+                    placeholder="Maria" 
+                    value={formData.shipperFirstName}
+                    onChange={(e) => handleInputChange('shipperFirstName', e.target.value)}
+                    required 
+                  />
                 </div>
                 <div>
                   <label className="modal-label">Shipper Last Name</label>
-                  <input type="text" className="modal-input" placeholder="Santos" required />
+                  <input 
+                    type="text" 
+                    className="modal-input" 
+                    placeholder="Santos" 
+                    value={formData.shipperLastName}
+                    onChange={(e) => handleInputChange('shipperLastName', e.target.value)}
+                    required 
+                  />
                 </div>
                 <div>
                   <label className="modal-label">Contact Number</label>
-                  <input type="tel" className="modal-input" placeholder="+63 912 345 6789" required />
+                  <input 
+                    type="tel" 
+                    className="modal-input" 
+                    placeholder="+63 912 345 6789" 
+                    value={formData.shipperContact}
+                    onChange={(e) => handleInputChange('shipperContact', e.target.value)}
+                    required 
+                  />
                 </div>
                 <div>
                   <label className="modal-label">Pickup Location</label>
-                  <input type="text" className="modal-input" placeholder="123 Street, Quezon City" required />
+                  <input 
+                    type="text" 
+                    className="modal-input" 
+                    placeholder="123 Street, Quezon City" 
+                    value={formData.pickupLocation}
+                    onChange={(e) => handleInputChange('pickupLocation', e.target.value)}
+                    required 
+                  />
                 </div>
               </div>
             </div>
@@ -185,19 +321,47 @@ const Quote = () => {
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="modal-label">Consignee First Name</label>
-                  <input type="text" className="modal-input" placeholder="Pedro" required />
+                  <input 
+                    type="text" 
+                    className="modal-input" 
+                    placeholder="Pedro" 
+                    value={formData.consigneeFirstName}
+                    onChange={(e) => handleInputChange('consigneeFirstName', e.target.value)}
+                    required 
+                  />
                 </div>
                 <div>
                   <label className="modal-label">Consignee Last Name</label>
-                  <input type="text" className="modal-input" placeholder="Reyes" required />
+                  <input 
+                    type="text" 
+                    className="modal-input" 
+                    placeholder="Reyes" 
+                    value={formData.consigneeLastName}
+                    onChange={(e) => handleInputChange('consigneeLastName', e.target.value)}
+                    required 
+                  />
                 </div>
                 <div>
                   <label className="modal-label">Contact Number</label>
-                  <input type="tel" className="modal-input" placeholder="+63 912 345 6789" required />
+                  <input 
+                    type="tel" 
+                    className="modal-input" 
+                    placeholder="+63 912 345 6789" 
+                    value={formData.consigneeContact}
+                    onChange={(e) => handleInputChange('consigneeContact', e.target.value)}
+                    required 
+                  />
                 </div>
                 <div>
                   <label className="modal-label">Delivery Location</label>
-                  <input type="text" className="modal-input" placeholder="456 Avenue, Cebu City" required />
+                  <input 
+                    type="text" 
+                    className="modal-input" 
+                    placeholder="456 Avenue, Cebu City" 
+                    value={formData.deliveryLocation}
+                    onChange={(e) => handleInputChange('deliveryLocation', e.target.value)}
+                    required 
+                  />
                 </div>
               </div>
             </div>
@@ -224,12 +388,21 @@ const Quote = () => {
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <label className="modal-label">Item Name</label>
-                      <input type="text" className="modal-input" placeholder="Electronics" required />
+                      <input 
+                        type="text" 
+                        className="modal-input" 
+                        placeholder="Electronics" 
+                        value={item.name}
+                        onChange={(e) => handleItemChange(item.id, 'name', e.target.value)}
+                        required 
+                      />
                     </div>
                     <div>
                       <label className="modal-label">Category</label>
                       <Select
                         options={categoryOptions}
+                        value={categoryOptions.find(opt => opt.value === item.category)}
+                        onChange={(selected) => handleItemChange(item.id, 'category', selected?.value)}
                         className="react-select-container"
                         classNamePrefix="react-select"
                         placeholder="Select category"
@@ -237,11 +410,25 @@ const Quote = () => {
                     </div>
                     <div>
                       <label className="modal-label">Weight (kg)</label>
-                      <input type="number" className="modal-input" placeholder="100" required />
+                      <input 
+                        type="number" 
+                        className="modal-input" 
+                        placeholder="100" 
+                        value={item.weight}
+                        onChange={(e) => handleItemChange(item.id, 'weight', e.target.value)}
+                        required 
+                      />
                     </div>
                     <div>
                       <label className="modal-label">Quantity</label>
-                      <input type="number" className="modal-input" placeholder="10" required />
+                      <input 
+                        type="number" 
+                        className="modal-input" 
+                        placeholder="10" 
+                        value={item.quantity}
+                        onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)}
+                        required 
+                      />
                     </div>
                   </div>
                 </div>
@@ -263,45 +450,56 @@ const Quote = () => {
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="modal-label">Mode of Service</label>
-                  <select className="modal-input" required>
-                    <option value="">Select mode</option>
-                    <option value="port-to-port">Port to Port</option>
-                    <option value="pier-to-pier">Pier to Pier</option>
-                    <option value="door-to-door">Door to Door</option>
-                    <option value="port-to-door">Port to Door</option>
-                    <option value="door-to-port">Door to Port</option>
-                  </select>
+                  <Select
+                    options={modeOptions}
+                    value={formData.modeOfService}
+                    onChange={(selected) => handleInputChange('modeOfService', selected)}
+                    className="react-select-container"
+                    classNamePrefix="react-select"
+                    placeholder="Select mode"
+                  />
                 </div>
                 <div>
                   <label className="modal-label">Container Size</label>
-                  <select className="modal-input" required>
-                    <option value="">Select size</option>
-                    <option value="20ft">20ft Container</option>
-                    <option value="40ft">40ft Container</option>
-                    <option value="lcl">LCL (Less than Container Load)</option>
-                  </select>
+                  <Select
+                    options={containerOptions}
+                    value={formData.containerSize}
+                    onChange={(selected) => handleInputChange('containerSize', selected)}
+                    className="react-select-container"
+                    classNamePrefix="react-select"
+                    placeholder="Select size"
+                  />
                 </div>
                 <div>
                   <label className="modal-label">Origin</label>
-                  <select className="modal-input" required>
-                    <option value="">Select origin</option>
-                    {cities.map(city => (
-                      <option key={city} value={city}>{city}</option>
-                    ))}
-                  </select>
+                  <Select
+                    options={cityOptions}
+                    value={formData.origin}
+                    onChange={(selected) => handleInputChange('origin', selected)}
+                    className="react-select-container"
+                    classNamePrefix="react-select"
+                    placeholder="Select origin"
+                  />
                 </div>
                 <div>
                   <label className="modal-label">Destination</label>
-                  <select className="modal-input" required>
-                    <option value="">Select destination</option>
-                    {cities.map(city => (
-                      <option key={city} value={city}>{city}</option>
-                    ))}
-                  </select>
+                  <Select
+                    options={cityOptions}
+                    value={formData.destination}
+                    onChange={(selected) => handleInputChange('destination', selected)}
+                    className="react-select-container"
+                    classNamePrefix="react-select"
+                    placeholder="Select destination"
+                  />
                 </div>
                 <div>
                   <label className="modal-label">Shipping Line</label>
-                  <input type="text" className="modal-input" placeholder="Enter shipping line" />
+                  <Select
+                    options={shippingLineOptions}
+                    className="react-select-container"
+                    classNamePrefix="react-select"
+                    placeholder="Select shipping line"
+                  />
                 </div>
                 <div>
                   <label className="modal-label">Preferred Departure Date</label>

@@ -286,6 +286,10 @@
   color: rgb(var(--color-content));
 }
 
+.react-datepicker-wrapper {
+  width: 100%;
+}
+
 /* Table Component Styles */
 .table-container {
   @apply relative;
