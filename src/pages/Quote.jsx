@@ -89,16 +89,14 @@ const Quote = () => {
         <div className="bg-surface rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden border border-main">
           <div className="flex flex-col md:flex-row">
             {/* Left side - Lottie Animation (40%) */}
-            <div className="md:w-2/5 bg-gradient-to-br from-primary to-blue-700 p-8 flex items-center justify-center">
+            <div className="md:w-2/5 bg-[#36C2FD] p-8 flex items-center justify-center">
               <Lottie animationData={chatbotAnimation} loop={true} className="w-full max-w-xs" />
             </div>
             
             {/* Right side - Welcome content (60%) */}
             <div className="md:w-3/5 p-8 flex flex-col justify-between">
               <div className="flex-1 flex flex-col justify-center">
-                <h2 className="text-3xl font-bold text-heading mb-4">
-                  Hi! I'm your cute robot assistant! 🤖
-                </h2>
+<h2 className="text-3xl font-bold text-heading mb-4">Hi! Gizmo here to help you out!</h2>
                 <p className="text-muted text-lg mb-8">
                   I'll be helping you get a shipping quote today. Let me guide you through 
                   a quick tutorial to make this process smooth and easy!
