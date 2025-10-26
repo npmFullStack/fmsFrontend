@@ -1,37 +1,32 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Lottie from 'lottie-react';
 import { X } from 'lucide-react';
 import Select from 'react-select';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import GizmoTutorial from './GizmoTutorial';
-import chatbotAnimation from '../assets/lottie/Chatbot.json';
 
 const Quote = () => {
-  const [showTutorial, setShowTutorial] = useState(true);
-  const [tutorialStep, setTutorialStep] = useState(0);
-  const [items, setItems] = useState([{ id: 1, name: '', weight: '', quantity: '', category: '' }]);
+  const [items, setItems] = useState([{ id: 1, name: "", weight: "", quantity: "", category: "" }]);
   const [departureDate, setDepartureDate] = useState(null);
   const [deliveryDate, setDeliveryDate] = useState(null);
   const [currentSection, setCurrentSection] = useState(1);
-  
+
   // Form state for tracking completion
   const [formData, setFormData] = useState({
     // Section 1
-    firstName: '',
-    lastName: '',
-    email: '',
-    contactNumber: '',
+    firstName: "",
+    lastName: "",
+    email: "",
+    contactNumber: "",
     // Section 2
-    shipperFirstName: '',
-    shipperLastName: '',
-    shipperContact: '',
-    pickupLocation: '',
+    shipperFirstName: "",
+    shipperLastName: "",
+    shipperContact: "",
+    pickupLocation: "",
     // Section 3
-    consigneeFirstName: '',
-    consigneeLastName: '',
-    consigneeContact: '',
-    deliveryLocation: '',
+    consigneeFirstName: "",
+    consigneeLastName: "",
+    consigneeContact: "",
+    deliveryLocation: "",
     // Section 5
     modeOfService: null,
     containerSize: null,
@@ -98,14 +93,6 @@ const Quote = () => {
     { value: 'other', label: 'Other' }
   ];
 
-  const gizmoMessages = {
-    1: "Let's start with your personal information. This helps us contact you with your quote!",
-    2: "Great! Now tell me about the shipper - who's sending the package?",
-    3: "Perfect! Now let's get the consignee details - who's receiving the package?",
-    4: "Awesome! What items are you shipping? Don't forget you can add multiple items!",
-    5: "Almost done! Just need your shipping preferences and we'll calculate your quote. You're doing great! 🎉"
-  };
-
   // Check if sections are complete
   const isSectionComplete = (section) => {
     switch(section) {
@@ -142,30 +129,8 @@ const Quote = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSkipTutorial = () => {
-    setShowTutorial(false);
-  };
-
-  const handleGetStarted = () => {
-    setTutorialStep(1);
-  };
-
-  const handleNextStep = () => {
-    if (tutorialStep < 6) {
-      setTutorialStep(tutorialStep + 1);
-    } else {
-      setShowTutorial(false);
-    }
-  };
-
-  const handlePrevStep = () => {
-    if (tutorialStep > 1) {
-      setTutorialStep(tutorialStep - 1);
-    }
-  };
-
   const addItem = () => {
-    setItems([...items, { id: Date.now(), name: '', weight: '', quantity: '', category: '' }]);
+    setItems([...items, { id: Date.now(), name: "", weight: "", quantity: "", category: "" }]);
   };
 
   const removeItem = (id) => {
@@ -185,18 +150,6 @@ const Quote = () => {
     console.log('Form submitted', { formData, items, departureDate, deliveryDate });
   };
 
-  if (showTutorial) {
-    return (
-      <GizmoTutorial
-        tutorialStep={tutorialStep}
-        onSkip={handleSkipTutorial}
-        onNext={handleNextStep}
-        onPrev={handlePrevStep}
-        onGetStarted={handleGetStarted}
-      />
-    );
-  }
-
   return (
     <div className="min-h-screen bg-main py-20 px-4 pb-32">
       <div className="max-w-4xl mx-auto">
@@ -215,46 +168,46 @@ const Quote = () => {
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="modal-label">First Name</label>
-                  <input 
-                    type="text" 
-                    className="modal-input" 
-                    placeholder="Juan" 
+                  <input
+                    type="text"
+                    className="modal-input"
+                    placeholder="Juan"
                     value={formData.firstName}
                     onChange={(e) => handleInputChange('firstName', e.target.value)}
-                    required 
+                    required
                   />
                 </div>
                 <div>
                   <label className="modal-label">Last Name</label>
-                  <input 
-                    type="text" 
-                    className="modal-input" 
-                    placeholder="Dela Cruz" 
+                  <input
+                    type="text"
+                    className="modal-input"
+                    placeholder="Dela Cruz"
                     value={formData.lastName}
                     onChange={(e) => handleInputChange('lastName', e.target.value)}
-                    required 
+                    required
                   />
                 </div>
                 <div>
                   <label className="modal-label">Email</label>
-                  <input 
-                    type="email" 
-                    className="modal-input" 
-                    placeholder="juan@email.com" 
+                  <input
+                    type="email"
+                    className="modal-input"
+                    placeholder="juan@email.com"
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
-                    required 
+                    required
                   />
                 </div>
                 <div>
                   <label className="modal-label">Contact Number</label>
-                  <input 
-                    type="tel" 
-                    className="modal-input" 
-                    placeholder="+63 912 345 6789" 
+                  <input
+                    type="tel"
+                    className="modal-input"
+                    placeholder="+63 912 345 6789"
                     value={formData.contactNumber}
                     onChange={(e) => handleInputChange('contactNumber', e.target.value)}
-                    required 
+                    required
                   />
                 </div>
               </div>
@@ -268,46 +221,46 @@ const Quote = () => {
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="modal-label">Shipper First Name</label>
-                  <input 
-                    type="text" 
-                    className="modal-input" 
-                    placeholder="Maria" 
+                  <input
+                    type="text"
+                    className="modal-input"
+                    placeholder="Maria"
                     value={formData.shipperFirstName}
                     onChange={(e) => handleInputChange('shipperFirstName', e.target.value)}
-                    required 
+                    required
                   />
                 </div>
                 <div>
                   <label className="modal-label">Shipper Last Name</label>
-                  <input 
-                    type="text" 
-                    className="modal-input" 
-                    placeholder="Santos" 
+                  <input
+                    type="text"
+                    className="modal-input"
+                    placeholder="Santos"
                     value={formData.shipperLastName}
                     onChange={(e) => handleInputChange('shipperLastName', e.target.value)}
-                    required 
+                    required
                   />
                 </div>
                 <div>
                   <label className="modal-label">Contact Number</label>
-                  <input 
-                    type="tel" 
-                    className="modal-input" 
-                    placeholder="+63 912 345 6789" 
+                  <input
+                    type="tel"
+                    className="modal-input"
+                    placeholder="+63 912 345 6789"
                     value={formData.shipperContact}
                     onChange={(e) => handleInputChange('shipperContact', e.target.value)}
-                    required 
+                    required
                   />
                 </div>
                 <div>
                   <label className="modal-label">Pickup Location</label>
-                  <input 
-                    type="text" 
-                    className="modal-input" 
-                    placeholder="123 Street, Quezon City" 
+                  <input
+                    type="text"
+                    className="modal-input"
+                    placeholder="123 Street, Quezon City"
                     value={formData.pickupLocation}
                     onChange={(e) => handleInputChange('pickupLocation', e.target.value)}
-                    required 
+                    required
                   />
                 </div>
               </div>
@@ -321,46 +274,46 @@ const Quote = () => {
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="modal-label">Consignee First Name</label>
-                  <input 
-                    type="text" 
-                    className="modal-input" 
-                    placeholder="Pedro" 
+                  <input
+                    type="text"
+                    className="modal-input"
+                    placeholder="Pedro"
                     value={formData.consigneeFirstName}
                     onChange={(e) => handleInputChange('consigneeFirstName', e.target.value)}
-                    required 
+                    required
                   />
                 </div>
                 <div>
                   <label className="modal-label">Consignee Last Name</label>
-                  <input 
-                    type="text" 
-                    className="modal-input" 
-                    placeholder="Reyes" 
+                  <input
+                    type="text"
+                    className="modal-input"
+                    placeholder="Reyes"
                     value={formData.consigneeLastName}
                     onChange={(e) => handleInputChange('consigneeLastName', e.target.value)}
-                    required 
+                    required
                   />
                 </div>
                 <div>
                   <label className="modal-label">Contact Number</label>
-                  <input 
-                    type="tel" 
-                    className="modal-input" 
-                    placeholder="+63 912 345 6789" 
+                  <input
+                    type="tel"
+                    className="modal-input"
+                    placeholder="+63 912 345 6789"
                     value={formData.consigneeContact}
                     onChange={(e) => handleInputChange('consigneeContact', e.target.value)}
-                    required 
+                    required
                   />
                 </div>
                 <div>
                   <label className="modal-label">Delivery Location</label>
-                  <input 
-                    type="text" 
-                    className="modal-input" 
-                    placeholder="456 Avenue, Cebu City" 
+                  <input
+                    type="text"
+                    className="modal-input"
+                    placeholder="456 Avenue, Cebu City"
                     value={formData.deliveryLocation}
                     onChange={(e) => handleInputChange('deliveryLocation', e.target.value)}
-                    required 
+                    required
                   />
                 </div>
               </div>
@@ -388,13 +341,13 @@ const Quote = () => {
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <label className="modal-label">Item Name</label>
-                      <input 
-                        type="text" 
-                        className="modal-input" 
-                        placeholder="Electronics" 
+                      <input
+                        type="text"
+                        className="modal-input"
+                        placeholder="Electronics"
                         value={item.name}
                         onChange={(e) => handleItemChange(item.id, 'name', e.target.value)}
-                        required 
+                        required
                       />
                     </div>
                     <div>
@@ -410,24 +363,24 @@ const Quote = () => {
                     </div>
                     <div>
                       <label className="modal-label">Weight (kg)</label>
-                      <input 
-                        type="number" 
-                        className="modal-input" 
-                        placeholder="100" 
+                      <input
+                        type="number"
+                        className="modal-input"
+                        placeholder="100"
                         value={item.weight}
                         onChange={(e) => handleItemChange(item.id, 'weight', e.target.value)}
-                        required 
+                        required
                       />
                     </div>
                     <div>
                       <label className="modal-label">Quantity</label>
-                      <input 
-                        type="number" 
-                        className="modal-input" 
-                        placeholder="10" 
+                      <input
+                        type="number"
+                        className="modal-input"
+                        placeholder="10"
                         value={item.quantity}
                         onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)}
-                        required 
+                        required
                       />
                     </div>
                   </div>
@@ -525,10 +478,6 @@ const Quote = () => {
                   />
                   <p className="text-xs text-muted mt-1">Required for Door to Door bookings</p>
                 </div>
-                <div>
-                  <label className="modal-label">Terms (Days)</label>
-                  <input type="number" className="modal-input" placeholder="30" />
-                </div>
               </div>
             </div>
 
@@ -542,21 +491,6 @@ const Quote = () => {
               </button>
             </div>
           </form>
-        </div>
-      </div>
-
-      {/* Floating Gizmo Helper */}
-      <div className="fixed bottom-6 left-6 flex items-end gap-4 z-50 max-w-md">
-        {/* Lottie Animation */}
-        <div className="w-24 h-24 flex-shrink-0">
-          <Lottie animationData={chatbotAnimation} loop={true} />
-        </div>
-        
-        {/* Message Bubble */}
-        <div className="bg-white rounded-2xl rounded-bl-none shadow-2xl p-4 border border-gray-200">
-          <p className="text-gray-800 text-sm font-medium">
-            {gizmoMessages[currentSection]}
-          </p>
         </div>
       </div>
     </div>
