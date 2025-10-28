@@ -12,7 +12,6 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
     { icon: Home, label: 'Home', path: '/' },
     { icon: BarChart3, label: 'Dashboard', path: '/dashboard' },
     { icon: List, label: 'Categories', path: '/categories' },
-    { icon: Package, label: 'Items', path: '/items' },
     { icon: Container, label: 'Container Types', path: '/container-types' },
     
     { icon: MapPin, label: 'Ports', path: '/ports' },
