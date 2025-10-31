@@ -11,7 +11,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Category = lazy(() => import('./pages/Category'));
 const ContainerType = lazy(() => import('./pages/ContainerType'));
 const Port = lazy(() => import('./pages/Port'));
-const Item = lazy(() => import('./pages/Item'));
+const BookingRequest = lazy(() => import('./pages/BookingRequest'));
 const Login = lazy(() => import('./pages/Login'));
 const Quote = lazy(() => import('./pages/Quote'));
 
@@ -33,7 +33,7 @@ function App() {
             <Route path="/categories" element={<Category />} />
             <Route path="/container-types" element={<ContainerType />} />
             <Route path="/ports" element={<Port />} />
-            <Route path="/items" element={<Item />} />
+            <Route path="/booking-request" element={<BookingRequest />} />
           </Route>
         </Routes>
       </Suspense>
