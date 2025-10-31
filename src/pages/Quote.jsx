@@ -1,40 +1,38 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import Select from "react-select";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { Calendar } from "lucide-react";
-import { X } from "lucide-react";
+import { Calendar, X, CheckCircle } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+
 import LocationFields from "../components/LocationFields";
 import api from "../api";
-import toast from "react-hot-toast";
+import { useCreateBooking } from "../api/mutations/bookingMutations";
+import { bookingSchema, itemSchema } from "../schemas/bookingSchema";
 
 const Quote = () => {
-  // items
   const [items, setItems] = useState([
     { id: 1, name: "", weight: "", quantity: "", category: "", customCategory: "" },
   ]);
-
-  // Dates
   const [departureDate, setDepartureDate] = useState(null);
   const [deliveryDate, setDeliveryDate] = useState(null);
+  const [quoteSubmitted, setQuoteSubmitted] = useState(false);
+  const [containerQuantity, setContainerQuantity] = useState(1);
+  const [weightValidation, setWeightValidation] = useState({ isValid: true, message: "" });
 
-  // Form data
   const [formData, setFormData] = useState({
-    // personal
     firstName: "",
     lastName: "",
     email: "",
     contactNumber: "",
-    // shipper
     shipperFirstName: "",
     shipperLastName: "",
     shipperContact: "",
-    // consignee
     consigneeFirstName: "",
     consigneeLastName: "",
     consigneeContact: "",
-    // shipping prefs
     modeOfService: null,
     containerSize: null,
     origin: null,
@@ -42,7 +40,6 @@ const Quote = () => {
     shippingLine: null,
   });
 
-  // location objects for pickup/delivery (structured)
   const [pickupLocation, setPickupLocation] = useState({});
   const [deliveryLocation, setDeliveryLocation] = useState({});
 
@@ -53,7 +50,13 @@ const Quote = () => {
     4: useRef(null),
     5: useRef(null),
   };
+
   const [currentSection, setCurrentSection] = useState(1);
+
+  // React Hook Form for validation
+  const { handleSubmit: submitForm, formState: { errors } } = useForm({
+    resolver: zodResolver(bookingSchema),
+  });
 
   // Fetch categories
   const { data: categoriesData, isLoading: categoriesLoading } = useQuery({
@@ -73,61 +76,44 @@ const Quote = () => {
     },
   });
 
-  // Create booking mutation
-  const createBookingMutation = useMutation({
-    mutationFn: async (bookingData) => {
-      const res = await api.post('/bookings', bookingData);
+  // Fetch container types from backend
+  const { data: containerTypesData, isLoading: containerTypesLoading } = useQuery({
+    queryKey: ['container-types'],
+    queryFn: async () => {
+      const res = await api.get('/container-types');
       return res.data;
-    },
-    onSuccess: () => {
-      toast.success('Booking submitted successfully!');
-      // Reset form
-      setItems([{ id: 1, name: "", weight: "", quantity: "", category: "", customCategory: "" }]);
-      setFormData({
-        firstName: "",
-        lastName: "",
-        email: "",
-        contactNumber: "",
-        shipperFirstName: "",
-        shipperLastName: "",
-        shipperContact: "",
-        consigneeFirstName: "",
-        consigneeLastName: "",
-        consigneeContact: "",
-        modeOfService: null,
-        containerSize: null,
-        origin: null,
-        destination: null,
-        shippingLine: null,
-      });
-      setDepartureDate(null);
-      setDeliveryDate(null);
-      setPickupLocation({});
-      setDeliveryLocation({});
-      setCurrentSection(1);
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to submit booking');
     },
   });
 
-  // Generate category options from API data
+  // Create booking mutation
+  const createBookingMutation = useCreateBooking();
+
+  // Generate container options from backend data
+  const containerOptions = React.useMemo(() => {
+    if (!containerTypesData?.data) return [];
+    
+    return containerTypesData.data.map(container => ({
+      value: container.id,
+      label: `${container.size} - ${container.load_type}`,
+      max_weight: container.max_weight,
+      load_type: container.load_type,
+      fcl_rate: container.fcl_rate,
+    }));
+  }, [containerTypesData]);
+
+  // Generate category options
   const categoryOptions = React.useMemo(() => {
     if (!categoriesData?.data) return [];
-    
     const baseOptions = categoriesData.data.map(category => ({
       value: category.name,
       label: category.name,
     }));
-    
-    // Add "Other" option
     return [...baseOptions, { value: "other", label: "Other" }];
   }, [categoriesData]);
 
-  // Generate port options (show only route_name)
+  // Generate port options
   const portOptions = React.useMemo(() => {
     if (!portsData?.data) return [];
-    
     return portsData.data.map(port => ({
       value: port.route_name,
       label: port.route_name,
@@ -142,12 +128,6 @@ const Quote = () => {
     { value: "door-to-port", label: "Door to Port" },
   ];
 
-  const containerOptions = [
-    { value: "20ft", label: "20ft Container" },
-    { value: "40ft", label: "40ft Container" },
-    { value: "lcl", label: "LCL (Less than Container Load)" },
-  ];
-
   const shippingLineOptions = [
     { value: "maersk", label: "Maersk Line" },
     { value: "msc", label: "MSC (Mediterranean Shipping Company)" },
@@ -159,27 +139,60 @@ const Quote = () => {
     { value: "one", label: "Ocean Network Express (ONE)" },
   ];
 
-  // helpers for items
-  const addItem = () =>
-    setItems((s) => [...s, { id: Date.now(), name: "", weight: "", quantity: "", category: "", customCategory: "" }]);
+  // Calculate total weight and validate against container capacity
+  const calculateTotalWeight = () => {
+    return items.reduce((total, item) => {
+      const weight = parseFloat(item.weight) || 0;
+      const quantity = parseInt(item.quantity) || 0;
+      return total + (weight * quantity);
+    }, 0);
+  };
+
+  // Validate weight against selected container
+  useEffect(() => {
+    if (formData.containerSize && items.length > 0) {
+      const totalWeight = calculateTotalWeight();
+      const selectedContainer = containerOptions.find(opt => opt.value === formData.containerSize.value);
+      
+      if (selectedContainer) {
+        const maxWeight = selectedContainer.max_weight * containerQuantity;
+        
+        if (totalWeight > maxWeight) {
+          const excessWeight = totalWeight - maxWeight;
+          setWeightValidation({
+            isValid: false,
+            message: `Total weight (${totalWeight}kg) exceeds container capacity (${maxWeight}kg) by ${excessWeight}kg. Please reduce weight or increase container quantity.`
+          });
+        } else {
+          setWeightValidation({ isValid: true, message: "" });
+        }
+      }
+    }
+  }, [items, formData.containerSize, containerQuantity, containerOptions]);
+
+  // Item management functions
+  const addItem = () => setItems((s) => [...s, { 
+    id: Date.now(), 
+    name: "", 
+    weight: "", 
+    quantity: "", 
+    category: "", 
+    customCategory: "" 
+  }]);
 
   const removeItem = (id) => setItems((s) => s.filter((it) => it.id !== id));
 
   const handleItemChange = (id, field, value) =>
     setItems((s) => s.map((it) => (it.id === id ? { ...it, [field]: value } : it)));
 
-  // Handle category change with "Other" logic
   const handleCategoryChange = (id, selectedOption) => {
     const categoryValue = selectedOption?.value || "";
     handleItemChange(id, "category", categoryValue);
-    
-    // Clear custom category if not "other"
     if (categoryValue !== "other") {
       handleItemChange(id, "customCategory", "");
     }
   };
 
-  // simple change handler for formData
   const handleInputChange = (field, value) =>
     setFormData((prev) => ({ ...prev, [field]: value }));
 
@@ -203,13 +216,14 @@ const Quote = () => {
           return item.name && item.weight && item.quantity && hasCategory;
         });
       case 5:
-        return formData.modeOfService && formData.containerSize && formData.origin && formData.destination && departureDate;
+        return formData.modeOfService && formData.containerSize && formData.origin && 
+               formData.destination && departureDate && weightValidation.isValid;
       default:
         return false;
     }
   };
 
-  // auto-advance sections when complete
+  // Auto-advance sections when complete
   useEffect(() => {
     if (isSectionComplete(currentSection) && currentSection < 5) {
       const next = currentSection + 1;
@@ -219,9 +233,9 @@ const Quote = () => {
         if (ref?.current) ref.current.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 250);
     }
-  }, [formData, items, departureDate, currentSection]);
+  }, [formData, items, departureDate, currentSection, weightValidation]);
 
-  // Custom DatePicker input with calendar icon inside
+  // Custom DatePicker input
   const DateInput = React.forwardRef(({ value, onClick, placeholder }, ref) => (
     <div className="relative">
       <input
@@ -242,12 +256,10 @@ const Quote = () => {
       </button>
     </div>
   ));
+
   DateInput.displayName = "DateInput";
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    // Prepare the data for API
+  const handleFormSubmit = (formData) => {
     const bookingData = {
       first_name: formData.firstName,
       last_name: formData.lastName,
@@ -261,6 +273,7 @@ const Quote = () => {
       consignee_contact: formData.consigneeContact,
       mode_of_service: formData.modeOfService?.value,
       container_size: formData.containerSize?.value,
+      container_quantity: containerQuantity,
       origin: formData.origin?.value,
       destination: formData.destination?.value,
       shipping_line: formData.shippingLine?.value,
@@ -276,8 +289,58 @@ const Quote = () => {
       })),
     };
 
-    createBookingMutation.mutate(bookingData);
+    createBookingMutation.mutate(bookingData, {
+      onSuccess: () => {
+        setQuoteSubmitted(true);
+      }
+    });
   };
+
+  // Reset form function
+  const resetForm = () => {
+    setItems([{ id: 1, name: "", weight: "", quantity: "", category: "", customCategory: "" }]);
+    setFormData({
+      firstName: "", lastName: "", email: "", contactNumber: "",
+      shipperFirstName: "", shipperLastName: "", shipperContact: "",
+      consigneeFirstName: "", consigneeLastName: "", consigneeContact: "",
+      modeOfService: null, containerSize: null, origin: null, destination: null, shippingLine: null,
+    });
+    setDepartureDate(null);
+    setDeliveryDate(null);
+    setPickupLocation({});
+    setDeliveryLocation({});
+    setContainerQuantity(1);
+    setCurrentSection(1);
+    setQuoteSubmitted(false);
+  };
+
+  if (quoteSubmitted) {
+    return (
+      <div className="min-h-screen bg-main py-12 px-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-surface rounded-2xl shadow-xl border border-main p-8 text-center">
+            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+            <h1 className="text-3xl font-bold text-heading mb-4">Quote Request Submitted!</h1>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+              <p className="text-blue-800 mb-4">
+                <strong>Please wait for the admin to verify your quote.</strong>
+              </p>
+              <p className="text-blue-700">
+                We've sent a confirmation to <strong>{formData.email}</strong>. 
+                Later, we'll send your account password to this email address.
+              </p>
+            </div>
+            <button
+              onClick={resetForm}
+              className="bg-primary text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-dark transition-colors"
+            >
+              Request Another Quote
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-main py-12 px-4 pb-32">
@@ -288,8 +351,8 @@ const Quote = () => {
             <p className="text-muted text-lg">Fill out the form below to get your shipping quote</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Section 1 */}
+          <form onSubmit={submitForm(handleFormSubmit)} className="space-y-8">
+            {/* Section 1: Personal Information */}
             <div className="space-y-4" ref={sectionRefs[1]}>
               <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">
                 1. Personal Information
@@ -325,6 +388,9 @@ const Quote = () => {
                     placeholder="Enter your email address"
                     required
                   />
+                  <p className="text-sm text-gray-500 mt-1">
+                    This email will be used for your account and quote notifications
+                  </p>
                 </div>
                 <div>
                   <label className="modal-label">Contact Number</label>
@@ -339,9 +405,11 @@ const Quote = () => {
               </div>
             </div>
 
-            {/* Section 2: Shipper */}
+            {/* Section 2: Shipper Information */}
             <div className="space-y-4" ref={sectionRefs[2]}>
-              <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">2. Shipper Information</h2>
+              <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">
+                2. Shipper Information
+              </h2>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="modal-label">Shipper First Name</label>
@@ -376,9 +444,11 @@ const Quote = () => {
               </div>
             </div>
 
-            {/* Section 3: Consignee */}
+            {/* Section 3: Consignee Information */}
             <div className="space-y-4" ref={sectionRefs[3]}>
-              <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">3. Consignee Information</h2>
+              <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">
+                3. Consignee Information
+              </h2>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="modal-label">Consignee First Name</label>
@@ -415,12 +485,13 @@ const Quote = () => {
 
             {/* Section 4: Items */}
             <div className="space-y-4" ref={sectionRefs[4]}>
-              <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">4. Item / Commodity Information</h2>
-
+              <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">
+                4. Item / Commodity Information
+              </h2>
               {items.map((it, idx) => {
                 const showCustomCategory = it.category === "other";
                 const selectedCategory = categoryOptions.find((o) => o.value === it.category) || null;
-                
+
                 return (
                   <div key={it.id} className="bg-main border border-main rounded-lg p-4 space-y-4">
                     <div className="flex items-center justify-between mb-2">
@@ -431,7 +502,6 @@ const Quote = () => {
                         </button>
                       )}
                     </div>
-
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
                         <label className="modal-label">Item Name</label>
@@ -467,7 +537,6 @@ const Quote = () => {
                           </div>
                         )}
                       </div>
-
                       <div>
                         <label className="modal-label">Weight (kg)</label>
                         <input
@@ -497,7 +566,6 @@ const Quote = () => {
                   </div>
                 );
               })}
-
               <button type="button" onClick={addItem} className="text-primary font-medium text-sm">
                 + Add another item
               </button>
@@ -505,9 +573,10 @@ const Quote = () => {
 
             {/* Section 5: Shipping Preferences */}
             <div className="space-y-4" ref={sectionRefs[5]}>
-              <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">5. Shipping Preferences</h2>
-
-              <div className="grid md:grid-cols-2 gap-4 items-end">
+              <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">
+                5. Shipping Preferences
+              </h2>
+              <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="modal-label">Mode of Service</label>
                   <Select
@@ -516,24 +585,36 @@ const Quote = () => {
                     onChange={(s) => handleInputChange("modeOfService", s)}
                     className="react-select-container"
                     classNamePrefix="react-select"
-                    placeholder="Select service mode"
+                    placeholder="Select mode of service"
                   />
                 </div>
-
                 <div>
-                  <label className="modal-label">Container Size</label>
+                  <label className="modal-label">Container Type</label>
                   <Select
                     options={containerOptions}
                     value={formData.containerSize}
                     onChange={(s) => handleInputChange("containerSize", s)}
                     className="react-select-container"
                     classNamePrefix="react-select"
-                    placeholder="Select container size"
+                    placeholder="Select container type"
+                    isLoading={containerTypesLoading}
                   />
+                  {formData.containerSize && (
+                    <div className="mt-2">
+                      <label className="modal-label">Container Quantity</label>
+                      <input
+                        type="number"
+                        className="modal-input"
+                        value={containerQuantity}
+                        onChange={(e) => setContainerQuantity(parseInt(e.target.value) || 1)}
+                        min="1"
+                        required
+                      />
+                    </div>
+                  )}
                 </div>
-
                 <div>
-                  <label className="modal-label">Origin</label>
+                  <label className="modal-label">Origin Port</label>
                   <Select
                     options={portOptions}
                     value={formData.origin}
@@ -544,9 +625,8 @@ const Quote = () => {
                     isLoading={portsLoading}
                   />
                 </div>
-
                 <div>
-                  <label className="modal-label">Destination</label>
+                  <label className="modal-label">Destination Port</label>
                   <Select
                     options={portOptions}
                     value={formData.destination}
@@ -557,9 +637,27 @@ const Quote = () => {
                     isLoading={portsLoading}
                   />
                 </div>
-
                 <div>
-                  <label className="modal-label">Shipping Line</label>
+                  <label className="modal-label">Departure Date</label>
+                  <DatePicker
+                    selected={departureDate}
+                    onChange={setDepartureDate}
+                    customInput={<DateInput placeholder="Select departure date" />}
+                    minDate={new Date()}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="modal-label">Delivery Date (Optional)</label>
+                  <DatePicker
+                    selected={deliveryDate}
+                    onChange={setDeliveryDate}
+                    customInput={<DateInput placeholder="Select delivery date" />}
+                    minDate={departureDate}
+                  />
+                </div>
+                <div>
+                  <label className="modal-label">Preferred Shipping Line (Optional)</label>
                   <Select
                     options={shippingLineOptions}
                     value={formData.shippingLine}
@@ -569,67 +667,60 @@ const Quote = () => {
                     placeholder="Select shipping line"
                   />
                 </div>
-
-                <div>
-                  <label className="modal-label">Preferred Departure Date</label>
-                  <DatePicker
-                    selected={departureDate}
-                    onChange={(d) => setDepartureDate(d)}
-                    customInput={<DateInput placeholder="Select departure date" />}
-                    dateFormat="MMMM d, yyyy"
-                    minDate={new Date()}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="modal-label">Preferred Delivery Date</label>
-                  <DatePicker
-                    selected={deliveryDate}
-                    onChange={(d) => setDeliveryDate(d)}
-                    customInput={<DateInput placeholder="Select delivery date" />}
-                    dateFormat="MMMM d, yyyy"
-                    minDate={departureDate || new Date()}
-                  />
-                  <p className="text-xs text-muted mt-1">Required for Door to Door bookings</p>
-                </div>
               </div>
-            </div>
 
-            {/* Location fields placed at the bottom (conditionally shown) */}
-            <div className="space-y-4">
-              <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">6. Pickup & Delivery</h2>
+              {/* Weight validation message */}
+              {!weightValidation.isValid && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-red-800 font-medium">{weightValidation.message}</p>
+                </div>
+              )}
 
+              {/* Total weight display */}
+              {items.some(item => item.weight && item.quantity) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-blue-800">
+                    Total Weight: <strong>{calculateTotalWeight()} kg</strong>
+                    {formData.containerSize && (
+                      <span>
+                        {" "} | Container Capacity:{" "}
+                        <strong>
+                          {containerOptions.find(opt => opt.value === formData.containerSize.value)?.max_weight * containerQuantity} kg
+                        </strong>
+                      </span>
+                    )}
+                  </p>
+                </div>
+              )}
+
+              {/* Location fields based on mode */}
               {showPickup && (
-                <LocationFields
-                  type="pickup"
-                  value={pickupLocation}
-                  onChange={setPickupLocation}
-                  showStreetSearch={true}
-                  required={true}
-                />
+                <div className="border border-main rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-heading mb-4">Pickup Location</h3>
+                  <LocationFields
+                    location={pickupLocation}
+                    setLocation={setPickupLocation}
+                  />
+                </div>
               )}
 
               {showDelivery && (
-                <LocationFields
-                  type="delivery"
-                  value={deliveryLocation}
-                  onChange={setDeliveryLocation}
-                  showStreetSearch={true}
-                  required={true}
-                />
-              )}
-
-              {!showPickup && !showDelivery && (
-                <p className="text-muted">Pickup/delivery locations are not required for port/pier-to-port/pier bookings.</p>
+                <div className="border border-main rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-heading mb-4">Delivery Location</h3>
+                  <LocationFields
+                    location={deliveryLocation}
+                    setLocation={setDeliveryLocation}
+                  />
+                </div>
               )}
             </div>
 
-            <div className="flex justify-end pt-4">
+            {/* Submit button */}
+            <div className="flex justify-end pt-6 border-t border-main">
               <button
                 type="submit"
-                disabled={createBookingMutation.isPending}
-                className="px-8 py-4 bg-primary hover:bg-blue-700 text-white text-lg font-semibold rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={createBookingMutation.isPending || !isSectionComplete(5)}
+                className="bg-primary text-white px-8 py-3 rounded-lg font-medium hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {createBookingMutation.isPending ? "Submitting..." : "Get Quote"}
               </button>
