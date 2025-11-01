@@ -4,13 +4,9 @@ import Select from "react-select";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { Calendar, X, CheckCircle } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-
 import LocationFields from "../components/LocationFields";
 import api from "../api";
 import { useCreateBooking } from "../api/mutations/bookingMutations";
-import { bookingSchema, itemSchema } from "../schemas/bookingSchema";
 
 const Quote = () => {
   const [items, setItems] = useState([
@@ -53,11 +49,6 @@ const Quote = () => {
 
   const [currentSection, setCurrentSection] = useState(1);
 
-  // React Hook Form for validation
-  const { handleSubmit: submitForm, formState: { errors } } = useForm({
-    resolver: zodResolver(bookingSchema),
-  });
-
   // Fetch categories
   const { data: categoriesData, isLoading: categoriesLoading } = useQuery({
     queryKey: ['categories'],
@@ -76,7 +67,7 @@ const Quote = () => {
     },
   });
 
-  // Fetch container types from backend
+  // Fetch container types
   const { data: containerTypesData, isLoading: containerTypesLoading } = useQuery({
     queryKey: ['container-types'],
     queryFn: async () => {
@@ -88,11 +79,10 @@ const Quote = () => {
   // Create booking mutation
   const createBookingMutation = useCreateBooking();
 
-  // Generate container options from backend data
+  // Generate options
   const containerOptions = React.useMemo(() => {
     if (!containerTypesData?.data) return [];
-    
-    return containerTypesData.data.map(container => ({
+    return containerTypesData.data.map(container => ({ 
       value: container.id,
       label: `${container.size} - ${container.load_type}`,
       max_weight: container.max_weight,
@@ -101,20 +91,18 @@ const Quote = () => {
     }));
   }, [containerTypesData]);
 
-  // Generate category options
   const categoryOptions = React.useMemo(() => {
     if (!categoriesData?.data) return [];
-    const baseOptions = categoriesData.data.map(category => ({
+    const baseOptions = categoriesData.data.map(category => ({ 
       value: category.name,
       label: category.name,
     }));
     return [...baseOptions, { value: "other", label: "Other" }];
   }, [categoriesData]);
 
-  // Generate port options
   const portOptions = React.useMemo(() => {
     if (!portsData?.data) return [];
-    return portsData.data.map(port => ({
+    return portsData.data.map(port => ({ 
       value: port.route_name,
       label: port.route_name,
     }));
@@ -139,7 +127,7 @@ const Quote = () => {
     { value: "one", label: "Ocean Network Express (ONE)" },
   ];
 
-  // Calculate total weight and validate against container capacity
+  // Calculate total weight
   const calculateTotalWeight = () => {
     return items.reduce((total, item) => {
       const weight = parseFloat(item.weight) || 0;
@@ -148,15 +136,14 @@ const Quote = () => {
     }, 0);
   };
 
-  // Validate weight against selected container
+  // Validate weight against container capacity
   useEffect(() => {
     if (formData.containerSize && items.length > 0) {
       const totalWeight = calculateTotalWeight();
       const selectedContainer = containerOptions.find(opt => opt.value === formData.containerSize.value);
-      
+
       if (selectedContainer) {
         const maxWeight = selectedContainer.max_weight * containerQuantity;
-        
         if (totalWeight > maxWeight) {
           const excessWeight = totalWeight - maxWeight;
           setWeightValidation({
@@ -170,14 +157,14 @@ const Quote = () => {
     }
   }, [items, formData.containerSize, containerQuantity, containerOptions]);
 
-  // Item management functions
-  const addItem = () => setItems((s) => [...s, { 
-    id: Date.now(), 
-    name: "", 
-    weight: "", 
-    quantity: "", 
-    category: "", 
-    customCategory: "" 
+  // Item management
+  const addItem = () => setItems((s) => [...s, {
+    id: Date.now(),
+    name: "",
+    weight: "",
+    quantity: "",
+    category: "",
+    customCategory: "",
   }]);
 
   const removeItem = (id) => setItems((s) => s.filter((it) => it.id !== id));
@@ -196,20 +183,27 @@ const Quote = () => {
   const handleInputChange = (field, value) =>
     setFormData((prev) => ({ ...prev, [field]: value }));
 
+  // Contact number validation - only numbers
+  const handleContactNumberChange = (field, value) => {
+    // Remove any non-numeric characters
+    const numericValue = value.replace(/[^\d]/g, '');
+    handleInputChange(field, numericValue);
+  };
+
   // Mode-based visibility
   const modeValue = formData.modeOfService?.value || null;
   const showPickup = modeValue === "door-to-door" || modeValue === "door-to-port";
   const showDelivery = modeValue === "door-to-door" || modeValue === "port-to-door";
 
-  // Section completion check
+  // Section completion check (made contact numbers optional)
   const isSectionComplete = (section) => {
     switch (section) {
       case 1:
-        return formData.firstName && formData.lastName && formData.email && formData.contactNumber;
+        return formData.firstName && formData.lastName && formData.email;
       case 2:
-        return formData.shipperFirstName && formData.shipperLastName && formData.shipperContact;
+        return formData.shipperFirstName && formData.shipperLastName;
       case 3:
-        return formData.consigneeFirstName && formData.consigneeLastName && formData.consigneeContact;
+        return formData.consigneeFirstName && formData.consigneeLastName;
       case 4:
         return items.every((item) => {
           const hasCategory = item.category && (item.category !== "other" || item.customCategory);
@@ -223,7 +217,7 @@ const Quote = () => {
     }
   };
 
-  // Auto-advance sections when complete
+  // Auto-advance sections
   useEffect(() => {
     if (isSectionComplete(currentSection) && currentSection < 5) {
       const next = currentSection + 1;
@@ -251,28 +245,35 @@ const Quote = () => {
         onClick={onClick}
         className="absolute right-2 top-1/2 -translate-y-1/2 p-1"
         aria-label="open-calendar"
-      >
+      > 
         <Calendar className="w-5 h-5 text-gray-500" />
       </button>
     </div>
   ));
-
   DateInput.displayName = "DateInput";
 
-  const handleFormSubmit = (formData) => {
+  // Form submission handler
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+
+    // Validate all sections are complete
+    if (!isSectionComplete(5)) {
+      return;
+    }
+
     const bookingData = {
       first_name: formData.firstName,
       last_name: formData.lastName,
       email: formData.email,
-      contact_number: formData.contactNumber,
+      contact_number: formData.contactNumber, // now optional
       shipper_first_name: formData.shipperFirstName,
       shipper_last_name: formData.shipperLastName,
-      shipper_contact: formData.shipperContact,
+      shipper_contact: formData.shipperContact, // now optional
       consignee_first_name: formData.consigneeFirstName,
       consignee_last_name: formData.consigneeLastName,
-      consignee_contact: formData.consigneeContact,
+      consignee_contact: formData.consigneeContact, // now optional
       mode_of_service: formData.modeOfService?.value,
-      container_size: formData.containerSize?.value,
+      container_size: formData.containerSize?.value, // FIX: Send only the value, not the object
       container_quantity: containerQuantity,
       origin: formData.origin?.value,
       destination: formData.destination?.value,
@@ -296,7 +297,7 @@ const Quote = () => {
     });
   };
 
-  // Reset form function
+  // Reset form
   const resetForm = () => {
     setItems([{ id: 1, name: "", weight: "", quantity: "", category: "", customCategory: "" }]);
     setFormData({
@@ -314,25 +315,32 @@ const Quote = () => {
     setQuoteSubmitted(false);
   };
 
+  // Success screen
   if (quoteSubmitted) {
     return (
       <div className="min-h-screen bg-main py-12 px-4">
         <div className="max-w-2xl mx-auto">
           <div className="bg-surface rounded-2xl shadow-xl border border-main p-8 text-center">
-            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4"/>
             <h1 className="text-3xl font-bold text-heading mb-4">Quote Request Submitted!</h1>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-              <p className="text-blue-800 mb-4">
-                <strong>Please wait for the admin to verify your quote.</strong>
+
+            <div className="modal-info-box text-left">
+              <div className="modal-info-title">
+                <span>Pending Verification</span>
+                <span className="modal-info-badge">Action Required</span>
+              </div>
+              <p className="modal-info-text mb-3">
+                Your quote request has been received and is currently being reviewed by our team.
               </p>
-              <p className="text-blue-700">
-                We've sent a confirmation to <strong>{formData.email}</strong>. 
-                Later, we'll send your account password to this email address.
+              <p className="modal-info-text">
+                A confirmation email has been sent to <strong>{formData.email}</strong>.
+                Once your quote is verified, you'll receive your account credentials at this email address.
               </p>
             </div>
+
             <button
               onClick={resetForm}
-              className="bg-primary text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-dark transition-colors"
+              className="bg-primary text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-dark transition-colors mt-6"
             >
               Request Another Quote
             </button>
@@ -342,6 +350,7 @@ const Quote = () => {
     );
   }
 
+  // Main form
   return (
     <div className="min-h-screen bg-main py-12 px-4 pb-32">
       <div className="max-w-4xl mx-auto">
@@ -351,7 +360,7 @@ const Quote = () => {
             <p className="text-muted text-lg">Fill out the form below to get your shipping quote</p>
           </div>
 
-          <form onSubmit={submitForm(handleFormSubmit)} className="space-y-8">
+          <form onSubmit={handleFormSubmit} className="space-y-8">
             {/* Section 1: Personal Information */}
             <div className="space-y-4" ref={sectionRefs[1]}>
               <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">
@@ -388,18 +397,20 @@ const Quote = () => {
                     placeholder="Enter your email address"
                     required
                   />
-                  <p className="text-sm text-gray-500 mt-1">
-                    This email will be used for your account and quote notifications
-                  </p>
+                  <div className="modal-info-box mt-2">
+                    <p className="modal-info-text text-sm">
+                      Your account credentials and quote updates will be sent to this email address.
+                    </p>
+                  </div>
                 </div>
                 <div>
-                  <label className="modal-label">Contact Number</label>
+                  <label className="modal-label">Contact Number (Optional)</label>
                   <input
                     className="modal-input"
                     value={formData.contactNumber}
-                    onChange={(e) => handleInputChange("contactNumber", e.target.value)}
+                    onChange={(e) => handleContactNumberChange("contactNumber", e.target.value)}
                     placeholder="Enter your contact number"
-                    required
+                    type="tel"
                   />
                 </div>
               </div>
@@ -432,13 +443,13 @@ const Quote = () => {
                   />
                 </div>
                 <div>
-                  <label className="modal-label">Contact Number</label>
+                  <label className="modal-label">Contact Number (Optional)</label>
                   <input
                     className="modal-input"
                     value={formData.shipperContact}
-                    onChange={(e) => handleInputChange("shipperContact", e.target.value)}
+                    onChange={(e) => handleContactNumberChange("shipperContact", e.target.value)}
                     placeholder="Enter shipper's contact number"
-                    required
+                    type="tel"
                   />
                 </div>
               </div>
@@ -471,13 +482,13 @@ const Quote = () => {
                   />
                 </div>
                 <div>
-                  <label className="modal-label">Contact Number</label>
+                  <label className="modal-label">Contact Number (Optional)</label>
                   <input
                     className="modal-input"
                     value={formData.consigneeContact}
-                    onChange={(e) => handleInputChange("consigneeContact", e.target.value)}
+                    onChange={(e) => handleContactNumberChange("consigneeContact", e.target.value)}
                     placeholder="Enter consignee's contact number"
-                    required
+                    type="tel"
                   />
                 </div>
               </div>
@@ -491,7 +502,6 @@ const Quote = () => {
               {items.map((it, idx) => {
                 const showCustomCategory = it.category === "other";
                 const selectedCategory = categoryOptions.find((o) => o.value === it.category) || null;
-
                 return (
                   <div key={it.id} className="bg-main border border-main rounded-lg p-4 space-y-4">
                     <div className="flex items-center justify-between mb-2">
@@ -669,17 +679,19 @@ const Quote = () => {
                 </div>
               </div>
 
-              {/* Weight validation message */}
+              {/* Weight validation */}
               {!weightValidation.isValid && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <p className="text-red-800 font-medium">{weightValidation.message}</p>
+                <div className="modal-info-box border-red-200">
+                  <p className="modal-info-text text-red-800 font-medium">
+                    {weightValidation.message}
+                  </p>
                 </div>
               )}
 
               {/* Total weight display */}
               {items.some(item => item.weight && item.quantity) && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="text-blue-800">
+                <div className="modal-info-box">
+                  <p className="modal-info-text">
                     Total Weight: <strong>{calculateTotalWeight()} kg</strong>
                     {formData.containerSize && (
                       <span>
@@ -693,7 +705,7 @@ const Quote = () => {
                 </div>
               )}
 
-              {/* Location fields based on mode */}
+              {/* Location fields */}
               {showPickup && (
                 <div className="border border-main rounded-lg p-4">
                   <h3 className="text-lg font-semibold text-heading mb-4">Pickup Location</h3>
