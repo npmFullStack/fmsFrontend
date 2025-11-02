@@ -1,8 +1,10 @@
+// src/pages/ContainerType.jsx
 import React, { useState, useCallback, useMemo } from 'react';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useDebounce } from 'use-debounce';
 import { Plus, Filter } from 'lucide-react';
-import api from '../api';
+import toast from 'react-hot-toast';
+
+import { useContainer } from '../hooks/useContainer';
 import TableLayout from '../components/layout/TableLayout';
 import ContainerTypeTable from '../components/tables/ContainerTypeTable';
 import AddContainerType from '../components/modals/AddContainerType';
@@ -10,7 +12,6 @@ import DeleteContainerType from '../components/modals/DeleteContainerType';
 import UpdateContainerType from '../components/modals/UpdateContainerType';
 import SearchBar from '../components/ui/SearchBar';
 import Pagination from '../components/ui/Pagination';
-import toast from 'react-hot-toast';
 
 const ContainerType = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -25,35 +26,34 @@ const ContainerType = () => {
   const [sort, setSort] = useState('id');
   const [direction, setDirection] = useState('asc');
 
-  const queryClient = useQueryClient();
+  // ✅ useContainer hook handles everything
+  const {
+    containersQuery,
+    createContainer,
+    updateContainer,
+    deleteContainer,
+    bulkDeleteContainers,
+  } = useContainer();
 
-  // Fetch container types
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['containerTypes', debouncedSearch, page],
-    queryFn: async () => {
-      const res = await api.get('/container-types', {
-        params: { search: debouncedSearch, page, per_page: 10 },
-      });
-      return res.data;
-    },
-    staleTime: 5 * 60 * 1000,
-    cacheTime: 10 * 60 * 1000,
-    keepPreviousData: true,
-  });
+  // ✅ Fetch containers (server-side pagination & search)
+  const { data, isLoading, isError } = containersQuery;
 
-  // Client-side sorting
   const sortedContainerTypes = useMemo(() => {
     if (!data?.data) return [];
     return [...data.data].sort((a, b) => {
       let aVal = a[sort];
       let bVal = b[sort];
-
       if (typeof aVal === 'string') {
         aVal = aVal.toLowerCase();
         bVal = bVal.toLowerCase();
       }
-
-      return direction === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
+      return direction === 'asc'
+        ? aVal > bVal
+          ? 1
+          : -1
+        : aVal < bVal
+        ? 1
+        : -1;
     });
   }, [data?.data, sort, direction]);
 
@@ -71,103 +71,81 @@ const ContainerType = () => {
     setDirection(dir);
   }, []);
 
-  // Mutations
-  const addMutation = useMutation({
-    mutationFn: async (containerTypeData) => (await api.post('/container-types', containerTypeData)).data,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['containerTypes'] });
-      toast.success('Container type added successfully');
-      setIsAddModalOpen(false);
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to add container type');
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, containerTypeData }) =>
-      (await api.put(`/container-types/${id}`, containerTypeData)).data,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['containerTypes'] });
-      toast.success('Container type updated successfully');
-      setIsUpdateModalOpen(false);
-      setUpdatingContainerType(null);
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to update container type');
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (containerType) => (await api.delete(`/container-types/${containerType.id}`)).data,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['containerTypes'] });
-      toast.success('Container type deleted successfully');
-      setIsDeleteModalOpen(false);
-      setDeletingContainerType(null);
-      setDeletingContainerTypes(null);
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to delete container type');
-    },
-  });
-
-  const bulkDeleteMutation = useMutation({
-    mutationFn: async (containerTypeIds) => 
-      (await api.post('/container-types/bulk-delete', { ids: containerTypeIds })).data,
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['containerTypes'] });
-      toast.success(data.message || 'Container types deleted successfully');
-      setIsDeleteModalOpen(false);
-      setDeletingContainerType(null);
-      setDeletingContainerTypes(null);
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to delete container types');
-    },
-  });
-
-  // Handlers
+  /* =========================
+   * CRUD ACTIONS
+   * ========================= */
   const handleAdd = useCallback(
-    (containerTypeData) => addMutation.mutate(containerTypeData),
-    [addMutation]
+    async (containerTypeData) => {
+      try {
+        await createContainer.mutateAsync(containerTypeData);
+        toast.success('Container type added successfully');
+        setIsAddModalOpen(false);
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to add container type');
+      }
+    },
+    [createContainer]
   );
 
   const handleUpdate = useCallback(
-    (id, containerTypeData) => updateMutation.mutate({ id, containerTypeData }),
-    [updateMutation]
+    async (id, containerTypeData) => {
+      try {
+        await updateContainer.mutateAsync({ id, ...containerTypeData });
+        toast.success('Container type updated successfully');
+        setIsUpdateModalOpen(false);
+        setUpdatingContainerType(null);
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to update container type');
+      }
+    },
+    [updateContainer]
   );
+
+  const handleDelete = useCallback(() => {
+    if (deletingContainerTypes) {
+      const ids = deletingContainerTypes.map((ct) => ct.id);
+      bulkDeleteContainers.mutate(ids, {
+        onSuccess: (res) => {
+          toast.success(res?.message || 'Container types deleted successfully');
+        },
+        onError: (error) => {
+          toast.error(error.response?.data?.message || 'Failed to delete containers');
+        },
+      });
+    } else if (deletingContainerType) {
+      deleteContainer.mutate(deletingContainerType.id, {
+        onSuccess: () => {
+          toast.success('Container type deleted successfully');
+        },
+        onError: (error) => {
+          toast.error(error.response?.data?.message || 'Failed to delete container type');
+        },
+      });
+    }
+    setIsDeleteModalOpen(false);
+    setDeletingContainerType(null);
+    setDeletingContainerTypes(null);
+  }, [deleteContainer, bulkDeleteContainers, deletingContainerType, deletingContainerTypes]);
 
   const handleEditClick = useCallback((containerType) => {
     setUpdatingContainerType(containerType);
     setIsUpdateModalOpen(true);
   }, []);
 
-  const handleDeleteClick = useCallback(
-    (containerTypeOrContainerTypes) => {
-      if (Array.isArray(containerTypeOrContainerTypes)) {
-        setDeletingContainerTypes(containerTypeOrContainerTypes);
-        setDeletingContainerType(null);
-        setIsDeleteModalOpen(true);
-      } else {
-        setDeletingContainerType(containerTypeOrContainerTypes);
-        setDeletingContainerTypes(null);
-        setIsDeleteModalOpen(true);
-      }
-    },
-    []
-  );
-
-  const handleDelete = useCallback(() => {
-    if (deletingContainerTypes) {
-      const containerTypeIds = deletingContainerTypes.map((ct) => ct.id);
-      bulkDeleteMutation.mutate(containerTypeIds);
-    } else if (deletingContainerType) {
-      deleteMutation.mutate(deletingContainerType);
+  const handleDeleteClick = useCallback((containerTypeOrContainerTypes) => {
+    if (Array.isArray(containerTypeOrContainerTypes)) {
+      setDeletingContainerTypes(containerTypeOrContainerTypes);
+      setDeletingContainerType(null);
+    } else {
+      setDeletingContainerType(containerTypeOrContainerTypes);
+      setDeletingContainerTypes(null);
     }
-  }, [deleteMutation, bulkDeleteMutation, deletingContainerType, deletingContainerTypes]);
+    setIsDeleteModalOpen(true);
+  }, []);
 
-  // Loading & error states
+  /* =========================
+   * STATES
+   * ========================= */
   if (isLoading && !data) {
     return (
       <div className="page-loading">
@@ -186,6 +164,9 @@ const ContainerType = () => {
     );
   }
 
+  /* =========================
+   * UI
+   * ========================= */
   return (
     <div className="page-container">
       {/* Page Header */}
@@ -207,10 +188,7 @@ const ContainerType = () => {
           }
           actions={
             <div className="page-actions">
-              <button
-                onClick={() => setIsAddModalOpen(true)}
-                className="page-btn-primary"
-              >
+              <button onClick={() => setIsAddModalOpen(true)} className="page-btn-primary">
                 <Plus className="page-btn-icon" />
                 Add Container Type
               </button>
@@ -243,11 +221,12 @@ const ContainerType = () => {
         </div>
       )}
 
+      {/* Modals */}
       <AddContainerType
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSave={handleAdd}
-        isLoading={addMutation.isPending}
+        isLoading={createContainer.isPending}
       />
 
       <UpdateContainerType
@@ -258,7 +237,7 @@ const ContainerType = () => {
         }}
         onUpdate={handleUpdate}
         containerType={updatingContainerType}
-        isLoading={updateMutation.isPending}
+        isLoading={updateContainer.isPending}
       />
 
       <DeleteContainerType
@@ -271,7 +250,7 @@ const ContainerType = () => {
         onDelete={handleDelete}
         containerType={deletingContainerType}
         containerTypes={deletingContainerTypes}
-        isLoading={deleteMutation.isPending || bulkDeleteMutation.isPending}
+        isLoading={deleteContainer.isPending || bulkDeleteContainers.isPending}
       />
     </div>
   );

@@ -1,69 +1,44 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { containerSchema } from '../../schemas/containerSchema';
 import { Loader2 } from 'lucide-react';
 import SharedModal from '../ui/SharedModal';
 
-const containerTypeSchema = z.object({
-  size: z.string().min(2, 'Size must be at least 2 characters'),
-  load_type: z.enum(['LCL', 'FCL'], {
-    required_error: 'Load type is required',
-  }),
-  max_weight: z.string()
-    .min(1, 'Max weight is required')
-    .regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid number'),
-  fcl_rate: z.string()
-    .regex(/^\d*(\.\d{1,2})?$/, 'Must be a valid number')
-    .optional()
-    .or(z.literal('')),
-});
-
-const UpdateContainerType = ({ 
+const UpdateContainerType = ({
   isOpen,
   onClose,
   onUpdate,
   containerType,
-  isLoading = false
+  isLoading = false,
 }) => {
   const {
     register,
     handleSubmit,
     reset,
-    setValue,
-    watch,
-    formState: { errors, isValid }
+    formState: { errors, isValid },
   } = useForm({
-    resolver: zodResolver(containerTypeSchema),
-    mode: 'onChange'
+    resolver: zodResolver(containerSchema),
+    mode: 'onChange',
   });
 
-  const loadType = watch('load_type');
-  const [showFclRate, setShowFclRate] = useState(false);
-
   useEffect(() => {
-    if (containerType) {
-      setValue('size', containerType.size);
-      setValue('load_type', containerType.load_type);
-      setValue('max_weight', containerType.max_weight.toString());
-      setValue('fcl_rate', containerType.fcl_rate ? containerType.fcl_rate.toString() : '');
-      setShowFclRate(containerType.load_type === 'FCL');
-    } else {
+    if (containerType && isOpen) {
+      reset({
+        size: containerType.size || '',
+        max_weight: containerType.max_weight || 0,
+      });
+    } else if (!isOpen) {
       reset();
     }
-  }, [containerType, reset, setValue]);
-
-  useEffect(() => {
-    setShowFclRate(loadType === 'FCL');
-  }, [loadType]);
+  }, [containerType, isOpen, reset]);
 
   const onSubmit = (data) => {
-    const containerTypeData = {
-      ...data,
-      max_weight: parseFloat(data.max_weight),
-      fcl_rate: data.fcl_rate && loadType === 'FCL' ? parseFloat(data.fcl_rate) : null,
+    const updatedData = {
+      size: data.size.trim(),
+      max_weight: Number(data.max_weight),
     };
-    onUpdate(containerType.id, containerTypeData);
+    onUpdate(containerType.id, updatedData);
   };
 
   const handleClose = () => {
@@ -81,76 +56,34 @@ const UpdateContainerType = ({
       size="sm"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        {/* Size Field */}
         <div>
-          <label className="modal-label">
-            Size
-          </label>
+          <label className="modal-label">Size</label>
           <input
             type="text"
-            placeholder="Type container type size"
+            placeholder="e.g. 20FT or 40FT"
             className="modal-input"
             {...register('size')}
           />
           {errors.size && <span className="modal-error">{errors.size.message}</span>}
         </div>
 
+        {/* Max Weight Field */}
         <div>
-          <label className="modal-label">
-            Load Type
-          </label>
-          <select
-            className="modal-input"
-            {...register('load_type')}
-          >
-            <option value="">Select load type</option>
-            <option value="LCL">LCL (Less than Container Load)</option>
-            <option value="FCL">FCL (Full Container Load)</option>
-          </select>
-          {errors.load_type && <span className="modal-error">{errors.load_type.message}</span>}
-        </div>
-
-        <div>
-          <label className="modal-label">
-            Max Weight (kg)
-          </label>
+          <label className="modal-label">Max Weight (kg)</label>
           <input
-            type="text"
-            placeholder="0.00"
+            type="number"
+            step="0.01"
+            placeholder="Enter max weight"
             className="modal-input"
-            {...register('max_weight')}
+            {...register('max_weight', { valueAsNumber: true })}
           />
-          {errors.max_weight && <span className="modal-error">{errors.max_weight.message}</span>}
+          {errors.max_weight && (
+            <span className="modal-error">{errors.max_weight.message}</span>
+          )}
         </div>
 
-        {showFclRate && (
-          <div>
-            <label className="modal-label">
-              FCL Rate
-            </label>
-            <input
-              type="text"
-              placeholder="0.00"
-              className="modal-input"
-              {...register('fcl_rate')}
-            />
-            {errors.fcl_rate && <span className="modal-error">{errors.fcl_rate.message}</span>}
-          </div>
-        )}
-
-        {loadType === 'LCL' && (
-          <div className="modal-info-box">
-            <div className="modal-info-title">
-              <span>LCL Mode</span>
-              <span className="modal-info-badge">
-                Per Item Pricing
-              </span>
-            </div>
-            <p className="modal-info-text">
-              FCL rate is not applicable for LCL shipments. Pricing will be calculated per item.
-            </p>
-          </div>
-        )}
-
+        {/* Buttons */}
         <div className="flex justify-end gap-3 pt-4">
           <button
             type="button"
@@ -160,10 +93,11 @@ const UpdateContainerType = ({
           >
             Cancel
           </button>
+
           <button
             type="submit"
             className={`modal-btn-primary ${(!isValid || isLoading) ? 'modal-btn-disabled' : ''}`}
-            disabled={isLoading || !isValid}
+            disabled={!isValid || isLoading}
           >
             {isLoading ? (
               <>
