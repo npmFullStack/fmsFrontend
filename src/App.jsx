@@ -7,13 +7,16 @@ import LoadingSkeleton from './components/ui/LoadingSkeleton';
 
 // Lazy-loaded pages
 const Home = lazy(() => import('./pages/Home'));
+const Login = lazy(() => import('./pages/Login'));
+const Quote = lazy(() => import('./pages/Quote'));
+
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Category = lazy(() => import('./pages/Category'));
 const ContainerType = lazy(() => import('./pages/ContainerType'));
 const Port = lazy(() => import('./pages/Port'));
+const ShippingLine = lazy(() => import('./pages/ShippingLine'));
 const BookingRequest = lazy(() => import('./pages/BookingRequest'));
-const Login = lazy(() => import('./pages/Login'));
-const Quote = lazy(() => import('./pages/Quote'));
+
 
 function App() {
   return (
@@ -33,6 +36,7 @@ function App() {
             <Route path="/categories" element={<Category />} />
             <Route path="/container-types" element={<ContainerType />} />
             <Route path="/ports" element={<Port />} />
+            <Route path="/shipping-line" element={<ShippingLine />} />
             <Route path="/booking-request" element={<BookingRequest />} />
           </Route>
         </Routes>
