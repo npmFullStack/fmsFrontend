@@ -1,11 +1,36 @@
 // src/components/Layout.jsx
-import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
 import NavBar from '../components/NavBar';
 import SideBar from '../components/SideBar';
+import { useAuth } from '../hooks/useAuth';
+import LoadingSkeleton from './ui/LoadingSkeleton';
 
 const Layout = () => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const navigate = useNavigate();
+  const { isAuthenticated, userQuery } = useAuth();
+
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      navigate('/login');
+      return;
+    }
+
+    // Fetch user data if not already loaded
+    if (!userQuery.data && !userQuery.isLoading) {
+      userQuery.refetch();
+    }
+  }, [isAuthenticated, navigate, userQuery]);
+
+  if (!isAuthenticated() || userQuery.isLoading) {
+    return <LoadingSkeleton type="generic" />;
+  }
+
+  if (userQuery.isError) {
+    navigate('/login');
+    return null;
+  }
 
   return (
     <div className="flex h-screen bg-main text-content">

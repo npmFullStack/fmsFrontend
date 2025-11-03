@@ -19,7 +19,7 @@ const PublicNavBar = () => {
   };
 
   const handleGetStarted = () => {
-    navigate('/dashboard');
+    navigate('/login');
   };
 
   const navItems = [

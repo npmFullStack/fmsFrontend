@@ -1,9 +1,10 @@
 // src/App.jsx
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import PublicLayout from './components/PublicLayout';
 import LoadingSkeleton from './components/ui/LoadingSkeleton';
+import { useAuth } from './hooks/useAuth';
 
 // Lazy-loaded pages
 const Home = lazy(() => import('./pages/Home'));
@@ -18,8 +19,13 @@ const ShippingLine = lazy(() => import('./pages/ShippingLine'));
 const BookingRequest = lazy(() => import('./pages/BookingRequest'));
 const BookingDetails = lazy(() => import('./pages/BookingDetails'));
 
-
 function App() {
+  const { initializeAuth } = useAuth();
+
+  useEffect(() => {
+    initializeAuth();
+  }, []);
+
   return (
     <Router>
       <Suspense fallback={<LoadingSkeleton type="generic" />}>
@@ -39,7 +45,7 @@ function App() {
             <Route path="/ports" element={<Port />} />
             <Route path="/shipping-line" element={<ShippingLine />} />
             <Route path="/booking-request" element={<BookingRequest />} />
-<Route path="/booking-details/:id" element={<BookingDetails />} />
+            <Route path="/booking-details/:id" element={<BookingDetails />} />
           </Route>
         </Routes>
       </Suspense>

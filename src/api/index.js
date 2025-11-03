@@ -1,5 +1,4 @@
-// api/index.js
-
+// src/api/index.js
 import axios from 'axios';
 
 const api = axios.create({
@@ -10,14 +9,19 @@ const api = axios.create({
   timeout: 10000,
 });
 
-// Add detailed request logging
+// Add token to requests if available
 api.interceptors.request.use(
   (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    
     console.log('🚀 API Request:', {
       method: config.method?.toUpperCase(),
       url: config.baseURL + config.url,
       data: config.data,
-      fullConfig: config
+      hasToken: !!token
     });
     return config;
   },
@@ -27,7 +31,7 @@ api.interceptors.request.use(
   }
 );
 
-// Add detailed response logging
+// Add auth error handling
 api.interceptors.response.use(
   (response) => {
     console.log('✅ API Response Success:', {
@@ -40,10 +44,16 @@ api.interceptors.response.use(
   (error) => {
     console.error('❌ API Response Error:', {
       message: error.message,
-      code: error.code,
-      response: error.response,
-      config: error.config
+      status: error.response?.status,
+      data: error.response?.data
     });
+    
+    if (error.response?.status === 401) {
+      // Unauthorized - clear token and redirect to login
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+    }
+    
     return Promise.reject(error);
   }
 );
