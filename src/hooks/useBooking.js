@@ -41,6 +41,11 @@ const bookingApi = {
     const { data } = await api.put(`/bookings/${id}`, { booking_status });
     return data;
   },
+  // ✅ Add approve booking endpoint
+  approve: async (id) => {
+    const { data } = await api.post(`/bookings/${id}/approve`);
+    return data;
+  },
 };
 
 // ✅ Hook
@@ -146,6 +151,19 @@ export const useBooking = () => {
     },
   });
 
+  // ✅ Approve booking (with email sending)
+  const approveBooking = useMutation({
+    mutationFn: bookingApi.approve,
+    onSuccess: () => {
+      queryClient.invalidateQueries(BOOKING_KEY);
+      console.log('✅ Booking approved and email sent');
+    },
+    onError: (error) => {
+      console.error('❌ Approve booking error:', error.response?.data || error.message);
+      throw error;
+    },
+  });
+
   return {
     // Queries
     bookingsQuery,
@@ -159,10 +177,11 @@ export const useBooking = () => {
     restoreBooking,
     updateBookingStatus,
     updateBookingShippingStatus,
+    approveBooking, // ✅ New approve mutation
   };
 };
 
-// ✅ Specialized hook for the quote form (if you want a separate one)
+// ✅ Specialized hook for the quote form - FIXED EXPORT
 export const useCreateBooking = () => {
   const queryClient = useQueryClient();
 

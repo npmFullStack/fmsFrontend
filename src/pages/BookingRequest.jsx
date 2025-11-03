@@ -1,8 +1,7 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import React, { useState, useCallback } from 'react';
 import { useDebounce } from 'use-debounce';
 import { Filter } from 'lucide-react';
-import api from '../api';
+import { useBooking } from '../hooks/useBooking';
 import TableLayout from '../components/layout/TableLayout';
 import BookingRequestTable from '../components/tables/BookingRequestTable';
 import SearchBar from '../components/ui/SearchBar';
@@ -13,42 +12,21 @@ const BookingRequest = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch] = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
-  const [sort, setSort] = useState('id');
-  const [direction, setDirection] = useState('asc');
 
-  const queryClient = useQueryClient();
+  const { 
+    bookingsQuery, 
+    approveBooking, 
+    updateBookingStatus 
+  } = useBooking();
 
   // Fetch bookings
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['bookings', debouncedSearch, page],
-    queryFn: async () => {
-      const res = await api.get('/bookings', {
-        params: { search: debouncedSearch, page, per_page: 10 },
-      });
-      return res.data;
-    },
-    staleTime: 5 * 60 * 1000,
-    cacheTime: 10 * 60 * 1000,
-    keepPreviousData: true,
+  const { data, isLoading, isError } = bookingsQuery({
+    search: debouncedSearch,
+    page,
+    per_page: 10
   });
 
-  // Client-side sorting
-  const sortedBookings = useMemo(() => {
-    if (!data?.data) return [];
-    return [...data.data].sort((a, b) => {
-      let aVal = a[sort];
-      let bVal = b[sort];
-
-      if (typeof aVal === 'string') {
-        aVal = aVal.toLowerCase();
-        bVal = bVal.toLowerCase();
-      }
-
-      return direction === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
-    });
-  }, [data?.data, sort, direction]);
-
-  const bookings = sortedBookings;
+  const bookings = data?.data || [];
   const pagination = {
     current_page: data?.current_page || 1,
     last_page: data?.last_page || 1,
@@ -57,39 +35,32 @@ const BookingRequest = () => {
     total: data?.total || 0,
   };
 
-  const handleSortChange = useCallback((field, dir) => {
-    setSort(field);
-    setDirection(dir);
-  }, []);
-
-  // Status update mutation
-  const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }) => {
-      const res = await api.put(`/bookings/${id}/status`, { status });
-      return res.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bookings'] });
-      toast.success('Booking status updated successfully');
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to update booking status');
-    },
-  });
-
   // Handlers
   const handleApprove = useCallback(
-    (booking) => {
-      updateStatusMutation.mutate({ id: booking.id, status: 'approved' });
+    async (booking) => {
+      try {
+        await approveBooking.mutateAsync(booking.id);
+        toast.success('Booking approved! Password sent to customer.');
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to approve booking');
+      }
     },
-    [updateStatusMutation],
+    [approveBooking],
   );
 
   const handleReject = useCallback(
-    (booking) => {
-      updateStatusMutation.mutate({ id: booking.id, status: 'rejected' });
+    async (booking) => {
+      try {
+        await updateBookingStatus.mutateAsync({ 
+          id: booking.id, 
+          status: 'rejected' 
+        });
+        toast.success('Booking rejected successfully');
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to reject booking');
+      }
     },
-    [updateStatusMutation],
+    [updateBookingStatus],
   );
 
   // Loading & error states
@@ -143,11 +114,8 @@ const BookingRequest = () => {
             data={bookings}
             onApprove={handleApprove}
             onReject={handleReject}
-            sortField={sort}
-            sortDirection={direction}
-            onSortChange={handleSortChange}
             isLoading={isLoading}
-            isUpdating={updateStatusMutation.isPending}
+            isUpdating={approveBooking.isPending || updateBookingStatus.isPending}
           />
         </TableLayout>
       </div>

@@ -16,6 +16,7 @@ const ContainerType = lazy(() => import('./pages/ContainerType'));
 const Port = lazy(() => import('./pages/Port'));
 const ShippingLine = lazy(() => import('./pages/ShippingLine'));
 const BookingRequest = lazy(() => import('./pages/BookingRequest'));
+const BookingDetails = lazy(() => import('./pages/BookingDetails'));
 
 
 function App() {
@@ -38,6 +39,7 @@ function App() {
             <Route path="/ports" element={<Port />} />
             <Route path="/shipping-line" element={<ShippingLine />} />
             <Route path="/booking-request" element={<BookingRequest />} />
+<Route path="/booking-details/:id" element={<BookingDetails />} />
           </Route>
         </Routes>
       </Suspense>

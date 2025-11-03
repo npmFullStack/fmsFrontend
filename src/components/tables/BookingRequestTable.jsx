@@ -1,220 +1,148 @@
-import React, { useMemo, useCallback } from 'react';
-import DataTable from '../ui/DataTable';
-import { ChevronUp, ChevronDown } from 'lucide-react';
-import { CheckCircle, XCircle } from 'lucide-react';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { CheckCircle, XCircle, Calendar, MapPin, Package } from 'lucide-react';
 
 const BookingRequestTable = ({
   data = [],
   onApprove,
   onReject,
-  onSortChange,
-  sortField = 'id',
-  sortDirection = 'asc',
   isLoading = false,
   isUpdating = false,
 }) => {
-  const handleSort = useCallback(
-    (field) => {
-      if (!onSortChange) return;
-      const newDirection =
-        sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
-      onSortChange(field, newDirection);
-    },
-    [sortField, sortDirection, onSortChange]
-  );
+  const navigate = useNavigate();
 
-  const getSortIcon = useCallback(
-    (field) => {
-      const baseClass = 'table-sort-icon';
-      if (sortField !== field) {
-        return <ChevronUp className={`${baseClass} table-sort-inactive`} />;
-      }
-      return sortDirection === 'asc' ? (
-        <ChevronUp className={`${baseClass} table-sort-active`} />
-      ) : (
-        <ChevronDown className={`${baseClass} table-sort-active`} />
-      );
-    },
-    [sortField, sortDirection]
-  );
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'approved': return 'bg-green-100 text-green-800 border-green-200';
+      case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
+      default: return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    }
+  };
 
-  const getStatusBadge = useCallback((status) => {
-    const statusConfig = {
-      pending: {
-        class: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-        text: 'Pending'
-      },
-      approved: {
-        class: 'bg-green-100 text-green-800 border-green-200',
-        text: 'Approved'
-      },
-      rejected: {
-        class: 'bg-red-100 text-red-800 border-red-200',
-        text: 'Rejected'
-      }
-    };
-    
-    const config = statusConfig[status] || statusConfig.pending;
+  const handleViewDetails = (bookingId) => {
+    navigate(`/booking-details/${bookingId}`);
+  };
+
+  if (isLoading) {
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${config.class}`}>
-        {config.text}
-      </span>
+      <div className="space-y-4">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="bg-white rounded-lg border border-gray-200 p-6 animate-pulse">
+            <div className="flex justify-between">
+              <div className="space-y-2">
+                <div className="h-4 bg-gray-200 rounded w-32"></div>
+                <div className="h-3 bg-gray-200 rounded w-24"></div>
+              </div>
+              <div className="h-6 bg-gray-200 rounded w-20"></div>
+            </div>
+          </div>
+        ))}
+      </div>
     );
-  }, []);
+  }
 
-  const columns = useMemo(() => [
-    {
-      accessorKey: 'id',
-      header: () => (
-        <button onClick={() => handleSort('id')} className="table-header-button">
-          ID {getSortIcon('id')}
-        </button>
-      ),
-      cell: ({ getValue }) => (
-        <span className="table-cell-monospace table-cell-content">
-          {getValue()}
-        </span>
-      ),
-      meta: { cellClassName: 'table-cell-center' },
-    },
-    {
-      accessorKey: 'customer',
-      header: () => (
-        <button onClick={() => handleSort('first_name')} className="table-header-button">
-          CUSTOMER {getSortIcon('first_name')}
-        </button>
-      ),
-      cell: ({ row }) => (
-        <div>
-          <div className="table-cell-heading">
-            {row.original.first_name} {row.original.last_name}
-          </div>
-          <div className="table-cell-muted text-xs">
-            {row.original.email}
-          </div>
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'contact_number',
-      header: 'CONTACT',
-      cell: ({ getValue }) => (
-        <span className="table-cell-content">{getValue()}</span>
-      ),
-    },
-    {
-      accessorKey: 'route',
-      header: 'ROUTE',
-      cell: ({ row }) => (
-        <div>
-          <div className="table-cell-heading">
-            {row.original.origin} → {row.original.destination}
-          </div>
-          <div className="table-cell-muted text-xs">
-            {row.original.mode_of_service}
-          </div>
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'container_size',
-      header: 'CONTAINER',
-      cell: ({ getValue }) => (
-        <span className="table-cell-content">{getValue()}</span>
-      ),
-      meta: { cellClassName: 'table-cell-center' },
-    },
-    {
-      accessorKey: 'departure_date',
-      header: () => (
-        <button onClick={() => handleSort('departure_date')} className="table-header-button">
-          DEPARTURE {getSortIcon('departure_date')}
-        </button>
-      ),
-      cell: ({ getValue }) => (
-        <span className="table-cell-content">
-          {new Date(getValue()).toLocaleDateString()}
-        </span>
-      ),
-      meta: { cellClassName: 'table-cell-center' },
-    },
-    {
-      accessorKey: 'items_count',
-      header: 'ITEMS',
-      cell: ({ row }) => (
-        <span className="table-cell-content table-cell-center">
-          {row.original.items?.length || 0}
-        </span>
-      ),
-      meta: { cellClassName: 'table-cell-center' },
-    },
-    {
-      accessorKey: 'status',
-      header: () => (
-        <button onClick={() => handleSort('status')} className="table-header-button">
-          STATUS {getSortIcon('status')}
-        </button>
-      ),
-      cell: ({ getValue }) => getStatusBadge(getValue()),
-      meta: { cellClassName: 'table-cell-center' },
-    },
-    {
-      accessorKey: 'created_at',
-      header: () => (
-        <button onClick={() => handleSort('created_at')} className="table-header-button">
-          SUBMITTED {getSortIcon('created_at')}
-        </button>
-      ),
-      cell: ({ getValue }) => (
-        <span className="table-cell-content">
-          {new Date(getValue()).toLocaleDateString()}
-        </span>
-      ),
-      meta: { cellClassName: 'table-cell-center' },
-    },
-    {
-      accessorKey: 'actions',
-      header: 'ACTIONS',
-      cell: ({ row }) => {
-        const booking = row.original;
-        const isPending = booking.status === 'pending';
-        
-        return (
-          <div className="flex space-x-2 justify-center">
-            <button
-              onClick={() => onApprove(booking)}
-              disabled={!isPending || isUpdating}
-              className="table-btn-success disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Approve booking"
-            >
-              <CheckCircle className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => onReject(booking)}
-              disabled={!isPending || isUpdating}
-              className="table-btn-danger disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Reject booking"
-            >
-              <XCircle className="w-4 h-4" />
-            </button>
-          </div>
-        );
-      },
-      meta: { 
-        headerClassName: 'table-cell-center',
-        cellClassName: 'table-cell-center' 
-      },
-    },
-  ], [handleSort, getSortIcon, getStatusBadge, onApprove, onReject, isUpdating]);
+  if (data.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <Package className="mx-auto h-12 w-12 text-gray-400" />
+        <h3 className="mt-2 text-sm font-medium text-gray-900">No bookings</h3>
+        <p className="mt-1 text-sm text-gray-500">No booking requests found.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="table-container">
-      <DataTable
-        columns={columns}
-        data={data}
-        isLoading={isLoading}
-        emptyMessage="No booking requests found."
-      />
+    <div className="space-y-4">
+      {data.map((booking) => (
+        <div key={booking.id} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
+          {/* Header */}
+          <div className="flex justify-between items-start mb-4">
+            <div className="flex-1">
+              <div className="flex items-center space-x-3">
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span className="text-blue-600 font-semibold text-sm">
+                      {booking.first_name?.[0]}{booking.last_name?.[0]}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-semibold text-gray-900 truncate">
+                    {booking.first_name} {booking.last_name}
+                  </h3>
+                  <p className="text-sm text-gray-600 truncate">{booking.email}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(booking.status)}`}>
+                {booking.status.toUpperCase()}
+              </span>
+              
+              {booking.status === 'pending' && (
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => onApprove(booking)}
+                    disabled={isUpdating}
+                    className="inline-flex items-center px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="Approve booking"
+                  >
+                    <CheckCircle className="w-4 h-4 mr-1" />
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => onReject(booking)}
+                    disabled={isUpdating}
+                    className="inline-flex items-center px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="Reject booking"
+                  >
+                    <XCircle className="w-4 h-4 mr-1" />
+                    Reject
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Booking Details */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="flex items-center text-sm text-gray-600">
+              <MapPin className="w-4 h-4 mr-2 text-gray-400" />
+              <span>
+                {booking.origin?.name || 'N/A'} → {booking.destination?.name || 'N/A'}
+              </span>
+            </div>
+            <div className="flex items-center text-sm text-gray-600">
+              <Package className="w-4 h-4 mr-2 text-gray-400" />
+              <span>
+                {booking.container_quantity} × {booking.container_size?.name || 'Container'}
+              </span>
+            </div>
+            <div className="flex items-center text-sm text-gray-600">
+              <Calendar className="w-4 h-4 mr-2 text-gray-400" />
+              <span>
+                {new Date(booking.departure_date).toLocaleDateString()}
+              </span>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+            <div className="text-sm text-gray-500">
+              Submitted on {new Date(booking.created_at).toLocaleDateString()} at{' '}
+              {new Date(booking.created_at).toLocaleTimeString()}
+            </div>
+            
+            <button
+              onClick={() => handleViewDetails(booking.id)}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors inline-flex items-center"
+            >
+              Click to view complete details →
+            </button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 };
