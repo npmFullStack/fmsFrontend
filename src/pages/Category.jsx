@@ -1,8 +1,10 @@
+// src/pages/Category.jsx
 import React, { useState, useCallback, useMemo } from 'react';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useDebounce } from 'use-debounce';
 import { Plus, Filter } from 'lucide-react';
-import api from '../api';
+import toast from 'react-hot-toast';
+
+import { useCategory } from '../hooks/useCategory';
 import TableLayout from '../components/layout/TableLayout';
 import CategoryTable from '../components/tables/CategoryTable';
 import AddCategory from '../components/modals/AddCategory';
@@ -10,7 +12,6 @@ import DeleteCategory from '../components/modals/DeleteCategory';
 import UpdateCategory from '../components/modals/UpdateCategory';
 import SearchBar from '../components/ui/SearchBar';
 import Pagination from '../components/ui/Pagination';
-import toast from 'react-hot-toast';
 
 const Category = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -25,23 +26,25 @@ const Category = () => {
   const [sort, setSort] = useState('id');
   const [direction, setDirection] = useState('asc');
 
-  const queryClient = useQueryClient();
+  // ✅ useCategory hook handles everything
+  const {
+    categoriesQuery,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+    bulkDeleteCategories,
+  } = useCategory();
 
-  // Fetch categories
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['categories', debouncedSearch, page],
-    queryFn: async () => {
-      const res = await api.get('/categories', {
-        params: { search: debouncedSearch, page, per_page: 10 },
-      });
-      return res.data;
-    },
-    staleTime: 5 * 60 * 1000,
-    cacheTime: 10 * 60 * 1000,
-    keepPreviousData: true,
+  // ✅ Fetch categories (server-side pagination & search)
+  const { data, isLoading, isError } = categoriesQuery({
+    search: debouncedSearch,
+    page,
+    per_page: 10,
+    sort,
+    direction
   });
 
-  // Client-side sorting
+  // Client-side sorting (fallback if server-side sorting isn't working)
   const sortedCategories = useMemo(() => {
     if (!data?.data) return [];
     return [...data.data].sort((a, b) => {
@@ -71,103 +74,81 @@ const Category = () => {
     setDirection(dir);
   }, []);
 
-  // Mutations
-  const addMutation = useMutation({
-    mutationFn: async (categoryData) => (await api.post('/categories', categoryData)).data,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-      toast.success('Category added successfully');
-      setIsAddModalOpen(false);
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to add category');
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, categoryData }) =>
-      (await api.put(`/categories/${id}`, categoryData)).data,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-      toast.success('Category updated successfully');
-      setIsUpdateModalOpen(false);
-      setUpdatingCategory(null);
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to update category');
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (category) => (await api.delete(`/categories/${category.id}`)).data,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-      toast.success('Category deleted successfully');
-      setIsDeleteModalOpen(false);
-      setDeletingCategory(null);
-      setDeletingCategories(null);
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to delete category');
-    },
-  });
-
-  const bulkDeleteMutation = useMutation({
-    mutationFn: async (categoryIds) =>
-      (await api.post('/categories/bulk-delete', { ids: categoryIds })).data,
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-      toast.success(data.message || 'Categories deleted successfully');
-      setIsDeleteModalOpen(false);
-      setDeletingCategory(null);
-      setDeletingCategories(null);
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to delete categories');
-    },
-  });
-
-  // Handlers
+  /* =========================
+   * CRUD ACTIONS
+   * ========================= */
   const handleAdd = useCallback(
-    (categoryData) => addMutation.mutate(categoryData),
-    [addMutation],
+    async (categoryData) => {
+      try {
+        await createCategory.mutateAsync(categoryData);
+        toast.success('Category added successfully');
+        setIsAddModalOpen(false);
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to add category');
+      }
+    },
+    [createCategory]
   );
 
   const handleUpdate = useCallback(
-    (id, categoryData) => updateMutation.mutate({ id, categoryData }),
-    [updateMutation],
+    async (id, categoryData) => {
+      try {
+        await updateCategory.mutateAsync({ id, ...categoryData });
+        toast.success('Category updated successfully');
+        setIsUpdateModalOpen(false);
+        setUpdatingCategory(null);
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to update category');
+      }
+    },
+    [updateCategory]
   );
+
+  const handleDelete = useCallback(() => {
+    if (deletingCategories) {
+      const ids = deletingCategories.map((cat) => cat.id);
+      bulkDeleteCategories.mutate(ids, {
+        onSuccess: (res) => {
+          toast.success(res?.message || 'Categories deleted successfully');
+        },
+        onError: (error) => {
+          toast.error(error.response?.data?.message || 'Failed to delete categories');
+        },
+      });
+    } else if (deletingCategory) {
+      deleteCategory.mutate(deletingCategory.id, {
+        onSuccess: () => {
+          toast.success('Category deleted successfully');
+        },
+        onError: (error) => {
+          toast.error(error.response?.data?.message || 'Failed to delete category');
+        },
+      });
+    }
+    setIsDeleteModalOpen(false);
+    setDeletingCategory(null);
+    setDeletingCategories(null);
+  }, [deleteCategory, bulkDeleteCategories, deletingCategory, deletingCategories]);
 
   const handleEditClick = useCallback((category) => {
     setUpdatingCategory(category);
     setIsUpdateModalOpen(true);
   }, []);
 
-  const handleDeleteClick = useCallback(
-    (categoryOrCategories) => {
-      if (Array.isArray(categoryOrCategories)) {
-        setDeletingCategories(categoryOrCategories);
-        setDeletingCategory(null);
-        setIsDeleteModalOpen(true);
-      } else {
-        setDeletingCategory(categoryOrCategories);
-        setDeletingCategories(null);
-        setIsDeleteModalOpen(true);
-      }
-    },
-    [],
-  );
-
-  const handleDelete = useCallback(() => {
-    if (deletingCategories) {
-      const categoryIds = deletingCategories.map((cat) => cat.id);
-      bulkDeleteMutation.mutate(categoryIds);
-    } else if (deletingCategory) {
-      deleteMutation.mutate(deletingCategory);
+  const handleDeleteClick = useCallback((categoryOrCategories) => {
+    if (Array.isArray(categoryOrCategories)) {
+      setDeletingCategories(categoryOrCategories);
+      setDeletingCategory(null);
+    } else {
+      setDeletingCategory(categoryOrCategories);
+      setDeletingCategories(null);
     }
-  }, [deleteMutation, bulkDeleteMutation, deletingCategory, deletingCategories]);
+    setIsDeleteModalOpen(true);
+  }, []);
 
-  // Loading & error states
+  /* =========================
+   * STATES
+   * ========================= */
   if (isLoading && !data) {
     return (
       <div className="page-loading">
@@ -186,6 +167,9 @@ const Category = () => {
     );
   }
 
+  /* =========================
+   * UI
+   * ========================= */
   return (
     <div className="page-container">
       {/* Page Header */}
@@ -243,11 +227,12 @@ const Category = () => {
         </div>
       )}
 
+      {/* Modals */}
       <AddCategory
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSave={handleAdd}
-        isLoading={addMutation.isPending}
+        isLoading={createCategory.isPending}
       />
 
       <UpdateCategory
@@ -258,7 +243,7 @@ const Category = () => {
         }}
         onUpdate={handleUpdate}
         category={updatingCategory}
-        isLoading={updateMutation.isPending}
+        isLoading={updateCategory.isPending}
       />
 
       <DeleteCategory
@@ -271,7 +256,7 @@ const Category = () => {
         onDelete={handleDelete}
         category={deletingCategory}
         categories={deletingCategories}
-        isLoading={deleteMutation.isPending || bulkDeleteMutation.isPending}
+        isLoading={deleteCategory.isPending || bulkDeleteCategories.isPending}
       />
     </div>
   );

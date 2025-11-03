@@ -3,10 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import Select from "react-select";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { Calendar, X, CheckCircle } from "lucide-react";
+import { Calendar, X, CheckCircle, AlertCircle } from "lucide-react";
 import LocationFields from "../components/LocationFields";
 import api from "../api";
-import { useCreateBooking } from "../api/mutations/bookingMutations";
+import { useCreateBooking } from "../hooks/useBooking";
+import { bookingSchema, transformBookingToApi } from "../schemas/bookingSchema";
 
 const Quote = () => {
   const [items, setItems] = useState([
@@ -17,6 +18,7 @@ const Quote = () => {
   const [quoteSubmitted, setQuoteSubmitted] = useState(false);
   const [containerQuantity, setContainerQuantity] = useState(1);
   const [weightValidation, setWeightValidation] = useState({ isValid: true, message: "" });
+  const [formErrors, setFormErrors] = useState({});
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -34,6 +36,7 @@ const Quote = () => {
     origin: null,
     destination: null,
     shippingLine: null,
+    terms: "", // Changed to empty string initially
   });
 
   const [pickupLocation, setPickupLocation] = useState({});
@@ -76,18 +79,25 @@ const Quote = () => {
     },
   });
 
+  // Fetch shipping lines
+  const { data: shippingLinesData, isLoading: shippingLinesLoading } = useQuery({
+    queryKey: ['shipping-lines'],
+    queryFn: async () => {
+      const res = await api.get('/shipping-lines');
+      return res.data;
+    },
+  });
+
   // Create booking mutation
   const createBookingMutation = useCreateBooking();
 
-  // Generate options
+  // Generate options - fix max_weight to be number
   const containerOptions = React.useMemo(() => {
     if (!containerTypesData?.data) return [];
     return containerTypesData.data.map(container => ({ 
       value: container.id,
-      label: `${container.size} - ${container.load_type}`,
-      max_weight: container.max_weight,
-      load_type: container.load_type,
-      fcl_rate: container.fcl_rate,
+      label: `${container.size}`,
+      max_weight: parseFloat(container.max_weight) || 0, // Ensure it's a number
     }));
   }, [containerTypesData]);
 
@@ -103,10 +113,18 @@ const Quote = () => {
   const portOptions = React.useMemo(() => {
     if (!portsData?.data) return [];
     return portsData.data.map(port => ({ 
-      value: port.route_name,
+      value: port.id,
       label: port.route_name,
     }));
   }, [portsData]);
+
+  const shippingLineOptions = React.useMemo(() => {
+    if (!shippingLinesData?.data) return [];
+    return shippingLinesData.data.map(line => ({
+      value: line.id,
+      label: line.name,
+    }));
+  }, [shippingLinesData]);
 
   const modeOptions = [
     { value: "port-to-port", label: "Port to Port" },
@@ -114,17 +132,6 @@ const Quote = () => {
     { value: "door-to-door", label: "Door to Door" },
     { value: "port-to-door", label: "Port to Door" },
     { value: "door-to-port", label: "Door to Port" },
-  ];
-
-  const shippingLineOptions = [
-    { value: "maersk", label: "Maersk Line" },
-    { value: "msc", label: "MSC (Mediterranean Shipping Company)" },
-    { value: "cosco", label: "COSCO Shipping" },
-    { value: "hapag-lloyd", label: "Hapag-Lloyd" },
-    { value: "evergreen", label: "Evergreen Line" },
-    { value: "cma-cgm", label: "CMA CGM" },
-    { value: "yang-ming", label: "Yang Ming Marine Transport" },
-    { value: "one", label: "Ocean Network Express (ONE)" },
   ];
 
   // Calculate total weight
@@ -148,7 +155,7 @@ const Quote = () => {
           const excessWeight = totalWeight - maxWeight;
           setWeightValidation({
             isValid: false,
-            message: `Total weight (${totalWeight}kg) exceeds container capacity (${maxWeight}kg) by ${excessWeight}kg. Please reduce weight or increase container quantity.`
+            message: `Total weight (${totalWeight}kg) exceeds container capacity (${maxWeight}kg) by ${excessWeight}kg. Please add more containers or choose a larger container size.`
           });
         } else {
           setWeightValidation({ isValid: true, message: "" });
@@ -190,6 +197,14 @@ const Quote = () => {
     handleInputChange(field, numericValue);
   };
 
+  // Handle terms change - allow empty and numbers only
+  const handleTermsChange = (value) => {
+    // Allow empty string or numbers only
+    if (value === "" || /^\d*$/.test(value)) {
+      handleInputChange("terms", value);
+    }
+  };
+
   // Mode-based visibility
   const modeValue = formData.modeOfService?.value || null;
   const showPickup = modeValue === "door-to-door" || modeValue === "door-to-port";
@@ -211,23 +226,11 @@ const Quote = () => {
         });
       case 5:
         return formData.modeOfService && formData.containerSize && formData.origin && 
-               formData.destination && departureDate && weightValidation.isValid;
+               formData.destination && departureDate && formData.terms && weightValidation.isValid;
       default:
         return false;
     }
   };
-
-  // Auto-advance sections
-  useEffect(() => {
-    if (isSectionComplete(currentSection) && currentSection < 5) {
-      const next = currentSection + 1;
-      const ref = sectionRefs[next];
-      setTimeout(() => {
-        setCurrentSection(next);
-        if (ref?.current) ref.current.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 250);
-    }
-  }, [formData, items, departureDate, currentSection, weightValidation]);
 
   // Custom DatePicker input
   const DateInput = React.forwardRef(({ value, onClick, placeholder }, ref) => (
@@ -252,49 +255,72 @@ const Quote = () => {
   ));
   DateInput.displayName = "DateInput";
 
-  // Form submission handler
-  const handleFormSubmit = (e) => {
+  // Form submission handler with schema validation
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
+    console.log("Form submitted");
 
     // Validate all sections are complete
     if (!isSectionComplete(5)) {
+      console.log("Section 5 not complete");
       return;
     }
 
-    const bookingData = {
-      first_name: formData.firstName,
-      last_name: formData.lastName,
-      email: formData.email,
-      contact_number: formData.contactNumber, // now optional
-      shipper_first_name: formData.shipperFirstName,
-      shipper_last_name: formData.shipperLastName,
-      shipper_contact: formData.shipperContact, // now optional
-      consignee_first_name: formData.consigneeFirstName,
-      consignee_last_name: formData.consigneeLastName,
-      consignee_contact: formData.consigneeContact, // now optional
-      mode_of_service: formData.modeOfService?.value,
-      container_size: formData.containerSize?.value, // FIX: Send only the value, not the object
-      container_quantity: containerQuantity,
-      origin: formData.origin?.value,
-      destination: formData.destination?.value,
-      shipping_line: formData.shippingLine?.value,
-      departure_date: departureDate?.toISOString().split('T')[0],
-      delivery_date: deliveryDate?.toISOString().split('T')[0],
-      pickup_location: showPickup ? pickupLocation : null,
-      delivery_location: showDelivery ? deliveryLocation : null,
-      items: items.map(item => ({
-        name: item.name,
-        weight: parseFloat(item.weight),
-        quantity: parseInt(item.quantity),
-        category: item.category === "other" ? item.customCategory : item.category,
-      })),
-    };
+    try {
+      // Prepare data for validation - ensure terms is number
+      const formDataForValidation = {
+        ...formData,
+        containerQuantity,
+        departureDate,
+        deliveryDate,
+        pickupLocation: showPickup ? pickupLocation : null,
+        deliveryLocation: showDelivery ? deliveryLocation : null,
+        terms: parseInt(formData.terms) || 0, // Convert to number
+        items: items.map(item => ({
+          name: item.name,
+          weight: parseFloat(item.weight),
+          quantity: parseInt(item.quantity),
+          category: item.category === "other" ? item.customCategory : item.category,
+        })),
+      };
 
-    createBookingMutation.mutate(bookingData, {
-      onSuccess: () => {
-        setQuoteSubmitted(true);
+      console.log("Form data for validation:", formDataForValidation);
+
+      // Validate with schema
+      const validatedData = bookingSchema.parse(formDataForValidation);
+      console.log("Validation successful:", validatedData);
+      
+      // Clear any previous errors
+      setFormErrors({});
+
+      // Transform to API format
+      const bookingData = transformBookingToApi(validatedData);
+      console.log("Transformed booking data:", bookingData);
+
+      createBookingMutation.mutate(bookingData, {
+        onSuccess: (data) => {
+          console.log("Booking created successfully:", data);
+          setQuoteSubmitted(true);
+        },
+        onError: (error) => {
+          console.error('Booking submission error:', error);
+          alert('Failed to submit booking. Please try again.');
+        }
+      });
+
+    } catch (error) {
+      console.error('Validation error:', error);
+      if (error.errors) {
+        // Zod validation errors
+        const errors = {};
+        error.errors.forEach(err => {
+          const path = err.path.join('.');
+          errors[path] = err.message;
+        });
+        setFormErrors(errors);
+        console.log('Form errors:', errors);
       }
-    });
+    }
   };
 
   // Reset form
@@ -304,7 +330,8 @@ const Quote = () => {
       firstName: "", lastName: "", email: "", contactNumber: "",
       shipperFirstName: "", shipperLastName: "", shipperContact: "",
       consigneeFirstName: "", consigneeLastName: "", consigneeContact: "",
-      modeOfService: null, containerSize: null, origin: null, destination: null, shippingLine: null,
+      modeOfService: null, containerSize: null, origin: null, destination: null, 
+      shippingLine: null, terms: "", // Reset to empty string
     });
     setDepartureDate(null);
     setDeliveryDate(null);
@@ -313,6 +340,8 @@ const Quote = () => {
     setContainerQuantity(1);
     setCurrentSection(1);
     setQuoteSubmitted(false);
+    setFormErrors({});
+    setWeightValidation({ isValid: true, message: "" });
   };
 
   // Success screen
@@ -332,10 +361,8 @@ const Quote = () => {
               <p className="modal-info-text mb-3">
                 Your quote request has been received and is currently being reviewed by our team.
               </p>
-              <p className="modal-info-text">
-                A confirmation email has been sent to <strong>{formData.email}</strong>.
-                Once your quote is verified, you'll receive your account credentials at this email address.
-              </p>
+<p className="modal-info-text">A confirmation email will be sent to <strong>{formData.email}</strong>. Once your quote is verified, you will receive your account credentials at this email address.</p>
+
             </div>
 
             <button
@@ -361,47 +388,59 @@ const Quote = () => {
           </div>
 
           <form onSubmit={handleFormSubmit} className="space-y-8">
-            {/* Section 1: Personal Information */}
+            {/* Section 1: Personal Information - One by one layout */}
             <div className="space-y-4" ref={sectionRefs[1]}>
               <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">
                 1. Personal Information
               </h2>
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
                   <label className="modal-label">First Name</label>
                   <input
-                    className="modal-input"
+                    className={`modal-input ${formErrors.firstName ? 'border-red-500' : ''}`}
                     value={formData.firstName}
                     onChange={(e) => handleInputChange("firstName", e.target.value)}
                     placeholder="Enter your first name"
                     required
                   />
+                  {formErrors.firstName && (
+                    <p className="text-red-500 text-sm mt-1">{formErrors.firstName}</p>
+                  )}
                 </div>
                 <div>
                   <label className="modal-label">Last Name</label>
                   <input
-                    className="modal-input"
+                    className={`modal-input ${formErrors.lastName ? 'border-red-500' : ''}`}
                     value={formData.lastName}
                     onChange={(e) => handleInputChange("lastName", e.target.value)}
                     placeholder="Enter your last name"
                     required
                   />
+                  {formErrors.lastName && (
+                    <p className="text-red-500 text-sm mt-1">{formErrors.lastName}</p>
+                  )}
                 </div>
                 <div>
                   <label className="modal-label">Email</label>
                   <input
-                    className="modal-input"
+                    className={`modal-input ${formErrors.email ? 'border-red-500' : ''}`}
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange("email", e.target.value)}
                     placeholder="Enter your email address"
                     required
                   />
-                  <div className="modal-info-box mt-2">
-                    <p className="modal-info-text text-sm">
-                      Your account credentials and quote updates will be sent to this email address.
-                    </p>
+                  <div className="modal-info-box mt-2 border-blue-200 bg-blue-50">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <p className="modal-info-text text-blue-800 text-sm">
+                        <strong>Important:</strong> Please use an active email address. Your account credentials and quote details will be sent to this email once your booking is approved.
+                      </p>
+                    </div>
                   </div>
+                  {formErrors.email && (
+                    <p className="text-red-500 text-sm mt-1">{formErrors.email}</p>
+                  )}
                 </div>
                 <div>
                   <label className="modal-label">Contact Number (Optional)</label>
@@ -425,22 +464,28 @@ const Quote = () => {
                 <div>
                   <label className="modal-label">Shipper First Name</label>
                   <input
-                    className="modal-input"
+                    className={`modal-input ${formErrors.shipperFirstName ? 'border-red-500' : ''}`}
                     value={formData.shipperFirstName}
                     onChange={(e) => handleInputChange("shipperFirstName", e.target.value)}
                     placeholder="Enter shipper's first name"
                     required
                   />
+                  {formErrors.shipperFirstName && (
+                    <p className="text-red-500 text-sm mt-1">{formErrors.shipperFirstName}</p>
+                  )}
                 </div>
                 <div>
                   <label className="modal-label">Shipper Last Name</label>
                   <input
-                    className="modal-input"
+                    className={`modal-input ${formErrors.shipperLastName ? 'border-red-500' : ''}`}
                     value={formData.shipperLastName}
                     onChange={(e) => handleInputChange("shipperLastName", e.target.value)}
                     placeholder="Enter shipper's last name"
                     required
                   />
+                  {formErrors.shipperLastName && (
+                    <p className="text-red-500 text-sm mt-1">{formErrors.shipperLastName}</p>
+                  )}
                 </div>
                 <div>
                   <label className="modal-label">Contact Number (Optional)</label>
@@ -464,22 +509,28 @@ const Quote = () => {
                 <div>
                   <label className="modal-label">Consignee First Name</label>
                   <input
-                    className="modal-input"
+                    className={`modal-input ${formErrors.consigneeFirstName ? 'border-red-500' : ''}`}
                     value={formData.consigneeFirstName}
                     onChange={(e) => handleInputChange("consigneeFirstName", e.target.value)}
                     placeholder="Enter consignee's first name"
                     required
                   />
+                  {formErrors.consigneeFirstName && (
+                    <p className="text-red-500 text-sm mt-1">{formErrors.consigneeFirstName}</p>
+                  )}
                 </div>
                 <div>
                   <label className="modal-label">Consignee Last Name</label>
                   <input
-                    className="modal-input"
+                    className={`modal-input ${formErrors.consigneeLastName ? 'border-red-500' : ''}`}
                     value={formData.consigneeLastName}
                     onChange={(e) => handleInputChange("consigneeLastName", e.target.value)}
                     placeholder="Enter consignee's last name"
                     required
                   />
+                  {formErrors.consigneeLastName && (
+                    <p className="text-red-500 text-sm mt-1">{formErrors.consigneeLastName}</p>
+                  )}
                 </div>
                 <div>
                   <label className="modal-label">Contact Number (Optional)</label>
@@ -597,6 +648,9 @@ const Quote = () => {
                     classNamePrefix="react-select"
                     placeholder="Select mode of service"
                   />
+                  {formErrors.modeOfService && (
+                    <p className="text-red-500 text-sm mt-1">{formErrors.modeOfService}</p>
+                  )}
                 </div>
                 <div>
                   <label className="modal-label">Container Type</label>
@@ -622,6 +676,9 @@ const Quote = () => {
                       />
                     </div>
                   )}
+                  {formErrors.containerSize && (
+                    <p className="text-red-500 text-sm mt-1">{formErrors.containerSize}</p>
+                  )}
                 </div>
                 <div>
                   <label className="modal-label">Origin Port</label>
@@ -634,6 +691,9 @@ const Quote = () => {
                     placeholder="Select origin port"
                     isLoading={portsLoading}
                   />
+                  {formErrors.origin && (
+                    <p className="text-red-500 text-sm mt-1">{formErrors.origin}</p>
+                  )}
                 </div>
                 <div>
                   <label className="modal-label">Destination Port</label>
@@ -646,6 +706,9 @@ const Quote = () => {
                     placeholder="Select destination port"
                     isLoading={portsLoading}
                   />
+                  {formErrors.destination && (
+                    <p className="text-red-500 text-sm mt-1">{formErrors.destination}</p>
+                  )}
                 </div>
                 <div>
                   <label className="modal-label">Departure Date</label>
@@ -656,6 +719,9 @@ const Quote = () => {
                     minDate={new Date()}
                     required
                   />
+                  {formErrors.departureDate && (
+                    <p className="text-red-500 text-sm mt-1">{formErrors.departureDate}</p>
+                  )}
                 </div>
                 <div>
                   <label className="modal-label">Delivery Date (Optional)</label>
@@ -665,6 +731,23 @@ const Quote = () => {
                     customInput={<DateInput placeholder="Select delivery date" />}
                     minDate={departureDate}
                   />
+                  {formErrors.deliveryDate && (
+                    <p className="text-red-500 text-sm mt-1">{formErrors.deliveryDate}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="modal-label">Terms (Days)</label>
+                  <input
+                    type="text"
+                    className={`modal-input ${formErrors.terms ? 'border-red-500' : ''}`}
+                    value={formData.terms}
+                    onChange={(e) => handleTermsChange(e.target.value)}
+                    placeholder="Enter terms in days"
+                    required
+                  />
+                  {formErrors.terms && (
+                    <p className="text-red-500 text-sm mt-1">{formErrors.terms}</p>
+                  )}
                 </div>
                 <div>
                   <label className="modal-label">Preferred Shipping Line (Optional)</label>
@@ -675,16 +758,20 @@ const Quote = () => {
                     className="react-select-container"
                     classNamePrefix="react-select"
                     placeholder="Select shipping line"
+                    isLoading={shippingLinesLoading}
                   />
                 </div>
               </div>
 
               {/* Weight validation */}
               {!weightValidation.isValid && (
-                <div className="modal-info-box border-red-200">
-                  <p className="modal-info-text text-red-800 font-medium">
-                    {weightValidation.message}
-                  </p>
+                <div className="modal-info-box border-red-200 bg-red-50">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                    <p className="modal-info-text text-red-800 font-medium">
+                      {weightValidation.message}
+                    </p>
+                  </div>
                 </div>
               )}
 

@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useDebounce } from 'use-debounce';
 import { Plus, Filter } from 'lucide-react';
-import api from '../api';
+import toast from 'react-hot-toast';
+
+import { usePort } from '../hooks/usePort';
 import TableLayout from '../components/layout/TableLayout';
 import PortTable from '../components/tables/PortTable';
 import AddPort from '../components/modals/AddPort';
@@ -10,7 +11,6 @@ import DeletePort from '../components/modals/DeletePort';
 import UpdatePort from '../components/modals/UpdatePort';
 import SearchBar from '../components/ui/SearchBar';
 import Pagination from '../components/ui/Pagination';
-import toast from 'react-hot-toast';
 
 const Port = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -25,23 +25,25 @@ const Port = () => {
   const [sort, setSort] = useState('id');
   const [direction, setDirection] = useState('asc');
 
-  const queryClient = useQueryClient();
+  // ✅ usePort hook handles everything
+  const {
+    portsQuery,
+    createPort,
+    updatePort,
+    deletePort,
+    bulkDeletePorts,
+  } = usePort();
 
-  // Fetch ports
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['ports', debouncedSearch, page],
-    queryFn: async () => {
-      const res = await api.get('/ports', {
-        params: { search: debouncedSearch, page, per_page: 10 },
-      });
-      return res.data;
-    },
-    staleTime: 5 * 60 * 1000,
-    cacheTime: 10 * 60 * 1000,
-    keepPreviousData: true,
+  // ✅ Fetch ports (server-side pagination & search)
+  const { data, isLoading, isError } = portsQuery({
+    search: debouncedSearch,
+    page,
+    per_page: 10,
+    sort,
+    direction
   });
 
-  // Client-side sorting
+  // Client-side sorting (fallback if server-side sorting isn't working)
   const sortedPorts = useMemo(() => {
     if (!data?.data) return [];
     return [...data.data].sort((a, b) => {
@@ -71,103 +73,81 @@ const Port = () => {
     setDirection(dir);
   }, []);
 
-  // Mutations
-  const addMutation = useMutation({
-    mutationFn: async (portData) => (await api.post('/ports', portData)).data,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ports'] });
-      toast.success('Port added successfully');
-      setIsAddModalOpen(false);
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to add port');
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, portData }) =>
-      (await api.put(`/ports/${id}`, portData)).data,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ports'] });
-      toast.success('Port updated successfully');
-      setIsUpdateModalOpen(false);
-      setUpdatingPort(null);
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to update port');
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (port) => (await api.delete(`/ports/${port.id}`)).data,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ports'] });
-      toast.success('Port deleted successfully');
-      setIsDeleteModalOpen(false);
-      setDeletingPort(null);
-      setDeletingPorts(null);
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to delete port');
-    },
-  });
-
-  const bulkDeleteMutation = useMutation({
-    mutationFn: async (portIds) => 
-      (await api.post('/ports/bulk-delete', { ids: portIds })).data,
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['ports'] });
-      toast.success(data.message || 'Ports deleted successfully');
-      setIsDeleteModalOpen(false);
-      setDeletingPort(null);
-      setDeletingPorts(null);
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to delete ports');
-    },
-  });
-
-  // Handlers
+  /* =========================
+   * CRUD ACTIONS
+   * ========================= */
   const handleAdd = useCallback(
-    (portData) => addMutation.mutate(portData),
-    [addMutation]
+    async (portData) => {
+      try {
+        await createPort.mutateAsync(portData);
+        toast.success('Port added successfully');
+        setIsAddModalOpen(false);
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to add port');
+      }
+    },
+    [createPort]
   );
 
   const handleUpdate = useCallback(
-    (id, portData) => updateMutation.mutate({ id, portData }),
-    [updateMutation]
+    async (id, portData) => {
+      try {
+        await updatePort.mutateAsync({ id, ...portData });
+        toast.success('Port updated successfully');
+        setIsUpdateModalOpen(false);
+        setUpdatingPort(null);
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to update port');
+      }
+    },
+    [updatePort]
   );
+
+  const handleDelete = useCallback(() => {
+    if (deletingPorts) {
+      const ids = deletingPorts.map((port) => port.id);
+      bulkDeletePorts.mutate(ids, {
+        onSuccess: (res) => {
+          toast.success(res?.message || 'Ports deleted successfully');
+        },
+        onError: (error) => {
+          toast.error(error.response?.data?.message || 'Failed to delete ports');
+        },
+      });
+    } else if (deletingPort) {
+      deletePort.mutate(deletingPort.id, {
+        onSuccess: () => {
+          toast.success('Port deleted successfully');
+        },
+        onError: (error) => {
+          toast.error(error.response?.data?.message || 'Failed to delete port');
+        },
+      });
+    }
+    setIsDeleteModalOpen(false);
+    setDeletingPort(null);
+    setDeletingPorts(null);
+  }, [deletePort, bulkDeletePorts, deletingPort, deletingPorts]);
 
   const handleEditClick = useCallback((port) => {
     setUpdatingPort(port);
     setIsUpdateModalOpen(true);
   }, []);
 
-  const handleDeleteClick = useCallback(
-    (portOrPorts) => {
-      if (Array.isArray(portOrPorts)) {
-        setDeletingPorts(portOrPorts);
-        setDeletingPort(null);
-        setIsDeleteModalOpen(true);
-      } else {
-        setDeletingPort(portOrPorts);
-        setDeletingPorts(null);
-        setIsDeleteModalOpen(true);
-      }
-    },
-    []
-  );
-
-  const handleDelete = useCallback(() => {
-    if (deletingPorts) {
-      const portIds = deletingPorts.map((port) => port.id);
-      bulkDeleteMutation.mutate(portIds);
-    } else if (deletingPort) {
-      deleteMutation.mutate(deletingPort);
+  const handleDeleteClick = useCallback((portOrPorts) => {
+    if (Array.isArray(portOrPorts)) {
+      setDeletingPorts(portOrPorts);
+      setDeletingPort(null);
+    } else {
+      setDeletingPort(portOrPorts);
+      setDeletingPorts(null);
     }
-  }, [deleteMutation, bulkDeleteMutation, deletingPort, deletingPorts]);
+    setIsDeleteModalOpen(true);
+  }, []);
 
-  // Loading & error states
+  /* =========================
+   * STATES
+   * ========================= */
   if (isLoading && !data) {
     return (
       <div className="page-loading">
@@ -186,6 +166,9 @@ const Port = () => {
     );
   }
 
+  /* =========================
+   * UI
+   * ========================= */
   return (
     <div className="page-container">
       {/* Page Header */}
@@ -243,11 +226,12 @@ const Port = () => {
         </div>
       )}
 
+      {/* Modals */}
       <AddPort
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSave={handleAdd}
-        isLoading={addMutation.isPending}
+        isLoading={createPort.isPending}
       />
 
       <UpdatePort
@@ -258,7 +242,7 @@ const Port = () => {
         }}
         onUpdate={handleUpdate}
         port={updatingPort}
-        isLoading={updateMutation.isPending}
+        isLoading={updatePort.isPending}
       />
 
       <DeletePort
@@ -271,7 +255,7 @@ const Port = () => {
         onDelete={handleDelete}
         port={deletingPort}
         ports={deletingPorts}
-        isLoading={deleteMutation.isPending || bulkDeleteMutation.isPending}
+        isLoading={deletePort.isPending || bulkDeletePorts.isPending}
       />
     </div>
   );

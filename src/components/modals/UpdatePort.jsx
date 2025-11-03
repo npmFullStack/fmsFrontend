@@ -1,22 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { portSchema, defaultPortValues } from '../../schemas/portSchema';
 import { Loader2, MapPin, Eye, X } from 'lucide-react';
 import SharedModal from '../ui/SharedModal';
 import LocationMap from '../ui/LocationMap';
-
-const portSchema = z.object({
-  name: z.string().min(2, 'Port name must be at least 2 characters'),
-  route_name: z.string().min(2, 'Route name must be at least 2 characters'),
-  address: z.string().min(1, 'Address is required'),
-  latitude: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) >= -90 && parseFloat(val) <= 90, {
-    message: 'Valid latitude is required (-90 to 90)',
-  }),
-  longitude: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) >= -180 && parseFloat(val) <= 180, {
-    message: 'Valid longitude is required (-180 to 180)',
-  }),
-});
 
 const UpdatePort = ({ 
   isOpen, 
@@ -25,9 +13,17 @@ const UpdatePort = ({
   port,
   isLoading = false 
 }) => {
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors, isValid } } = useForm({
+  const { 
+    register, 
+    handleSubmit, 
+    reset, 
+    setValue, 
+    watch, 
+    formState: { errors, isValid } 
+  } = useForm({
     resolver: zodResolver(portSchema),
     mode: 'onChange',
+    defaultValues: defaultPortValues,
   });
 
   const [addressSuggestions, setAddressSuggestions] = useState([]);
@@ -47,14 +43,14 @@ const UpdatePort = ({
       setValue('name', port.name);
       setValue('route_name', port.route_name || '');
       setValue('address', port.address || '');
-      setValue('latitude', port.latitude?.toString() || '');
-      setValue('longitude', port.longitude?.toString() || '');
+      setValue('latitude', port.latitude || 0);
+      setValue('longitude', port.longitude || 0);
       setSelectedLocation({ 
-        lat: port.latitude ? parseFloat(port.latitude) : null, 
-        lng: port.longitude ? parseFloat(port.longitude) : null 
+        lat: port.latitude || null, 
+        lng: port.longitude || null 
       });
     } else {
-      reset();
+      reset(defaultPortValues);
     }
   }, [port, reset, setValue]);
 
@@ -143,8 +139,8 @@ const UpdatePort = ({
     const { lat, lon, display_name } = suggestion;
     
     setValue('address', display_name, { shouldValidate: true });
-    setValue('latitude', lat.toString(), { shouldValidate: true });
-    setValue('longitude', lon.toString(), { shouldValidate: true });
+    setValue('latitude', parseFloat(lat), { shouldValidate: true });
+    setValue('longitude', parseFloat(lon), { shouldValidate: true });
     
     // Extract and set route name and port name
     const extractedRouteName = extractRouteName(display_name);
@@ -159,8 +155,8 @@ const UpdatePort = ({
   };
 
   const handleMapLocationChange = (lat, lng) => {
-    setValue('latitude', lat.toString(), { shouldValidate: true });
-    setValue('longitude', lng.toString(), { shouldValidate: true });
+    setValue('latitude', lat, { shouldValidate: true });
+    setValue('longitude', lng, { shouldValidate: true });
     setSelectedLocation({ lat, lng });
   };
 
@@ -170,8 +166,8 @@ const UpdatePort = ({
     setShowMap(false);
     
     // Set the coordinates
-    setValue('latitude', lat.toString(), { shouldValidate: true });
-    setValue('longitude', lng.toString(), { shouldValidate: true });
+    setValue('latitude', lat, { shouldValidate: true });
+    setValue('longitude', lng, { shouldValidate: true });
     
     // Use the city name from map search for route name
     if (cityName && !routeName) {
@@ -216,16 +212,19 @@ const UpdatePort = ({
   };
 
   const onSubmit = (data) => {
-    const portData = {
-      ...data,
-      latitude: parseFloat(data.latitude),
-      longitude: parseFloat(data.longitude),
+    // Format the data properly
+    const formattedData = {
+      name: data.name.trim(),
+      route_name: data.route_name.trim(),
+      address: data.address?.trim() || null,
+      latitude: data.latitude,
+      longitude: data.longitude,
     };
-    onUpdate(port.id, portData);
+    onUpdate(port.id, formattedData);
   };
 
   const handleClose = () => {
-    reset();
+    reset(defaultPortValues);
     onClose();
   };
 
@@ -317,8 +316,8 @@ const UpdatePort = ({
 
           {/* Hidden Coordinates (automatically filled) */}
           <div className="hidden">
-            <input type="hidden" {...register('latitude')} />
-            <input type="hidden" {...register('longitude')} />
+            <input type="hidden" {...register('latitude', { valueAsNumber: true })} />
+            <input type="hidden" {...register('longitude', { valueAsNumber: true })} />
           </div>
 
           {/* Info Box */}
@@ -384,8 +383,8 @@ const UpdatePort = ({
             {/* Map Content */}
             <div className="p-4">
               <LocationMap
-                latitude={latitude ? parseFloat(latitude) : null}
-                longitude={longitude ? parseFloat(longitude) : null}
+                latitude={latitude || null}
+                longitude={longitude || null}
                 onLocationChange={handleMapLocationChange}
                 onLocationSet={handleLocationSet}
                 height="500px"
