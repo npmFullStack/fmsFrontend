@@ -15,6 +15,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Category = lazy(() => import('./pages/Category'));
 const ContainerType = lazy(() => import('./pages/ContainerType'));
 const Port = lazy(() => import('./pages/Port'));
+const TruckComp = lazy(() => import('./pages/TruckComp'));
 const ShippingLine = lazy(() => import('./pages/ShippingLine'));
 const BookingRequest = lazy(() => import('./pages/BookingRequest'));
 const BookingDetails = lazy(() => import('./pages/BookingDetails'));
@@ -43,6 +44,7 @@ function App() {
             <Route path="/categories" element={<Category />} />
             <Route path="/container-types" element={<ContainerType />} />
             <Route path="/ports" element={<Port />} />
+            <Route path="/truck-comp" element={<TruckComp />} />
             <Route path="/shipping-line" element={<ShippingLine />} />
             <Route path="/booking-request" element={<BookingRequest />} />
             <Route path="/booking-details/:id" element={<BookingDetails />} />

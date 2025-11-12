@@ -6,7 +6,8 @@ import {
   BarChart3, 
   List, 
   Container, 
-  MapPin,  
+  MapPin,
+  Truck,
   Ship, 
   ClipboardCheck, 
   X, 
@@ -30,6 +31,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
     { icon: List, label: 'Category Management', path: '/categories' },
     { icon: Container, label: 'Container Management', path: '/container-types' },
     { icon: MapPin, label: 'Port Management', path: '/ports' },
+     { icon: Truck, label: 'Trucking Companies Management', path: '/truck-comp' },
     { icon: Ship, label: 'Shipping Lines Management', path: '/shipping-line' },
     { icon: ClipboardCheck, label: 'Booking Management', path: '/booking-request' },
   ];
