@@ -1,6 +1,6 @@
 // src/main.jsx
 import React from 'react';
-import ReactDOM from 'react-dom/client';
+import ReactDOM from 'react-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -19,7 +19,7 @@ const queryClient = new QueryClient({
   },
 });
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+ReactDOM.render(
   <React.StrictMode>
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
@@ -36,47 +36,21 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
             },
             success: {
-              style: {
-                background: '#22c55e',
-                color: '#ffffff',
-                border: '1px solid #059669',
-                borderRadius: '0.5rem',
-                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-              },
-              iconTheme: {
-                primary: '#ffffff',
-                secondary: '#10b981',
-              },
+              style: { background: '#22c55e', color: '#ffffff' },
+              iconTheme: { primary: '#ffffff', secondary: '#10b981' },
             },
             error: {
-              style: {
-                background: '#ef4444',
-                color: '#ffffff',
-                border: '1px solid #dc2626',
-                borderRadius: '0.5rem',
-                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-              },
-              iconTheme: {
-                primary: '#ffffff',
-                secondary: '#ef4444',
-              },
+              style: { background: '#ef4444', color: '#ffffff' },
+              iconTheme: { primary: '#ffffff', secondary: '#ef4444' },
             },
             loading: {
-              style: {
-                background: '#3b82f6',
-                color: '#ffffff',
-                border: '1px solid #2563eb',
-                borderRadius: '0.5rem',
-                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-              },
-              iconTheme: {
-                primary: '#ffffff',
-                secondary: '#3b82f6',
-              },
+              style: { background: '#3b82f6', color: '#ffffff' },
+              iconTheme: { primary: '#ffffff', secondary: '#3b82f6' },
             },
           }}
         />
       </QueryClientProvider>
     </ThemeProvider>
-  </React.StrictMode>
+  </React.StrictMode>,
+  document.getElementById('root')
 );
