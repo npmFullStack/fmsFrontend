@@ -64,32 +64,39 @@ export const bookingSchema = z.object({
       value: z.string(),
       label: z.string(),
     }, { required_error: 'Mode of service is required' }),
-    containerSize: z
-  .object({
-    value: z.number(),
-    label: z.string(),
-    max_weight: z.union([z.string(), z.number()])
-      .transform((val) => parseFloat(val))
-      .pipe(z.number().min(0))
-      .optional(),
-  }, { required_error: 'Container type is required' }),
-  
+  containerSize: z
+    .object({
+      value: z.number(),
+      label: z.string(),
+      max_weight: z.union([z.string(), z.number()])
+        .transform((val) => parseFloat(val))
+        .pipe(z.number().min(0))
+        .optional(),
+    }, { required_error: 'Container type is required' }),
   containerQuantity: z
     .number()
     .min(1, 'Container quantity must be at least 1'),
   origin: z
     .object({
-      value: z.number(), // Changed to number since you're using port IDs
+      value: z.number(),
       label: z.string(),
     }, { required_error: 'Origin port is required' }),
   destination: z
     .object({
-      value: z.number(), // Changed to number since you're using port IDs
+      value: z.number(),
       label: z.string(),
     }, { required_error: 'Destination port is required' }),
   shippingLine: z
     .object({
-      value: z.number(), // Changed to number since you're using shipping line IDs
+      value: z.number(),
+      label: z.string(),
+    })
+    .optional()
+    .nullable(),
+  // ✅ Added Truck Company
+  truckCompany: z
+    .object({
+      value: z.number(),
       label: z.string(),
     })
     .optional()
@@ -97,10 +104,10 @@ export const bookingSchema = z.object({
 
   // Dates
   departureDate: z
-  .date({ required_error: 'Departure date is required' })
-  .refine((date) => date >= new Date(new Date().setHours(0, 0, 0, 0)), {
-    message: 'Departure date must be today or in the future'
-  }),
+    .date({ required_error: 'Departure date is required' })
+    .refine((date) => date >= new Date(new Date().setHours(0, 0, 0, 0)), {
+      message: 'Departure date must be today or in the future'
+    }),
   deliveryDate: z
     .date()
     .optional()
@@ -114,7 +121,6 @@ export const bookingSchema = z.object({
     zipCode: z.string().optional(),
     country: z.string().optional(),
   }).optional().nullable(),
-
   deliveryLocation: z.object({
     address: z.string().optional(),
     city: z.string().optional(),
@@ -168,6 +174,7 @@ export const defaultBookingValues = {
   origin: null,
   destination: null,
   shippingLine: null,
+  truckCompany: null, // ✅ Added
 
   // Dates
   departureDate: null,
@@ -211,6 +218,7 @@ export const bookingApiSchema = z.object({
   origin_id: z.number(),
   destination_id: z.number(),
   shipping_line_id: z.number().optional().nullable(),
+  truck_comp_id: z.number().optional().nullable(), // ✅ Added
   departure_date: z.string(),
   delivery_date: z.string().optional().nullable(),
   terms: z.number().min(1),
@@ -255,6 +263,7 @@ export const transformBookingToApi = (data) => {
     origin_id: data.origin.value,
     destination_id: data.destination.value,
     shipping_line_id: data.shippingLine?.value || null,
+    truck_comp_id: data.truckCompany?.value || null, // ✅ Added
     departure_date: data.departureDate.toISOString().split('T')[0],
     delivery_date: data.deliveryDate?.toISOString().split('T')[0] || null,
     terms: data.terms,

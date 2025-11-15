@@ -41,7 +41,6 @@ const bookingApi = {
     const { data } = await api.put(`/bookings/${id}`, { booking_status });
     return data;
   },
-  // ✅ Add approve booking endpoint
   approve: async (id) => {
     const { data } = await api.post(`/bookings/${id}/approve`);
     return data;
@@ -151,7 +150,7 @@ export const useBooking = () => {
     },
   });
 
-  // ✅ Approve booking (with email sending)
+  // Approve booking (with email sending)
   const approveBooking = useMutation({
     mutationFn: bookingApi.approve,
     onSuccess: () => {
@@ -168,7 +167,6 @@ export const useBooking = () => {
     // Queries
     bookingsQuery,
     bookingQuery,
-    
     // Mutations
     createBooking,
     updateBooking,
@@ -177,14 +175,14 @@ export const useBooking = () => {
     restoreBooking,
     updateBookingStatus,
     updateBookingShippingStatus,
-    approveBooking, // ✅ New approve mutation
+    approveBooking,
   };
 };
 
-// ✅ Specialized hook for the quote form - FIXED EXPORT
+// ✅ Specialized hook for the quote form
 export const useCreateBooking = () => {
   const queryClient = useQueryClient();
-
+  
   return useMutation({
     mutationFn: bookingApi.create,
     onSuccess: (data) => {

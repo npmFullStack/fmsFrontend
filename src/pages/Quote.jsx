@@ -19,7 +19,6 @@ const Quote = () => {
   const [containerQuantity, setContainerQuantity] = useState(1);
   const [weightValidation, setWeightValidation] = useState({ isValid: true, message: "" });
   const [formErrors, setFormErrors] = useState({});
-
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -36,7 +35,8 @@ const Quote = () => {
     origin: null,
     destination: null,
     shippingLine: null,
-    terms: "", // Changed to empty string initially
+    truckCompany: null, 
+    terms: "",
   });
 
   const [pickupLocation, setPickupLocation] = useState({});
@@ -88,22 +88,31 @@ const Quote = () => {
     },
   });
 
+  // ✅ Fetch truck companies
+  const { data: truckCompsData, isLoading: truckCompsLoading } = useQuery({
+    queryKey: ['truck-comps'],
+    queryFn: async () => {
+      const res = await api.get('/truck-comps');
+      return res.data;
+    },
+  });
+
   // Create booking mutation
   const createBookingMutation = useCreateBooking();
 
-  // Generate options - fix max_weight to be number
+  // Generate options
   const containerOptions = React.useMemo(() => {
     if (!containerTypesData?.data) return [];
-    return containerTypesData.data.map(container => ({ 
+    return containerTypesData.data.map(container => ({
       value: container.id,
       label: `${container.size}`,
-      max_weight: parseFloat(container.max_weight) || 0, // Ensure it's a number
+      max_weight: parseFloat(container.max_weight) || 0,
     }));
   }, [containerTypesData]);
 
   const categoryOptions = React.useMemo(() => {
     if (!categoriesData?.data) return [];
-    const baseOptions = categoriesData.data.map(category => ({ 
+    const baseOptions = categoriesData.data.map(category => ({
       value: category.name,
       label: category.name,
     }));
@@ -112,7 +121,7 @@ const Quote = () => {
 
   const portOptions = React.useMemo(() => {
     if (!portsData?.data) return [];
-    return portsData.data.map(port => ({ 
+    return portsData.data.map(port => ({
       value: port.id,
       label: port.route_name,
     }));
@@ -126,9 +135,17 @@ const Quote = () => {
     }));
   }, [shippingLinesData]);
 
+  // ✅ Truck company options
+  const truckCompanyOptions = React.useMemo(() => {
+    if (!truckCompsData?.data) return [];
+    return truckCompsData.data.map(truck => ({
+      value: truck.id,
+      label: truck.name,
+    }));
+  }, [truckCompsData]);
+
   const modeOptions = [
     { value: "port-to-port", label: "Port to Port" },
-    { value: "pier-to-pier", label: "Pier to Pier" },
     { value: "door-to-door", label: "Door to Door" },
     { value: "port-to-door", label: "Port to Door" },
     { value: "door-to-port", label: "Door to Port" },
@@ -148,17 +165,21 @@ const Quote = () => {
     if (formData.containerSize && items.length > 0) {
       const totalWeight = calculateTotalWeight();
       const selectedContainer = containerOptions.find(opt => opt.value === formData.containerSize.value);
-
-      if (selectedContainer) {
+      
+      if (selectedContainer && totalWeight > 0) {
         const maxWeight = selectedContainer.max_weight * containerQuantity;
         if (totalWeight > maxWeight) {
-          const excessWeight = totalWeight - maxWeight;
+          const excessWeight = (totalWeight - maxWeight).toFixed(2);
           setWeightValidation({
             isValid: false,
-            message: `Total weight (${totalWeight}kg) exceeds container capacity (${maxWeight}kg) by ${excessWeight}kg. Please add more containers or choose a larger container size.`
+            message: `Total weight (${totalWeight.toFixed(2)} kg) exceeds container capacity (${maxWeight.toFixed(2)} kg) by ${excessWeight} kg. Please add more containers or choose a larger container size.`
           });
         } else {
-          setWeightValidation({ isValid: true, message: "" });
+          const remainingCapacity = (maxWeight - totalWeight).toFixed(2);
+          setWeightValidation({ 
+            isValid: true, 
+            message: `Total weight: ${totalWeight.toFixed(2)} kg / ${maxWeight.toFixed(2)} kg (${remainingCapacity} kg remaining capacity)`
+          });
         }
       }
     }
@@ -192,14 +213,12 @@ const Quote = () => {
 
   // Contact number validation - only numbers
   const handleContactNumberChange = (field, value) => {
-    // Remove any non-numeric characters
     const numericValue = value.replace(/[^\d]/g, '');
     handleInputChange(field, numericValue);
   };
 
   // Handle terms change - allow empty and numbers only
   const handleTermsChange = (value) => {
-    // Allow empty string or numbers only
     if (value === "" || /^\d*$/.test(value)) {
       handleInputChange("terms", value);
     }
@@ -210,7 +229,7 @@ const Quote = () => {
   const showPickup = modeValue === "door-to-door" || modeValue === "door-to-port";
   const showDelivery = modeValue === "door-to-door" || modeValue === "port-to-door";
 
-  // Section completion check (made contact numbers optional)
+  // Section completion check
   const isSectionComplete = (section) => {
     switch (section) {
       case 1:
@@ -225,8 +244,8 @@ const Quote = () => {
           return item.name && item.weight && item.quantity && hasCategory;
         });
       case 5:
-        return formData.modeOfService && formData.containerSize && formData.origin && 
-               formData.destination && departureDate && formData.terms && weightValidation.isValid;
+        return formData.modeOfService && formData.containerSize && formData.origin &&
+          formData.destination && formData.terms && weightValidation.isValid;
       default:
         return false;
     }
@@ -248,7 +267,7 @@ const Quote = () => {
         onClick={onClick}
         className="absolute right-2 top-1/2 -translate-y-1/2 p-1"
         aria-label="open-calendar"
-      > 
+      >
         <Calendar className="w-5 h-5 text-gray-500" />
       </button>
     </div>
@@ -260,14 +279,12 @@ const Quote = () => {
     e.preventDefault();
     console.log("Form submitted");
 
-    // Validate all sections are complete
     if (!isSectionComplete(5)) {
       console.log("Section 5 not complete");
       return;
     }
 
     try {
-      // Prepare data for validation - ensure terms is number
       const formDataForValidation = {
         ...formData,
         containerQuantity,
@@ -275,7 +292,7 @@ const Quote = () => {
         deliveryDate,
         pickupLocation: showPickup ? pickupLocation : null,
         deliveryLocation: showDelivery ? deliveryLocation : null,
-        terms: parseInt(formData.terms) || 0, // Convert to number
+        terms: parseInt(formData.terms) || 0,
         items: items.map(item => ({
           name: item.name,
           weight: parseFloat(item.weight),
@@ -286,14 +303,11 @@ const Quote = () => {
 
       console.log("Form data for validation:", formDataForValidation);
 
-      // Validate with schema
       const validatedData = bookingSchema.parse(formDataForValidation);
       console.log("Validation successful:", validatedData);
-      
-      // Clear any previous errors
+
       setFormErrors({});
 
-      // Transform to API format
       const bookingData = transformBookingToApi(validatedData);
       console.log("Transformed booking data:", bookingData);
 
@@ -307,11 +321,9 @@ const Quote = () => {
           alert('Failed to submit booking. Please try again.');
         }
       });
-
     } catch (error) {
       console.error('Validation error:', error);
       if (error.errors) {
-        // Zod validation errors
         const errors = {};
         error.errors.forEach(err => {
           const path = err.path.join('.');
@@ -330,8 +342,8 @@ const Quote = () => {
       firstName: "", lastName: "", email: "", contactNumber: "",
       shipperFirstName: "", shipperLastName: "", shipperContact: "",
       consigneeFirstName: "", consigneeLastName: "", consigneeContact: "",
-      modeOfService: null, containerSize: null, origin: null, destination: null, 
-      shippingLine: null, terms: "", // Reset to empty string
+      modeOfService: null, containerSize: null, origin: null, destination: null,
+      shippingLine: null, truckCompany: null, terms: "",
     });
     setDepartureDate(null);
     setDeliveryDate(null);
@@ -352,7 +364,7 @@ const Quote = () => {
           <div className="bg-surface rounded-2xl shadow-xl border border-main p-8 text-center">
             <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4"/>
             <h1 className="text-3xl font-bold text-heading mb-4">Quote Request Submitted!</h1>
-
+            
             <div className="modal-info-box text-left">
               <div className="modal-info-title">
                 <span>Pending Verification</span>
@@ -361,8 +373,22 @@ const Quote = () => {
               <p className="modal-info-text mb-3">
                 Your quote request has been received and is currently being reviewed by our team.
               </p>
-<p className="modal-info-text">A confirmation email will be sent to <strong>{formData.email}</strong>. Once your quote is verified, you will receive your account credentials at this email address.</p>
+              <p className="modal-info-text">
+                A confirmation email will be sent to <strong>{formData.email}</strong>. Once your quote is verified, you will receive your account credentials at this email address.
+              </p>
+            </div>
 
+            {/* ✅ Enhanced Important Notice */}
+            <div className="bg-main border-2 border-primary rounded-lg p-4 mt-6 text-left">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-heading text-sm mb-1">Important Notice</p>
+                  <p className="text-muted text-sm">
+                    Please use an active email address. Your account credentials and quote details will be sent to <strong className="text-heading">{formData.email}</strong> once your booking is approved.
+                  </p>
+                </div>
+              </div>
             </div>
 
             <button
@@ -388,7 +414,7 @@ const Quote = () => {
           </div>
 
           <form onSubmit={handleFormSubmit} className="space-y-8">
-            {/* Section 1: Personal Information - One by one layout */}
+            {/* Section 1: Personal Information */}
             <div className="space-y-4" ref={sectionRefs[1]}>
               <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">
                 1. Personal Information
@@ -430,11 +456,12 @@ const Quote = () => {
                     placeholder="Enter your email address"
                     required
                   />
-                  <div className="modal-info-box mt-2 border-blue-200 bg-blue-50">
+                  {/* ✅ Enhanced Email Notice */}
+                  <div className="bg-surface border-2 border-primary rounded-lg p-3 mt-2">
                     <div className="flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                      <p className="modal-info-text text-blue-800 text-sm">
-                        <strong>Important:</strong> Please use an active email address. Your account credentials and quote details will be sent to this email once your booking is approved.
+                      <AlertCircle className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-muted">
+                        <strong className="text-heading">Important:</strong> Please use an active email address. Your account credentials and quote details will be sent to this email once your booking is approved.
                       </p>
                     </div>
                   </div>
@@ -553,6 +580,7 @@ const Quote = () => {
               {items.map((it, idx) => {
                 const showCustomCategory = it.category === "other";
                 const selectedCategory = categoryOptions.find((o) => o.value === it.category) || null;
+
                 return (
                   <div key={it.id} className="bg-main border border-main rounded-lg p-4 space-y-4">
                     <div className="flex items-center justify-between mb-2">
@@ -632,39 +660,68 @@ const Quote = () => {
               </button>
             </div>
 
-            {/* Section 5: Shipping Preferences */}
-            <div className="space-y-4" ref={sectionRefs[5]}>
+            {/* Section 5: Shipping Preferences - ✅ REORGANIZED WITH HIERARCHY */}
+            <div className="space-y-6" ref={sectionRefs[5]}>
               <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">
                 5. Shipping Preferences
               </h2>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="modal-label">Mode of Service</label>
-                  <Select
-                    options={modeOptions}
-                    value={formData.modeOfService}
-                    onChange={(s) => handleInputChange("modeOfService", s)}
-                    className="react-select-container"
-                    classNamePrefix="react-select"
-                    placeholder="Select mode of service"
-                  />
-                  {formErrors.modeOfService && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.modeOfService}</p>
-                  )}
+
+              {/* Basic Shipping Details */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-heading">Basic Details</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="modal-label">Mode of Service</label>
+                    <Select
+                      options={modeOptions}
+                      value={formData.modeOfService}
+                      onChange={(s) => handleInputChange("modeOfService", s)}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                      placeholder="Select mode of service"
+                    />
+                    {formErrors.modeOfService && (
+                      <p className="text-red-500 text-sm mt-1">{formErrors.modeOfService}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="modal-label">Terms (Days)</label>
+                    <input
+                      type="text"
+                      className={`modal-input ${formErrors.terms ? 'border-red-500' : ''}`}
+                      value={formData.terms}
+                      onChange={(e) => handleTermsChange(e.target.value)}
+                      placeholder="Enter terms in days"
+                      required
+                    />
+                    {formErrors.terms && (
+                      <p className="text-red-500 text-sm mt-1">{formErrors.terms}</p>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <label className="modal-label">Container Type</label>
-                  <Select
-                    options={containerOptions}
-                    value={formData.containerSize}
-                    onChange={(s) => handleInputChange("containerSize", s)}
-                    className="react-select-container"
-                    classNamePrefix="react-select"
-                    placeholder="Select container type"
-                    isLoading={containerTypesLoading}
-                  />
+              </div>
+
+              {/* Container Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-heading">Container Information</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="modal-label">Container Type</label>
+                    <Select
+                      options={containerOptions}
+                      value={formData.containerSize}
+                      onChange={(s) => handleInputChange("containerSize", s)}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                      placeholder="Select container type"
+                      isLoading={containerTypesLoading}
+                    />
+                    {formErrors.containerSize && (
+                      <p className="text-red-500 text-sm mt-1">{formErrors.containerSize}</p>
+                    )}
+                  </div>
                   {formData.containerSize && (
-                    <div className="mt-2">
+                    <div>
                       <label className="modal-label">Container Quantity</label>
                       <input
                         type="number"
@@ -676,140 +733,163 @@ const Quote = () => {
                       />
                     </div>
                   )}
-                  {formErrors.containerSize && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.containerSize}</p>
-                  )}
                 </div>
-                <div>
-                  <label className="modal-label">Origin Port</label>
-                  <Select
-                    options={portOptions}
-                    value={formData.origin}
-                    onChange={(s) => handleInputChange("origin", s)}
-                    className="react-select-container"
-                    classNamePrefix="react-select"
-                    placeholder="Select origin port"
-                    isLoading={portsLoading}
-                  />
-                  {formErrors.origin && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.origin}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="modal-label">Destination Port</label>
-                  <Select
-                    options={portOptions}
-                    value={formData.destination}
-                    onChange={(s) => handleInputChange("destination", s)}
-                    className="react-select-container"
-                    classNamePrefix="react-select"
-                    placeholder="Select destination port"
-                    isLoading={portsLoading}
-                  />
-                  {formErrors.destination && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.destination}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="modal-label">Departure Date</label>
-                  <DatePicker
-                    selected={departureDate}
-                    onChange={setDepartureDate}
-                    customInput={<DateInput placeholder="Select departure date" />}
-                    minDate={new Date()}
-                    required
-                  />
-                  {formErrors.departureDate && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.departureDate}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="modal-label">Delivery Date (Optional)</label>
-                  <DatePicker
-                    selected={deliveryDate}
-                    onChange={setDeliveryDate}
-                    customInput={<DateInput placeholder="Select delivery date" />}
-                    minDate={departureDate}
-                  />
-                  {formErrors.deliveryDate && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.deliveryDate}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="modal-label">Terms (Days)</label>
-                  <input
-                    type="text"
-                    className={`modal-input ${formErrors.terms ? 'border-red-500' : ''}`}
-                    value={formData.terms}
-                    onChange={(e) => handleTermsChange(e.target.value)}
-                    placeholder="Enter terms in days"
-                    required
-                  />
-                  {formErrors.terms && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.terms}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="modal-label">Preferred Shipping Line (Optional)</label>
-                  <Select
-                    options={shippingLineOptions}
-                    value={formData.shippingLine}
-                    onChange={(s) => handleInputChange("shippingLine", s)}
-                    className="react-select-container"
-                    classNamePrefix="react-select"
-                    placeholder="Select shipping line"
-                    isLoading={shippingLinesLoading}
-                  />
+
+                {/* ✅ Enhanced Weight Display */}
+                {items.some(item => item.weight && item.quantity) && formData.containerSize && (
+                  <div className={`rounded-lg p-4 border-2 ${
+                    !weightValidation.isValid 
+                      ? 'bg-red-50 border-red-300' 
+                      : 'bg-surface border-primary'
+                  }`}>
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className={`w-5 h-5 mt-0.5 flex-shrink-0 ${
+                        !weightValidation.isValid ? 'text-red-600' :
+                        'text-primary'
+                      }`} />
+                      <div className="flex-1">
+                        <p className={`font-semibold text-sm mb-1 ${
+                          !weightValidation.isValid ? 'text-red-800' :
+                          'text-heading'
+                        }`}>
+                          {!weightValidation.isValid ? 'Weight Capacity Exceeded' : 'Weight Status'}
+                        </p>
+                        <p className={`text-sm ${
+                          !weightValidation.isValid ? 'text-red-700' :
+                          'text-muted'
+                        }`}>
+                          {weightValidation.message}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Route Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-heading">Route Information</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="modal-label">Origin Port</label>
+                    <Select
+                      options={portOptions}
+                      value={formData.origin}
+                      onChange={(s) => handleInputChange("origin", s)}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                      placeholder="Select origin port"
+                      isLoading={portsLoading}
+                    />
+                    {formErrors.origin && (
+                      <p className="text-red-500 text-sm mt-1">{formErrors.origin}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="modal-label">Destination Port</label>
+                    <Select
+                      options={portOptions}
+                      value={formData.destination}
+                      onChange={(s) => handleInputChange("destination", s)}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                      placeholder="Select destination port"
+                      isLoading={portsLoading}
+                    />
+                    {formErrors.destination && (
+                      <p className="text-red-500 text-sm mt-1">{formErrors.destination}</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* Weight validation */}
-              {!weightValidation.isValid && (
-                <div className="modal-info-box border-red-200 bg-red-50">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
-                    <p className="modal-info-text text-red-800 font-medium">
-                      {weightValidation.message}
-                    </p>
+              {/* ✅ Schedule Information with Preferred labels */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-heading">Schedule</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="modal-label">Preferred Departure Date (Optional)</label>
+                    <DatePicker
+                      selected={departureDate}
+                      onChange={setDepartureDate}
+                      customInput={<DateInput placeholder="Select preferred departure date" />}
+                      minDate={new Date()}
+                    />
+                    {formErrors.departureDate && (
+                      <p className="text-red-500 text-sm mt-1">{formErrors.departureDate}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="modal-label">Preferred Delivery Date (Optional)</label>
+                    <DatePicker
+                      selected={deliveryDate}
+                      onChange={setDeliveryDate}
+                      customInput={<DateInput placeholder="Select preferred delivery date" />}
+                      minDate={departureDate}
+                    />
+                    {formErrors.deliveryDate && (
+                      <p className="text-red-500 text-sm mt-1">{formErrors.deliveryDate}</p>
+                    )}
                   </div>
                 </div>
-              )}
+              </div>
 
-              {/* Total weight display */}
-              {items.some(item => item.weight && item.quantity) && (
-                <div className="modal-info-box">
-                  <p className="modal-info-text">
-                    Total Weight: <strong>{calculateTotalWeight()} kg</strong>
-                    {formData.containerSize && (
-                      <span>
-                        {" "} | Container Capacity:{" "}
-                        <strong>
-                          {containerOptions.find(opt => opt.value === formData.containerSize.value)?.max_weight * containerQuantity} kg
-                        </strong>
-                      </span>
-                    )}
-                  </p>
+              {/* Service Providers (Optional) */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-heading">Service Providers (Optional)</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="modal-label">Preferred Shipping Line</label>
+                    <Select
+                      options={shippingLineOptions}
+                      value={formData.shippingLine}
+                      onChange={(s) => handleInputChange("shippingLine", s)}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                      placeholder="Select shipping line"
+                      isLoading={shippingLinesLoading}
+                      isClearable
+                    />
+                  </div>
+                  {/* ✅ Added Truck Company */}
+                  <div>
+                    <label className="modal-label">Preferred Trucking Company</label>
+                    <Select
+                      options={truckCompanyOptions}
+                      value={formData.truckCompany}
+                      onChange={(s) => handleInputChange("truckCompany", s)}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                      placeholder="Select trucking company"
+                      isLoading={truckCompsLoading}
+                      isClearable
+                    />
+                  </div>
                 </div>
-              )}
+              </div>
 
-              {/* Location fields */}
+              {/* ✅ Location fields with item-like styling and conditional rendering */}
               {showPickup && (
-                <div className="border border-main rounded-lg p-4">
+                <div className="bg-main border border-main rounded-lg p-4">
                   <h3 className="text-lg font-semibold text-heading mb-4">Pickup Location</h3>
                   <LocationFields
-                    location={pickupLocation}
-                    setLocation={setPickupLocation}
-                  />
+  type="pickup"
+  value={pickupLocation}
+  onChange={setPickupLocation}
+  showStreetSearch={true}
+/>
                 </div>
               )}
 
               {showDelivery && (
-                <div className="border border-main rounded-lg p-4">
+                <div className="bg-main border border-main rounded-lg p-4">
                   <h3 className="text-lg font-semibold text-heading mb-4">Delivery Location</h3>
-                  <LocationFields
-                    location={deliveryLocation}
-                    setLocation={setDeliveryLocation}
-                  />
+                <LocationFields
+  type="delivery"
+  value={deliveryLocation}
+  onChange={setDeliveryLocation}
+  showStreetSearch={true}
+/>
                 </div>
               )}
             </div>

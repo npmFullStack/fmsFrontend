@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import Select from "react-select";
 import { useDebounce } from "use-debounce";
 
@@ -212,10 +212,6 @@ const LocationFields = ({
   // Render
   return (
     <div className="space-y-3">
-      <h3 className="text-lg font-semibold">
-        {type === "pickup" ? "Pickup Location" : "Delivery Location"}
-      </h3>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="input-label-modern">Province</label>
@@ -314,9 +310,9 @@ const LocationFields = ({
               )}
               {streetOptions.length > 0 && (
                 <div className="mt-2 space-y-1 max-h-40 overflow-auto border rounded-md bg-white p-1">
-                  {streetOptions.map((opt) => (
+                  {streetOptions.map((opt, idx) => (
                     <button
-                      key={opt.value}
+                      key={`street-option-${idx}`}
                       type="button"
                       onClick={() => {
                         partialUpdate({
