@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Home, 
-  BarChart3, 
   List, 
   Container, 
   MapPin,
@@ -31,8 +30,6 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
       label: 'MAIN',
       items: [
         { icon: Home, label: 'Dashboard', path: '/dashboard' },
-        { icon: BarChart3, label: 'Overview', path: '/overview' },
-        { icon: ClipboardCheck, label: 'Analytic', path: '/analytics' },
       ]
     },
     {
@@ -70,19 +67,6 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
   };
 
   const user = userQuery.data?.user;
-
-  const getRoleDisplay = (role) => {
-    switch(role) {
-      case 'general_manager':
-        return 'General Manager';
-      case 'admin':
-        return 'Admin';
-      case 'customer':
-        return 'Customer';
-      default:
-        return role;
-    }
-  };
 
   return (
     <>
@@ -156,21 +140,23 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
 
         {/* User Section */}
         {user && !isCollapsed && (
-          <div className="border-t border-main p-3 relative z-10">
+          <div className="border-t border-main p-2 relative z-10">
             <div className="relative">
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center justify-between w-full p-2.5 rounded-lg bg-surface border border-surface hover:border-gray-700 transition-colors text-left"
+                className="flex items-center gap-3 w-full p-2 rounded-lg bg-surface border border-surface hover:border-gray-700 transition-colors text-left"
               >
+                <div className="w-9 h-9 bg-blue-600 flex items-center justify-center rounded-full text-white">
+                  <User className="w-4 h-4" />
+                </div>
+
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-heading truncate">
+                  <p className="text-sm font-semibold text-heading truncate leading-4">
                     {user.first_name} {user.last_name}
                   </p>
-                  <p className="text-xs text-muted truncate mt-0.5">{user.email}</p>
-                  <span className="inline-block mt-1.5 px-2 py-0.5 bg-blue-600 text-white text-xs font-medium rounded">
-                    {getRoleDisplay(user.role)}
-                  </span>
+                  <p className="text-xs text-muted truncate leading-4">{user.email}</p>
                 </div>
+
                 <ChevronDown className={`w-4 h-4 text-muted transition-transform flex-shrink-0 ml-2 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
               </button>
 
@@ -203,7 +189,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
                 <User className="w-5 h-5 text-content" />
               </button>
 
-              {/* Collapsed User Dropdown */}
+              {/* Collapsed Dropdown */}
               {isUserMenuOpen && (
                 <div className="absolute bottom-full left-2 right-2 mb-2 bg-surface border border-main rounded-lg shadow-lg z-20 p-2 w-48">
                   <div className="mb-2 pb-2 border-b border-main">
@@ -211,9 +197,6 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
                       {user.first_name} {user.last_name}
                     </p>
                     <p className="text-xs text-muted truncate mt-0.5">{user.email}</p>
-                    <span className="inline-block mt-1.5 px-2 py-0.5 bg-blue-600 text-white text-xs font-medium rounded">
-                      {getRoleDisplay(user.role)}
-                    </span>
                   </div>
                   <button 
                     onClick={handleLogout}
@@ -229,7 +212,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
         )}
       </aside>
 
-      {/* Mobile Sidebar */}
+      {/* Mobile Sidebar (unchanged except role removed) */}
       {isMobileOpen && (
         <div
           className="fixed inset-0 z-50 bg-black/50 lg:hidden"
@@ -290,14 +273,16 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                     className="flex items-center justify-between w-full p-2.5 rounded-lg bg-surface border border-surface hover:border-gray-700 transition-colors text-left"
                   >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-heading truncate">
-                        {user.first_name} {user.last_name}
-                      </p>
-                      <p className="text-xs text-muted truncate mt-0.5">{user.email}</p>
-                      <span className="inline-block mt-1.5 px-2 py-0.5 bg-blue-600 text-white text-xs font-medium rounded">
-                        {getRoleDisplay(user.role)}
-                      </span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-blue-600 flex items-center justify-center rounded-full text-white">
+                        <User className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-heading truncate">
+                          {user.first_name} {user.last_name}
+                        </p>
+                        <p className="text-xs text-muted truncate mt-0.5">{user.email}</p>
+                      </div>
                     </div>
                     <ChevronDown className={`w-4 h-4 text-muted transition-transform flex-shrink-0 ml-2 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
