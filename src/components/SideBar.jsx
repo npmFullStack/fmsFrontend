@@ -26,19 +26,39 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const { userQuery, logoutMutation } = useAuth();
 
-  const menuItems = [
-    { icon: Home, label: 'Dashboard', path: '/dashboard' },
-    { icon: List, label: 'Category Management', path: '/categories' },
-    { icon: Container, label: 'Container Management', path: '/container-types' },
-    { icon: MapPin, label: 'Port Management', path: '/ports' },
-     { icon: Truck, label: 'Trucking Companies Management', path: '/truck-comp' },
-    { icon: Ship, label: 'Shipping Lines Management', path: '/shipping-line' },
-    { icon: ClipboardCheck, label: 'Booking Management', path: '/booking-request' },
+  const menuSections = [
+    {
+      label: 'MAIN',
+      items: [
+        { icon: Home, label: 'Dashboard', path: '/dashboard' },
+        { icon: BarChart3, label: 'Overview', path: '/overview' },
+        { icon: ClipboardCheck, label: 'Analytic', path: '/analytics' },
+      ]
+    },
+    {
+      label: 'MANAGE',
+      items: [
+        { icon: List, label: 'Category', path: '/categories' },
+        { icon: Container, label: 'Container', path: '/container-types' },
+        { icon: MapPin, label: 'Ports', path: '/ports' },
+        { icon: Truck, label: 'Trucking', path: '/truck-comp' },
+        { icon: Ship, label: 'Shipping', path: '/shipping-line' },
+        { icon: ClipboardCheck, label: 'Bookings', path: '/booking-request' },
+      ]
+    },
+    {
+      label: 'ACCOUNT',
+      items: [
+        { icon: User, label: 'Profile', path: '/profile' },
+      ]
+    }
   ];
 
+  const isActive = (path) => location.pathname === path;
+
   const linkClass = (path) =>
-    `flex items-center px-3 py-2 rounded-lg transition-colors ${
-      location.pathname === path
+    `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+      isActive(path)
         ? 'bg-blue-600 text-white'
         : 'text-content hover:bg-blue-800 hover:text-white'
     }`;
@@ -51,6 +71,19 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
 
   const user = userQuery.data?.user;
 
+  const getRoleDisplay = (role) => {
+    switch(role) {
+      case 'general_manager':
+        return 'General Manager';
+      case 'admin':
+        return 'Admin';
+      case 'customer':
+        return 'Customer';
+      default:
+        return role;
+    }
+  };
+
   return (
     <>
       {/* Desktop Sidebar */}
@@ -59,7 +92,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
           isCollapsed ? 'w-20' : 'w-64'
         } flex-col border-r border-main transition-all duration-300 relative bg-surface`}
       >
-        {/* Logo + Collapse */}
+        {/* Logo */}
         <div className="p-4 flex items-center justify-between border-b border-main relative z-10">
           <div className="flex items-center gap-2">
             <img src={logo} alt="XMFFI Logo" className="w-8 h-8 rounded-lg object-contain" />
@@ -67,68 +100,89 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
               <span className="text-xl font-bold text-heading whitespace-nowrap">XMFFI</span>
             )}
           </div>
-          <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="text-muted hover:text-content transition-colors p-1 rounded hover-surface"
-          >
-            {isCollapsed ? (
-              <ChevronsRight className="w-5 h-5" />
-            ) : (
+          {!isCollapsed && (
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="text-muted hover:text-content transition-colors p-1 rounded hover-surface"
+            >
               <ChevronsLeft className="w-5 h-5" />
-            )}
-          </button>
+            </button>
+          )}
         </div>
+
+        {/* Collapsed Toggle Button */}
+        {isCollapsed && (
+          <div className="p-3 border-b border-main">
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="w-full flex justify-center text-muted hover:text-content transition-colors p-1 rounded hover-surface"
+            >
+              <ChevronsRight className="w-5 h-5" />
+            </button>
+          </div>
+        )}
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-3 relative z-10">
-          <ul className="space-y-1">
-            {menuItems.map((item, index) => (
-              <li key={index}>
-                <Link to={item.path} className={linkClass(item.path)}>
-                  <div className="flex items-center gap-3 min-w-0">
-                    <item.icon className="w-4 h-4 flex-shrink-0" />
-                    {!isCollapsed && (
-                      <span className="text-xs font-medium truncate">
-                        {item.label}
-                      </span>
-                    )}
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          {menuSections.map((section, sectionIndex) => (
+            <div key={sectionIndex} className={sectionIndex > 0 ? 'mt-6' : ''}>
+              {!isCollapsed && (
+                <div className="px-3 mb-2">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    {section.label}
+                  </span>
+                </div>
+              )}
+              {isCollapsed && sectionIndex > 0 && (
+                <div className="my-3 border-t border-gray-700"></div>
+              )}
+              <ul className="space-y-1">
+                {section.items.map((item, index) => (
+                  <li key={index}>
+                    <Link to={item.path} className={linkClass(item.path)}>
+                      <item.icon className="w-5 h-5 flex-shrink-0" />
+                      {!isCollapsed && (
+                        <span className="text-sm font-medium truncate">
+                          {item.label}
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </nav>
 
         {/* User Section */}
         {user && !isCollapsed && (
-          <div className="border-t border-main p-4 relative z-10">
+          <div className="border-t border-main p-3 relative z-10">
             <div className="relative">
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-3 w-full p-2 rounded-lg hover:bg-surface transition-colors group text-left"
+                className="flex items-center justify-between w-full p-2.5 rounded-lg bg-surface border border-surface hover:border-gray-700 transition-colors text-left"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-heading truncate">
+                  <p className="text-sm font-semibold text-heading truncate">
                     {user.first_name} {user.last_name}
                   </p>
-                  <p className="text-xs text-muted truncate">{user.email}</p>
+                  <p className="text-xs text-muted truncate mt-0.5">{user.email}</p>
+                  <span className="inline-block mt-1.5 px-2 py-0.5 bg-blue-600 text-white text-xs font-medium rounded">
+                    {getRoleDisplay(user.role)}
+                  </span>
                 </div>
-                <ChevronDown className={`w-3 h-3 text-muted transition-transform flex-shrink-0 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-4 h-4 text-muted transition-transform flex-shrink-0 ml-2 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {/* User Dropdown Menu */}
               {isUserMenuOpen && (
                 <div className="absolute bottom-full left-0 right-0 mb-2 bg-surface border border-main rounded-lg shadow-lg z-20">
                   <div className="p-1">
-                    <button className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-surface transition-colors text-content text-xs">
-                      <User className="w-3 h-3" />
-                      <span>Profile</span>
-                    </button>
                     <button 
                       onClick={handleLogout}
-                      className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors text-content text-xs"
+                      className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors text-content text-sm"
                     >
-                      <LogOut className="w-3 h-3" />
+                      <LogOut className="w-4 h-4" />
                       <span>Logout</span>
                     </button>
                   </div>
@@ -146,27 +200,26 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 className="w-full p-2 rounded-lg hover:bg-surface transition-colors flex justify-center"
               >
-                <User className="w-4 h-4 text-content" />
+                <User className="w-5 h-5 text-content" />
               </button>
 
               {/* Collapsed User Dropdown */}
               {isUserMenuOpen && (
-                <div className="absolute bottom-full left-2 right-2 mb-2 bg-surface border border-main rounded-lg shadow-lg z-20 p-1">
-                  <div className="p-2 mb-2 border-b border-main">
-                    <p className="text-xs font-medium text-heading truncate">
+                <div className="absolute bottom-full left-2 right-2 mb-2 bg-surface border border-main rounded-lg shadow-lg z-20 p-2 w-48">
+                  <div className="mb-2 pb-2 border-b border-main">
+                    <p className="text-sm font-semibold text-heading truncate">
                       {user.first_name} {user.last_name}
                     </p>
-                    <p className="text-xs text-muted truncate">{user.email}</p>
+                    <p className="text-xs text-muted truncate mt-0.5">{user.email}</p>
+                    <span className="inline-block mt-1.5 px-2 py-0.5 bg-blue-600 text-white text-xs font-medium rounded">
+                      {getRoleDisplay(user.role)}
+                    </span>
                   </div>
-                  <button className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-surface transition-colors text-content text-xs mb-1">
-                    <User className="w-3 h-3" />
-                    <span>Profile</span>
-                  </button>
                   <button 
                     onClick={handleLogout}
-                    className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors text-content text-xs"
+                    className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors text-content text-sm"
                   >
-                    <LogOut className="w-3 h-3" />
+                    <LogOut className="w-4 h-4" />
                     <span>Logout</span>
                   </button>
                 </div>
@@ -174,15 +227,6 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
             </div>
           </div>
         )}
-
-        {/* Footer */}
-        <div
-          className={`p-4 border-t border-main text-center text-muted text-sm relative z-10 transition-all duration-300 ${
-            isCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'
-          }`}
-        >
-          <span className="text-xs">XMFFI | 2025©</span>
-        </div>
       </aside>
 
       {/* Mobile Sidebar */}
@@ -211,56 +255,62 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
 
             {/* Navigation */}
             <nav className="flex-1 p-3 overflow-y-auto relative z-10">
-              <ul className="space-y-1">
-                {menuItems.map((item, index) => (
-                  <li key={index}>
-                    <Link
-                      to={item.path}
-                      onClick={() => setIsMobileOpen(false)}
-                      className={linkClass(item.path)}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <item.icon className="w-4 h-4 flex-shrink-0" />
-                        <span className="text-xs font-medium truncate">
-                          {item.label}
-                        </span>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              {menuSections.map((section, sectionIndex) => (
+                <div key={sectionIndex} className={sectionIndex > 0 ? 'mt-6' : ''}>
+                  <div className="px-3 mb-2">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      {section.label}
+                    </span>
+                  </div>
+                  <ul className="space-y-1">
+                    {section.items.map((item, index) => (
+                      <li key={index}>
+                        <Link
+                          to={item.path}
+                          onClick={() => setIsMobileOpen(false)}
+                          className={linkClass(item.path)}
+                        >
+                          <item.icon className="w-5 h-5 flex-shrink-0" />
+                          <span className="text-sm font-medium truncate">
+                            {item.label}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </nav>
 
             {/* Mobile User Section */}
             {user && (
-              <div className="border-t border-main p-4 relative z-10">
+              <div className="border-t border-main p-3 relative z-10">
                 <div className="relative">
                   <button
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                    className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-surface transition-colors"
+                    className="flex items-center justify-between w-full p-2.5 rounded-lg bg-surface border border-surface hover:border-gray-700 transition-colors text-left"
                   >
-                    <div className="text-left min-w-0 flex-1">
-                      <p className="text-xs font-medium text-heading truncate">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-heading truncate">
                         {user.first_name} {user.last_name}
                       </p>
-                      <p className="text-xs text-muted truncate">{user.email}</p>
+                      <p className="text-xs text-muted truncate mt-0.5">{user.email}</p>
+                      <span className="inline-block mt-1.5 px-2 py-0.5 bg-blue-600 text-white text-xs font-medium rounded">
+                        {getRoleDisplay(user.role)}
+                      </span>
                     </div>
-                    <ChevronDown className={`w-3 h-3 text-muted transition-transform flex-shrink-0 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-4 h-4 text-muted transition-transform flex-shrink-0 ml-2 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
 
                   {/* Mobile User Dropdown */}
                   {isUserMenuOpen && (
                     <div className="absolute bottom-full left-0 right-0 mb-2 bg-surface border border-main rounded-lg shadow-lg z-20">
                       <div className="p-1">
-                        <button className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-surface transition-colors text-content text-xs">
-                          <User className="w-3 h-3" />
-                          <span>Profile</span>
-                        </button>
                         <button 
                           onClick={handleLogout}
-                          className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors text-content text-xs"
+                          className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors text-content text-sm"
                         >
-                          <LogOut className="w-3 h-3" />
+                          <LogOut className="w-4 h-4" />
                           <span>Logout</span>
                         </button>
                       </div>
@@ -269,11 +319,6 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
                 </div>
               </div>
             )}
-
-            {/* Footer */}
-            <div className="p-4 border-t border-main text-center text-muted text-sm relative z-10">
-              <span className="text-xs">XMFFI | 2025©</span>
-            </div>
           </div>
         </div>
       )}
