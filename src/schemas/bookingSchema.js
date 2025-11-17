@@ -103,14 +103,9 @@ export const bookingSchema = z.object({
     .nullable(),
 
   // Dates
-  departureDate: z
-    .date()
-    .optional()
-    .nullable(),
-  deliveryDate: z
-    .date()
-    .optional()
-    .nullable(),
+  departureDate: z.union([z.date(), z.null()]).optional(),
+deliveryDate: z.union([z.date(), z.null()]).optional(),
+
 
   // Locations
   pickupLocation: z.object({
@@ -263,8 +258,14 @@ export const transformBookingToApi = (data) => {
     destination_id: data.destination.value,
     shipping_line_id: data.shippingLine?.value || null,
     truck_comp_id: data.truckCompany?.value || null,
-    departure_date: data.departureDate.toISOString().split('T')[0],
-    delivery_date: data.deliveryDate?.toISOString().split('T')[0] || null,
+    departure_date: data.departureDate
+  ? data.departureDate.toISOString().split("T")[0]
+  : null,
+
+delivery_date: data.deliveryDate
+  ? data.deliveryDate.toISOString().split("T")[0]
+  : null,
+
     terms: data.terms,
     pickup_location: data.pickupLocation || null,
     delivery_location: data.deliveryLocation || null,

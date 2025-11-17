@@ -1,3 +1,4 @@
+// src/pages/BookingRequest.jsx
 import React, { useState, useCallback } from 'react';
 import { useDebounce } from 'use-debounce';
 import { Filter } from 'lucide-react';
@@ -12,6 +13,8 @@ const BookingRequest = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch] = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
+  const [sortField, setSortField] = useState('created_at');
+  const [sortDirection, setSortDirection] = useState('desc');
 
   const { 
     bookingsQuery, 
@@ -23,7 +26,9 @@ const BookingRequest = () => {
   const { data, isLoading, isError } = bookingsQuery({
     search: debouncedSearch,
     page,
-    per_page: 10
+    per_page: 10,
+    sort_by: sortField,
+    sort_order: sortDirection
   });
 
   const bookings = data?.data || [];
@@ -34,6 +39,11 @@ const BookingRequest = () => {
     to: data?.to || 0,
     total: data?.total || 0,
   };
+
+  const handleSortChange = useCallback((field, direction) => {
+    setSortField(field);
+    setSortDirection(direction);
+  }, []);
 
   // Handlers
   const handleApprove = useCallback(
@@ -116,6 +126,9 @@ const BookingRequest = () => {
             onReject={handleReject}
             isLoading={isLoading}
             isUpdating={approveBooking.isPending || updateBookingStatus.isPending}
+            sortField={sortField}
+            sortDirection={sortDirection}
+            onSortChange={handleSortChange}
           />
         </TableLayout>
       </div>

@@ -8,6 +8,8 @@ import LocationFields from "../components/LocationFields";
 import api from "../api";
 import { useCreateBooking } from "../hooks/useBooking";
 import { bookingSchema, transformBookingToApi } from "../schemas/bookingSchema";
+import quoteSuccessImg from "../assets/images/quoteSuccess.png";
+
 
 const Quote = () => {
   const [items, setItems] = useState([
@@ -332,8 +334,8 @@ const Quote = () => {
       const formDataForValidation = {
         ...formData,
         containerQuantity,
-        departureDate: departureDate || null,
-        deliveryDate: deliveryDate || null,
+        departureDate: departureDate ?? null,
+deliveryDate: deliveryDate ?? null,
         pickupLocation: showPickup && Object.keys(pickupLocation).length > 0 ? pickupLocation : null,
         deliveryLocation: showDelivery && Object.keys(deliveryLocation).length > 0 ? deliveryLocation : null,
         terms: parseInt(formData.terms) || 0,
@@ -350,8 +352,9 @@ const Quote = () => {
       // Fix for date validation - ensure dates are properly handled
       const validatedData = bookingSchema.parse({
         ...formDataForValidation,
-        departureDate: departureDate || undefined,
-        deliveryDate: deliveryDate || undefined,
+        departureDate: departureDate ?? null,
+deliveryDate: deliveryDate ?? null,
+
       });
       console.log("Validation successful:", validatedData);
 
@@ -409,37 +412,51 @@ const Quote = () => {
 
   // Success screen
   if (quoteSubmitted) {
-    return (
-      <div className="min-h-screen bg-main py-12 px-4">
-        <div className="max-w-2xl mx-auto">
-          <div className="bg-surface rounded-2xl shadow-xl border border-main p-8 text-center">
-            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4"/>
-            <h1 className="text-3xl font-bold text-heading mb-4">Quote Request Submitted!</h1>
-            
-            <div className="modal-info-box text-left">
-              <div className="modal-info-title">
-                <span>Pending Verification</span>
-                <span className="modal-info-badge">Action Required</span>
-              </div>
-              <p className="modal-info-text mb-3">
-                Your quote request has been received and is currently being reviewed by our team.
-              </p>
-              <p className="modal-info-text">
-                A confirmation email will be sent to <strong>{formData.email}</strong>. Once your quote is verified, you will receive your account credentials at this email address.
-              </p>
+  return (
+    <div className="min-h-screen bg-main py-12 px-4">
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-surface rounded-2xl shadow-xl border border-main p-8 text-center">
+
+          <img
+            src={quoteSuccessImg}
+            alt="Success"
+            className="w-32 h-32 mx-auto mb-4"
+          />
+
+          <h1 className="text-3xl font-bold text-heading mb-4">
+            Booking Request Submitted
+          </h1>
+
+          <div className="modal-info-box text-left">
+            <div className="modal-info-title">
+              <span>Thank You</span>
             </div>
 
-            <button
-              onClick={resetForm}
-              className="bg-primary text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-dark transition-colors mt-6"
-            >
-              Request Another Quote
-            </button>
+            <p className="modal-info-text mb-3">
+              Your booking request has been successfully received and is now
+              waiting for verification.
+            </p>
+
+            <p className="modal-info-text">
+              A confirmation message will be sent to your email:{" "}
+              <strong>{formData.email}</strong>. Please wait while our team
+              reviews your request.
+            </p>
           </div>
+
+          <button
+            onClick={resetForm}
+            className="bg-primary text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-dark transition-colors mt-6"
+          >
+            Submit Another Request
+          </button>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
+
+
 
   // Main form
   return (

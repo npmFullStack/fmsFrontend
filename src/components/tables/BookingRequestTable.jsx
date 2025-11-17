@@ -1,8 +1,7 @@
 // src/components/tables/BookingRequestTable.jsx
 import React, { useMemo, useCallback } from 'react';
 import DataTable from '../ui/DataTable';
-import { useNavigate } from 'react-router-dom';
-import { Calendar, MapPin, Package, Eye, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, MapPin, Package, CheckCircle, XCircle } from 'lucide-react';
 import { formatDate } from '../../utils/formatters';
 
 const BookingRequestTable = ({
@@ -10,12 +9,11 @@ const BookingRequestTable = ({
   onApprove,
   onReject,
   isLoading = false,
+  isUpdating = false,
   sortField,
   sortDirection,
   onSortChange,
 }) => {
-  const navigate = useNavigate();
-
   const handleSort = useCallback(
     (field) => {
       if (!onSortChange) return;
@@ -35,6 +33,14 @@ const BookingRequestTable = ({
       default:
         return 'badge bg-yellow-500 text-white border-yellow-600';
     }
+  };
+
+  const calculateTotalWeight = (items) => {
+    return items?.reduce((sum, item) => sum + (item.weight * item.quantity), 0) || 0;
+  };
+
+  const calculateTotalItems = (items) => {
+    return items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
   };
 
   const columns = useMemo(
@@ -65,6 +71,7 @@ const BookingRequestTable = ({
                 {item.first_name} {item.last_name}
               </span>
               <span className="text-sm text-muted truncate">{item.email}</span>
+              <span className="text-xs text-muted truncate">{item.contact_number || 'No contact'}</span>
             </div>
           );
         },
@@ -77,27 +84,88 @@ const BookingRequestTable = ({
         cell: ({ row }) => {
           const item = row.original;
           return (
-            <div className="flex items-center text-sm text-muted">
-              <MapPin className="w-4 h-4 mr-2" />
-              {item.origin?.route_name || item.origin?.name || 'N/A'} →{' '}
-              {item.destination?.route_name || item.destination?.name || 'N/A'}
+            <div className="flex flex-col text-sm">
+              <span className="text-heading">
+                {item.origin?.route_name || item.origin?.name || 'N/A'} → {item.destination?.route_name || item.destination?.name || 'N/A'}
+              </span>
+              <span className="text-xs text-muted mt-1">
+                Departure: {formatDate(item.departure_date)}
+              </span>
             </div>
           );
         },
       },
       {
-        accessorKey: 'container_quantity',
+        accessorKey: 'container_info',
         header: () => (
-          <button onClick={() => handleSort('container_quantity')} className="table-header-button">
-            CONTAINERS
-          </button>
+          <button className="table-header-button">CONTAINER & VOLUME</button>
         ),
         cell: ({ row }) => {
           const item = row.original;
           return (
-            <div className="flex items-center text-sm text-muted">
-              <Package className="w-4 h-4 mr-2" />
-              {item.container_quantity}×{item.container_size?.size || item.container_size?.name || 'Container'}
+            <div className="flex flex-col text-sm">
+              <span className="text-heading">
+                {item.container_quantity} × {item.container_size?.size || item.container_size?.name || 'Container'}
+              </span>
+              <span className="text-xs text-muted mt-1">
+                Mode: {item.mode_of_service || 'N/A'}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: 'cargo_details',
+        header: () => (
+          <button className="table-header-button">CARGO DETAILS</button>
+        ),
+        cell: ({ row }) => {
+          const item = row.original;
+          const totalWeight = calculateTotalWeight(item.items);
+          const totalItems = calculateTotalItems(item.items);
+          
+          return (
+            <div className="flex flex-col text-sm">
+              <span className="text-heading">{totalItems} items</span>
+              <span className="text-xs text-muted mt-1">{totalWeight} kg total</span>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: 'shipping_info',
+        header: () => (
+          <button className="table-header-button">SHIPPING INFO</button>
+        ),
+        cell: ({ row }) => {
+          const item = row.original;
+          return (
+            <div className="flex flex-col text-sm">
+              <span className="text-heading truncate">
+                {item.shipping_line?.name || 'Not specified'}
+              </span>
+              <span className="text-xs text-muted mt-1">
+                Terms: {item.terms || 0} days
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: 'parties',
+        header: () => (
+          <button className="table-header-button">PARTIES</button>
+        ),
+        cell: ({ row }) => {
+          const item = row.original;
+          return (
+            <div className="flex flex-col text-sm">
+              <span className="text-xs text-heading truncate">
+                Shipper: {item.shipper_first_name} {item.shipper_last_name}
+              </span>
+              <span className="text-xs text-muted mt-1 truncate">
+                Consignee: {item.consignee_first_name} {item.consignee_last_name}
+              </span>
             </div>
           );
         },
@@ -116,38 +184,72 @@ const BookingRequestTable = ({
         ),
       },
       {
+        accessorKey: 'created_at',
+        header: () => (
+          <button onClick={() => handleSort('created_at')} className="table-header-button">
+            CREATED
+          </button>
+        ),
+        cell: ({ getValue }) => (
+          <span className="text-sm text-muted">
+            {formatDate(getValue())}
+          </span>
+        ),
+      },
+      {
         id: 'actions',
         header: () => <span className="table-header-button">ACTIONS</span>,
         cell: ({ row }) => {
           const item = row.original;
+          const isPending = item.status === 'pending';
+          const isUpdatingItem = isUpdating;
+
           return (
             <div className="flex gap-2">
-              <button
-                onClick={() => navigate(`/booking-details/${item.id}`)}
-                className="table-action-btn text-blue-600"
-              >
-                <Eye className="w-4 h-4" />
-              </button>
-
-              <button
-                onClick={() => onApprove(item.id)}
-                className="table-action-btn text-green-600"
-              >
-                <CheckCircle className="w-4 h-4" />
-              </button>
-
-              <button
-                onClick={() => onReject(item.id)}
-                className="table-action-btn text-red-600"
-              >
-                <XCircle className="w-4 h-4" />
-              </button>
+              {isPending ? (
+                <>
+                  <button
+                    onClick={() => onApprove(item)}
+                    disabled={isUpdatingItem}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                      isUpdatingItem
+                        ? 'bg-gray-400 text-white cursor-not-allowed'
+                        : 'bg-green-600 text-white hover:bg-green-700'
+                    }`}
+                  >
+                    {isUpdatingItem ? (
+                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mx-1" />
+                    ) : (
+                      'Approve'
+                    )}
+                  </button>
+                  <button
+                    onClick={() => onReject(item)}
+                    disabled={isUpdatingItem}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                      isUpdatingItem
+                        ? 'bg-gray-400 text-white cursor-not-allowed'
+                        : 'bg-red-600 text-white hover:bg-red-700'
+                    }`}
+                  >
+                    {isUpdatingItem ? (
+                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mx-1" />
+                    ) : (
+                      'Reject'
+                    )}
+                  </button>
+                </>
+              ) : (
+                <span className="text-xs text-muted px-2 py-1">
+                  {item.status === 'approved' ? 'Approved' : 'Rejected'}
+                </span>
+              )}
             </div>
           );
         },
       },
     ],
-    [sortField, sortDirection, handleSort, onApprove, onReject]
+    [sortField, sortDirection, handleSort, onApprove, onReject, isUpdating]
   );
 
   return (
