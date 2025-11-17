@@ -223,15 +223,6 @@ const Home = () => {
               </div>
             ))}
           </div>
-
-          <div className="text-center mt-12">
-<button
-  onClick={() => navigate('/quote')}
-  className="px-8 py-4 bg-primary hover:bg-blue-700 text-white text-lg font-semibold rounded-lg transition-all shadow-lg hover:shadow-xl inline-flex items-center gap-2"
->
-  Request a Quote
-</button>
-          </div>
         </div>
       </section>
 

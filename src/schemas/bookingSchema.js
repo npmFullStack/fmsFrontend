@@ -104,10 +104,9 @@ export const bookingSchema = z.object({
 
   // Dates
   departureDate: z
-    .date({ required_error: 'Departure date is required' })
-    .refine((date) => date >= new Date(new Date().setHours(0, 0, 0, 0)), {
-      message: 'Departure date must be today or in the future'
-    }),
+    .date()
+    .optional()
+    .nullable(),
   deliveryDate: z
     .date()
     .optional()
@@ -263,7 +262,7 @@ export const transformBookingToApi = (data) => {
     origin_id: data.origin.value,
     destination_id: data.destination.value,
     shipping_line_id: data.shippingLine?.value || null,
-    truck_comp_id: data.truckCompany?.value || null, // ✅ Added
+    truck_comp_id: data.truckCompany?.value || null,
     departure_date: data.departureDate.toISOString().split('T')[0],
     delivery_date: data.deliveryDate?.toISOString().split('T')[0] || null,
     terms: data.terms,

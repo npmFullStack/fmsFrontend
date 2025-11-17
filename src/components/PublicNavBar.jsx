@@ -1,19 +1,33 @@
 // src/components/PublicNavBar.jsx
 import React, { useState } from 'react';
 import { Sun, Moon, Menu, X } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom'; // Added useLocation
 import { useTheme } from '../contexts/ThemeContext';
-import { useNavigate } from 'react-router-dom';
 import logo from '../assets/images/logo.png';
 
 const PublicNavBar = () => {
   const { isDarkMode, toggleTheme } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation(); // Track current location
 
   const scrollToSection = (sectionId) => {
-    const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+    // If we're not on the home page, navigate to home first, then scroll
+    if (location.pathname !== '/') {
+      navigate('/');
+      // The scroll will happen after navigation in the Home component
+      setTimeout(() => {
+        const element = document.getElementById(sectionId);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    } else {
+      // We're already on home page, just scroll
+      const element = document.getElementById(sectionId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
     }
     setIsMobileMenuOpen(false);
   };
@@ -32,13 +46,13 @@ const PublicNavBar = () => {
   return (
     <nav className="bg-main border-b border-main fixed top-0 left-0 right-0 z-50">
       <div className="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
-        {/* Logo */}
-        <a href="/" className="flex items-center space-x-3 rtl:space-x-reverse">
+        {/* Logo - FIXED: Use Link instead of anchor tag */}
+        <Link to="/" className="flex items-center space-x-3 rtl:space-x-reverse">
           <img src={logo} className="h-8 rounded-lg" alt="XMFFI Logo" />
           <span className="self-center text-2xl font-semibold whitespace-nowrap text-heading">
             XMFFI
           </span>
-        </a>
+        </Link>
 
         {/* Desktop Navigation Links - Centered */}
         <div className="hidden md:flex md:items-center md:absolute md:left-1/2 md:transform md:-translate-x-1/2">

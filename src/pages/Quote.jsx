@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import Select from "react-select";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { Calendar, X, CheckCircle, AlertCircle } from "lucide-react";
+import { Calendar, X, CheckCircle, AlertCircle, ChevronUp, ChevronDown } from "lucide-react";
 import LocationFields from "../components/LocationFields";
 import api from "../api";
 import { useCreateBooking } from "../hooks/useBooking";
@@ -224,6 +224,15 @@ const Quote = () => {
     }
   };
 
+  // Container quantity increment/decrement
+  const incrementContainerQuantity = () => {
+    setContainerQuantity(prev => prev + 1);
+  };
+
+  const decrementContainerQuantity = () => {
+    setContainerQuantity(prev => prev > 1 ? prev - 1 : 1);
+  };
+
   // Mode-based visibility
   const modeValue = formData.modeOfService?.value || null;
   const showPickup = modeValue === "door-to-door" || modeValue === "door-to-port";
@@ -274,6 +283,41 @@ const Quote = () => {
   ));
   DateInput.displayName = "DateInput";
 
+  // Custom Container Quantity Input
+  const ContainerQuantityInput = () => (
+    <div className="relative">
+      <input
+        type="number"
+        className="modal-input pr-16"
+        value={containerQuantity}
+        onChange={(e) => {
+          const value = parseInt(e.target.value) || 1;
+          setContainerQuantity(value > 0 ? value : 1);
+        }}
+        min="1"
+        required
+      />
+      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col">
+        <button
+          type="button"
+          onClick={incrementContainerQuantity}
+          className="p-1 hover:bg-gray-100 rounded-t-md transition-colors"
+          aria-label="Increase quantity"
+        >
+          <ChevronUp className="w-3 h-3 text-gray-500" />
+        </button>
+        <button
+          type="button"
+          onClick={decrementContainerQuantity}
+          className="p-1 hover:bg-gray-100 rounded-b-md transition-colors"
+          aria-label="Decrease quantity"
+        >
+          <ChevronDown className="w-3 h-3 text-gray-500" />
+        </button>
+      </div>
+    </div>
+  );
+
   // Form submission handler with schema validation
   const handleFormSubmit = async (e) => {
     e.preventDefault();
@@ -288,10 +332,10 @@ const Quote = () => {
       const formDataForValidation = {
         ...formData,
         containerQuantity,
-        departureDate,
-        deliveryDate,
-        pickupLocation: showPickup ? pickupLocation : null,
-        deliveryLocation: showDelivery ? deliveryLocation : null,
+        departureDate: departureDate || null,
+        deliveryDate: deliveryDate || null,
+        pickupLocation: showPickup && Object.keys(pickupLocation).length > 0 ? pickupLocation : null,
+        deliveryLocation: showDelivery && Object.keys(deliveryLocation).length > 0 ? deliveryLocation : null,
         terms: parseInt(formData.terms) || 0,
         items: items.map(item => ({
           name: item.name,
@@ -303,7 +347,12 @@ const Quote = () => {
 
       console.log("Form data for validation:", formDataForValidation);
 
-      const validatedData = bookingSchema.parse(formDataForValidation);
+      // Fix for date validation - ensure dates are properly handled
+      const validatedData = bookingSchema.parse({
+        ...formDataForValidation,
+        departureDate: departureDate || undefined,
+        deliveryDate: deliveryDate || undefined,
+      });
       console.log("Validation successful:", validatedData);
 
       setFormErrors({});
@@ -331,6 +380,8 @@ const Quote = () => {
         });
         setFormErrors(errors);
         console.log('Form errors:', errors);
+      } else {
+        console.error('Unexpected validation error:', error);
       }
     }
   };
@@ -378,19 +429,6 @@ const Quote = () => {
               </p>
             </div>
 
-            {/* ✅ Enhanced Important Notice */}
-            <div className="bg-main border-2 border-primary rounded-lg p-4 mt-6 text-left">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold text-heading text-sm mb-1">Important Notice</p>
-                  <p className="text-muted text-sm">
-                    Please use an active email address. Your account credentials and quote details will be sent to <strong className="text-heading">{formData.email}</strong> once your booking is approved.
-                  </p>
-                </div>
-              </div>
-            </div>
-
             <button
               onClick={resetForm}
               className="bg-primary text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-dark transition-colors mt-6"
@@ -414,38 +452,54 @@ const Quote = () => {
           </div>
 
           <form onSubmit={handleFormSubmit} className="space-y-8">
-            {/* Section 1: Personal Information */}
+            {/* Section 1: Personal Information - UPDATED LAYOUT */}
             <div className="space-y-4" ref={sectionRefs[1]}>
               <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">
                 1. Personal Information
               </h2>
               <div className="space-y-4">
-                <div>
-                  <label className="modal-label">First Name</label>
-                  <input
-                    className={`modal-input ${formErrors.firstName ? 'border-red-500' : ''}`}
-                    value={formData.firstName}
-                    onChange={(e) => handleInputChange("firstName", e.target.value)}
-                    placeholder="Enter your first name"
-                    required
-                  />
-                  {formErrors.firstName && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.firstName}</p>
-                  )}
+                {/* First Name & Last Name on same row */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="modal-label">First Name</label>
+                    <input
+                      className={`modal-input ${formErrors.firstName ? 'border-red-500' : ''}`}
+                      value={formData.firstName}
+                      onChange={(e) => handleInputChange("firstName", e.target.value)}
+                      placeholder="Enter your first name"
+                      required
+                    />
+                    {formErrors.firstName && (
+                      <p className="text-red-500 text-sm mt-1">{formErrors.firstName}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="modal-label">Last Name</label>
+                    <input
+                      className={`modal-input ${formErrors.lastName ? 'border-red-500' : ''}`}
+                      value={formData.lastName}
+                      onChange={(e) => handleInputChange("lastName", e.target.value)}
+                      placeholder="Enter your last name"
+                      required
+                    />
+                    {formErrors.lastName && (
+                      <p className="text-red-500 text-sm mt-1">{formErrors.lastName}</p>
+                    )}
+                  </div>
                 </div>
+
+                {/* Contact Number */}
                 <div>
-                  <label className="modal-label">Last Name</label>
+                  <label className="modal-label">Contact Number (Optional)</label>
                   <input
-                    className={`modal-input ${formErrors.lastName ? 'border-red-500' : ''}`}
-                    value={formData.lastName}
-                    onChange={(e) => handleInputChange("lastName", e.target.value)}
-                    placeholder="Enter your last name"
-                    required
+                    className="modal-input"
+                    value={formData.contactNumber}
+                    onChange={(e) => handleContactNumberChange("contactNumber", e.target.value)}
+                    placeholder="Enter your contact number"
+                    type="tel"
                   />
-                  {formErrors.lastName && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.lastName}</p>
-                  )}
                 </div>
+                {/* Email field */}
                 <div>
                   <label className="modal-label">Email</label>
                   <input
@@ -457,7 +511,7 @@ const Quote = () => {
                     required
                   />
                   {/* ✅ Enhanced Email Notice */}
-                  <div className="bg-surface border-2 border-primary rounded-lg p-3 mt-2">
+                  <div className="bg-main border-2 border-primary rounded-lg p-3 mt-2">
                     <div className="flex items-start gap-2">
                       <AlertCircle className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
                       <p className="text-sm text-muted">
@@ -468,16 +522,6 @@ const Quote = () => {
                   {formErrors.email && (
                     <p className="text-red-500 text-sm mt-1">{formErrors.email}</p>
                   )}
-                </div>
-                <div>
-                  <label className="modal-label">Contact Number (Optional)</label>
-                  <input
-                    className="modal-input"
-                    value={formData.contactNumber}
-                    onChange={(e) => handleContactNumberChange("contactNumber", e.target.value)}
-                    placeholder="Enter your contact number"
-                    type="tel"
-                  />
                 </div>
               </div>
             </div>
@@ -723,14 +767,7 @@ const Quote = () => {
                   {formData.containerSize && (
                     <div>
                       <label className="modal-label">Container Quantity</label>
-                      <input
-                        type="number"
-                        className="modal-input"
-                        value={containerQuantity}
-                        onChange={(e) => setContainerQuantity(parseInt(e.target.value) || 1)}
-                        min="1"
-                        required
-                      />
+                      <ContainerQuantityInput />
                     </div>
                   )}
                 </div>
@@ -873,23 +910,23 @@ const Quote = () => {
                 <div className="bg-main border border-main rounded-lg p-4">
                   <h3 className="text-lg font-semibold text-heading mb-4">Pickup Location</h3>
                   <LocationFields
-  type="pickup"
-  value={pickupLocation}
-  onChange={setPickupLocation}
-  showStreetSearch={true}
-/>
+                    type="pickup"
+                    value={pickupLocation}
+                    onChange={setPickupLocation}
+                    showStreetSearch={true}
+                  />
                 </div>
               )}
 
               {showDelivery && (
                 <div className="bg-main border border-main rounded-lg p-4">
                   <h3 className="text-lg font-semibold text-heading mb-4">Delivery Location</h3>
-                <LocationFields
-  type="delivery"
-  value={deliveryLocation}
-  onChange={setDeliveryLocation}
-  showStreetSearch={true}
-/>
+                  <LocationFields
+                    type="delivery"
+                    value={deliveryLocation}
+                    onChange={setDeliveryLocation}
+                    showStreetSearch={true}
+                  />
                 </div>
               )}
             </div>
