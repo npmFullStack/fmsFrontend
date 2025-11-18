@@ -103,9 +103,8 @@ export const bookingSchema = z.object({
     .nullable(),
 
   // Dates
-  departureDate: z.union([z.date(), z.null()]).optional(),
+departureDate: z.union([z.date(), z.null()]).optional(),
 deliveryDate: z.union([z.date(), z.null()]).optional(),
-
 
   // Locations
   pickupLocation: z.object({
@@ -212,9 +211,9 @@ export const bookingApiSchema = z.object({
   origin_id: z.number(),
   destination_id: z.number(),
   shipping_line_id: z.number().optional().nullable(),
-  truck_comp_id: z.number().optional().nullable(), // ✅ Added
-  departure_date: z.string(),
-  delivery_date: z.string().optional().nullable(),
+  truck_comp_id: z.number().optional().nullable(),
+departure_date: z.string().optional().nullable(),
+delivery_date: z.string().optional().nullable(),
   terms: z.number().min(1),
   pickup_location: z.object({
     address: z.string().optional(),
