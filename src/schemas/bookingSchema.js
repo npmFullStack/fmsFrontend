@@ -1,3 +1,4 @@
+// schemas/bookingSchema
 import { z } from 'zod';
 
 // Item schema for individual items

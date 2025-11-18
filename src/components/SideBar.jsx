@@ -8,7 +8,8 @@ import {
   MapPin,
   Truck,
   Ship, 
-  ClipboardCheck, 
+  ClipboardCheck,
+  Clipboard,
   X, 
   ChevronsLeft, 
   ChevronsRight,
@@ -35,12 +36,14 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
     {
       label: 'MANAGE',
       items: [
+        { icon: User, label: 'User Management', path: '/users' },
         { icon: List, label: 'Category', path: '/categories' },
         { icon: Container, label: 'Container', path: '/container-types' },
         { icon: MapPin, label: 'Ports', path: '/ports' },
         { icon: Truck, label: 'Trucking', path: '/truck-comp' },
         { icon: Ship, label: 'Shipping', path: '/shipping-line' },
-        { icon: ClipboardCheck, label: 'Bookings', path: '/booking-request' },
+        { icon: Clipboard, label: 'Booking', path: '/booking' },
+        { icon: ClipboardCheck, label: 'Booking Request', path: '/booking-request' },
       ]
     },
     {

@@ -18,7 +18,8 @@ const Port = lazy(() => import('./pages/Port'));
 const TruckComp = lazy(() => import('./pages/TruckComp'));
 const ShippingLine = lazy(() => import('./pages/ShippingLine'));
 const BookingRequest = lazy(() => import('./pages/BookingRequest'));
-const BookingDetails = lazy(() => import('./pages/BookingDetails'));
+const Booking = lazy(() => import('./pages/Booking'));
+const User = lazy(() => import('./pages/User'));
 
 function App() {
   const { initializeAuth } = useAuth();
@@ -47,7 +48,8 @@ function App() {
             <Route path="/truck-comp" element={<TruckComp />} />
             <Route path="/shipping-line" element={<ShippingLine />} />
             <Route path="/booking-request" element={<BookingRequest />} />
-            <Route path="/booking-details/:id" element={<BookingDetails />} />
+            <Route path="/booking" element={<Booking />} />
+            <Route path="/users" element={<User />} />
           </Route>
         </Routes>
       </Suspense>

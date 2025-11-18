@@ -1,6 +1,3 @@
-// Updated compact layout with detail structure matching provided example
-// View All Details moved left + text-primary
-
 import React, { useState } from 'react';
 import {
   Calendar,
@@ -16,7 +13,12 @@ import {
   ArrowRight,
   Clock,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  CreditCard,
+  MapPin,
+  Container,
+  UserCheck,
+  UserCog
 } from 'lucide-react';
 import { formatDate } from '../../utils/formatters';
 
@@ -72,10 +74,19 @@ const BookingRequestTable = ({
 
               {/* Header */}
               <div className="flex justify-between items-start mb-3">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
                     <User className="w-4 h-4 text-muted" />
                     <span className="font-semibold text-heading">{item.first_name} {item.last_name}</span>
+                    {item.terms !== undefined && (
+                      <div className="flex items-center gap-1 ml-4">
+                        <CreditCard className="w-3 h-3 text-muted" />
+                        <span className="text-xs font-bold text-muted">TERMS:</span>
+                        <span className="text-content font-semibold">
+                          {item.terms === 0 ? 'Immediate' : `${item.terms} days`}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="text-xs text-muted">{item.email}</div>
                 </div>
@@ -95,30 +106,35 @@ const BookingRequestTable = ({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm mb-3 border-t border-b border-main py-3">
 
                 <div>
-                  <div className="text-xs font-semibold text-muted mb-1">Route:</div>
+                  <div className="text-xs font-bold text-muted mb-1 uppercase">ROUTE:</div>
                   <div className="flex items-center gap-1 text-content">
+                    <MapPin className="w-3 h-3 text-muted" />
                     <span className="truncate">{item.origin?.route_name || item.origin?.name || 'N/A'}</span>
                     <ArrowRight className="w-3 h-3 text-muted" />
+                    <MapPin className="w-3 h-3 text-muted" />
                     <span className="truncate">{item.destination?.route_name || item.destination?.name || 'N/A'}</span>
                   </div>
                 </div>
 
                 <div>
-                  <div className="text-xs font-semibold text-muted mb-1">Container:</div>
+                  <div className="text-xs font-bold text-muted mb-1 uppercase">CONTAINER:</div>
                   <div className="text-content">
-                    {item.container_quantity} × {item.container_size?.size || item.container_size?.name}
+                    <div className="flex items-center gap-1">
+                      <Container className="w-3 h-3 text-muted" />
+                      {item.container_quantity} × {item.container_size?.size || item.container_size?.name}
+                    </div>
                   </div>
                 </div>
 
                 <div>
-                  <div className="text-xs font-semibold text-muted mb-1">Items:</div>
+                  <div className="text-xs font-bold text-muted mb-1 uppercase">ITEMS:</div>
                   <div className="flex flex-col gap-1">
                     <div className="text-content flex items-center gap-1">
-                      <Package className="w-3 h-3 text-muted" />
+                      <Package className="w-3 h-3 text-muted"/>
                       {item.items?.length || 0} types, {totalItems} units
                     </div>
                     <div className="text-xs text-muted flex items-center gap-1">
-                      <Weight className="w-3 h-3" />
+                      <Weight className="w-3 h-3"/>
                       {formatWeight(totalWeight)} total
                     </div>
                   </div>
@@ -147,36 +163,45 @@ const BookingRequestTable = ({
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div>
-                      <span className="font-semibold text-muted">Shipping Line:</span>
+                      <div className="text-xs font-bold text-muted mb-1 uppercase">SHIPPING LINE:</div>
                       <div className="flex items-center gap-1 text-content mt-1">
-                        <Ship className="w-3 h-3" /> {item.shipping_line?.name || 'Not specified'}
+                        <Ship className="w-3 h-3 text-muted" /> {item.shipping_line?.name || 'Not specified'}
                       </div>
                     </div>
 
                     <div>
-                      <span className="font-semibold text-muted">Trucking:</span>
+                      <div className="text-xs font-bold text-muted mb-1 uppercase">TRUCKING:</div>
                       <div className="flex items-center gap-1 text-content mt-1">
-                        <Truck className="w-3 h-3" /> {item.truck_comp?.name || 'Not specified'}
+                        <Truck className="w-3 h-3 text-muted" /> {item.truck_comp?.name || 'Not specified'}
                       </div>
                     </div>
 
                     <div>
-                      <span className="font-semibold text-muted">Parties:</span>
-                      <div className="text-content mt-1">
-                        Shipper: {item.shipper_first_name} {item.shipper_last_name}<br />
-                        Consignee: {item.consignee_first_name} {item.consignee_last_name}
+                      <div className="text-xs font-bold text-muted mb-1 uppercase">PARTIES:</div>
+                      <div className="text-content space-y-1">
+                        <div className="flex items-center gap-1">
+                          <UserCheck className="w-3 h-3 text-muted" />
+                          <span className="font-semibold">SHIPPER:</span> {item.shipper_first_name} {item.shipper_last_name}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <UserCog className="w-3 h-3 text-muted" />
+                          <span className="font-semibold">CONSIGNEE:</span> {item.consignee_first_name} {item.consignee_last_name}
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   {item.items?.length > 0 && (
                     <div>
-                      <div className="font-semibold text-muted mb-1">Items ({item.items.length}):</div>
+                      <div className="font-bold text-muted mb-1 uppercase">ITEMS ({item.items.length}):</div>
                       <div className="space-y-2 pl-3 border-l-2 border-main">
                         {item.items.map((i, idx) => (
-                          <div key={idx}>
-                            <div className="font-medium text-heading">{i.name}</div>
-                            <div className="text-muted">{i.category} | {i.quantity} × {formatWeight(i.weight)}</div>
+                          <div key={idx} className="flex items-center gap-2">
+                            <Package className="w-3 h-3 text-muted" />
+                            <div>
+                              <div className="font-medium text-heading">{i.name}</div>
+                              <div className="text-muted">{i.category} | {i.quantity} × {formatWeight(i.weight)}</div>
+                            </div>
                           </div>
                         ))}
                       </div>

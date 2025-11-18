@@ -1,3 +1,4 @@
+// src/components/tables/CategoryTable
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import DataTable from '../ui/DataTable';
 import BulkActionBar from '../ui/BulkActionBar';
