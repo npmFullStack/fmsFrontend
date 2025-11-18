@@ -527,16 +527,24 @@ deliveryDate: deliveryDate ?? null,
                     placeholder="Enter your email address"
                     required
                   />
-                  {/* ✅ Enhanced Email Notice */}
-                  <div className="bg-main border-2 border-primary rounded-lg p-3 mt-2">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-                      <p className="text-sm text-muted">
-                        <strong className="text-heading">Important:</strong> Please use an active email address. Your account credentials and quote details will be sent to this email once your booking is approved.
-                      </p>
-                    </div>
-                  </div>
-                  {formErrors.email && (
+                  
+<div className="email-notice border border-blue-700 bg-blue-900">
+  <div className="flex items-start gap-4 pl-4">
+    <AlertCircle className="email-notice-icon text-blue-100" />
+    <p className="email-notice-text text-blue-200">
+      <strong className="email-notice-heading text-blue-100">
+        Important:
+      </strong>{' '}
+      Please use an active email address. Your account credentials and quote details will be sent to this email once your booking is approved.
+    </p>
+  </div>
+</div>
+
+
+
+
+
+            {formErrors.email && (
                     <p className="text-red-500 text-sm mt-1">{formErrors.email}</p>
                   )}
                 </div>
@@ -789,35 +797,36 @@ deliveryDate: deliveryDate ?? null,
                   )}
                 </div>
 
-                {/* ✅ Enhanced Weight Display */}
-                {items.some(item => item.weight && item.quantity) && formData.containerSize && (
-                  <div className={`rounded-lg p-4 border-2 ${
-                    !weightValidation.isValid 
-                      ? 'bg-red-50 border-red-300' 
-                      : 'bg-surface border-primary'
-                  }`}>
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className={`w-5 h-5 mt-0.5 flex-shrink-0 ${
-                        !weightValidation.isValid ? 'text-red-600' :
-                        'text-primary'
-                      }`} />
-                      <div className="flex-1">
-                        <p className={`font-semibold text-sm mb-1 ${
-                          !weightValidation.isValid ? 'text-red-800' :
-                          'text-heading'
-                        }`}>
-                          {!weightValidation.isValid ? 'Weight Capacity Exceeded' : 'Weight Status'}
-                        </p>
-                        <p className={`text-sm ${
-                          !weightValidation.isValid ? 'text-red-700' :
-                          'text-muted'
-                        }`}>
-                          {weightValidation.message}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
+{/* ✅ Enhanced Weight Display */}
+{items.some(item => item.weight && item.quantity) && formData.containerSize && (
+  <div className={`email-notice ${
+    !weightValidation.isValid 
+      ? 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900' 
+      : 'border-blue-600 bg-white dark:border-blue-700 dark:bg-blue-900'
+  }`}>
+    <div className="flex items-start gap-4 pl-4">
+      <AlertCircle className={`email-notice-icon ${
+        !weightValidation.isValid 
+          ? 'text-red-600 dark:text-red-100' 
+          : 'text-blue-600 dark:text-blue-100'
+      }`} />
+      <p className={`email-notice-text ${
+        !weightValidation.isValid 
+          ? 'text-red-700 dark:text-red-200' 
+          : 'text-black dark:text-blue-200'
+      }`}>
+        <strong className={`email-notice-heading ${
+          !weightValidation.isValid 
+            ? 'text-red-600 dark:text-red-100' 
+            : 'text-blue-600 dark:text-blue-100'
+        }`}>
+          {!weightValidation.isValid ? 'Weight Capacity Exceeded:' : 'Weight Status:'}
+        </strong>{' '}
+        {weightValidation.message}
+      </p>
+    </div>
+  </div>
+)}
               </div>
 
               {/* Route Information */}

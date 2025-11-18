@@ -93,12 +93,12 @@ const AddUser = ({ isOpen, onClose, onSave, isLoading = false }) => {
                     {errors.contact_number && <span className="modal-error">{errors.contact_number.message}</span>}
                 </div>
 
-                {/* Info Message - Updated Styling */}
-                <div className="bg-blue-900 border border-blue-700 rounded-lg p-4">
+                {/* Info Message */}
+                <div className="bg-blue-700 border border-main rounded-lg p-4">
                     <div className="flex items-start gap-3">
-                        <Info className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
-                        <p className="text-sm text-blue-300">
-                            <strong className="text-blue-400">Note:</strong> A random 8-character password will be automatically generated and sent to the user's email address.
+                        <Info className="w-5 h-5 text-white mt-0.5 flex-shrink-0" />
+                        <p className="text-md text-blue-100">
+                            <strong className="text-white">Note:</strong> A random 8-character password will be automatically generated and sent to the user's email address.
                         </p>
                     </div>
                 </div>

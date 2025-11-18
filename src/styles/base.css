@@ -393,6 +393,57 @@
 .bulk-action-btn-disabled {
   @apply opacity-50 cursor-not-allowed;
 }
+
+
+
+/* Alert Base */
+.email-notice {
+  @apply relative rounded-xl p-4 mt-2 shadow-md animate-fadeInUp border backdrop-blur;
+}
+
+.email-notice-icon {
+  @apply w-5 h-5 mt-0.5 flex-shrink-0;
+}
+
+.email-notice-text {
+  @apply text-base;
+}
+
+.email-notice-heading {
+  @apply font-bold;
+}
+
+/* Light mode overrides */
+/* Light mode overrides */
+.light .email-notice {
+  background-color: white;
+  border-color: rgb(37 99 235); /* blue-600 */
+}
+
+.light .email-notice .email-notice-icon,
+.light .email-notice .email-notice-heading {
+  color: rgb(37 99 235); /* blue-600 */
+}
+
+.light .email-notice .email-notice-text {
+  color: black;
+}
+
+/* Light mode overrides for red variant */
+.light .email-notice.border-red-300 {
+  background-color: rgb(254 242 242) !important; /* red-50 */
+  border-color: rgb(252 165 165) !important; /* red-300 */
+}
+
+.light .email-notice.border-red-300 .email-notice-icon,
+.light .email-notice.border-red-300 .email-notice-heading {
+  color: rgb(220 38 38) !important; /* red-600 */
+}
+
+.light .email-notice.border-red-300 .email-notice-text {
+  color: rgb(185 28 28) !important; /* red-700 */
+}
+
 }
 
 @keyframes background-shine {
