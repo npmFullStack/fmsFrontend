@@ -84,6 +84,7 @@ const Booking = () => {
         toast.success('Booking added successfully');
         setIsAddModalOpen(false);
       } catch (error) {
+        console.error('Add booking error:', error);
         toast.error(error.response?.data?.message || 'Failed to add booking');
       }
     },
@@ -94,12 +95,14 @@ const Booking = () => {
     async (id, bookingData) => {
       try {
         await updateBooking.mutateAsync({
-          id, ...bookingData 
+          id, 
+          ...bookingData 
         });
         toast.success('Booking updated successfully');
         setIsUpdateModalOpen(false);
         setUpdatingBooking(null);
       } catch (error) {
+        console.error('Update booking error:', error);
         toast.error(error.response?.data?.message || 'Failed to update booking');
       }
     },
@@ -112,8 +115,12 @@ const Booking = () => {
       bulkDeleteBookings.mutate(ids, {
         onSuccess: (res) => {
           toast.success(res?.message || 'Bookings deleted successfully');
+          setIsDeleteModalOpen(false);
+          setDeletingBooking(null);
+          setDeletingBookings([]);
         },
         onError: (error) => {
+          console.error('Bulk delete error:', error);
           toast.error(error.response?.data?.message || 'Failed to delete bookings');
         },
       });
@@ -121,15 +128,21 @@ const Booking = () => {
       deleteBooking.mutate(deletingBooking.id, {
         onSuccess: () => {
           toast.success('Booking deleted successfully');
+          setIsDeleteModalOpen(false);
+          setDeletingBooking(null);
+          setDeletingBookings([]);
         },
         onError: (error) => {
+          console.error('Delete booking error:', error);
           toast.error(error.response?.data?.message || 'Failed to delete booking');
         },
       });
+    } else {
+      // If neither condition is met, just close the modal
+      setIsDeleteModalOpen(false);
+      setDeletingBooking(null);
+      setDeletingBookings([]);
     }
-    setIsDeleteModalOpen(false);
-    setDeletingBooking(null);
-    setDeletingBookings([]);
   }, [deleteBooking, bulkDeleteBookings, deletingBooking, deletingBookings]);
 
   const handleEditClick = useCallback((booking) => {
@@ -153,6 +166,7 @@ const Booking = () => {
       await approveBooking.mutateAsync(booking.id);
       toast.success('Booking approved successfully');
     } catch (error) {
+      console.error('Approve booking error:', error);
       toast.error(error.response?.data?.message || 'Failed to approve booking');
     }
   }, [approveBooking]);
@@ -206,6 +220,7 @@ const Booking = () => {
               <button
                 onClick={() => setIsAddModalOpen(true)}
                 className="page-btn-primary"
+                disabled={createBooking.isPending} // Prevent opening while creating
               >
                 <Plus className="page-btn-icon" />
                 Add Booking

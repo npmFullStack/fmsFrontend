@@ -1,4 +1,4 @@
-// src/hooks/useBooking
+// src/hooks/useBooking.js
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api';
 
@@ -16,6 +16,11 @@ const bookingApi = {
   },
   create: async (payload) => {
     const { data } = await api.post('/bookings', payload);
+    return data;
+  },
+  // ✅ NEW: Quote endpoint
+  quote: async (payload) => {
+    const { data } = await api.post('/bookings/quote', payload);
     return data;
   },
   update: async ({ id, ...payload }) => {
@@ -75,6 +80,20 @@ export const useBooking = () => {
     },
     onError: (error) => {
       console.error('❌ Create booking error:', error.response?.data || error.message);
+      throw error;
+    },
+  });
+
+  // ✅ NEW: Create quote
+  const createQuote = useMutation({
+    mutationFn: bookingApi.quote,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries(BOOKING_KEY);
+      console.log('✅ Quote created successfully', data);
+      return data;
+    },
+    onError: (error) => {
+      console.error('❌ Create quote error:', error.response?.data || error.message);
       throw error;
     },
   });
@@ -170,6 +189,7 @@ export const useBooking = () => {
     bookingQuery,
     // Mutations
     createBooking,
+    createQuote, // ✅ NEW: Quote mutation
     updateBooking,
     deleteBooking,
     bulkDeleteBookings,
@@ -180,19 +200,20 @@ export const useBooking = () => {
   };
 };
 
-// ✅ Specialized hook for the quote form
-export const useCreateBooking = () => {
+
+// ✅ NEW: Specialized hook for quote form (without user_id)
+export const useCreateQuote = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: bookingApi.create,
+    mutationFn: bookingApi.quote,
     onSuccess: (data) => {
       queryClient.invalidateQueries(BOOKING_KEY);
-      console.log('✅ Booking quote created successfully', data);
+      console.log('✅ Quote created successfully', data);
       return data;
     },
     onError: (error) => {
-      console.error('❌ Create booking quote error:', error.response?.data || error.message);
+      console.error('❌ Create quote error:', error.response?.data || error.message);
       throw error;
     },
   });

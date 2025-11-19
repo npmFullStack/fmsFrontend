@@ -23,19 +23,10 @@ export const bookingItemSchema = z.object({
 
 // Main booking schema
 export const bookingSchema = z.object({
-  // Personal Information
-  firstName: z
-    .string({ required_error: 'First name is required' })
-    .min(1, 'First name is required')
-    .max(255, 'First name must not exceed 255 characters'),
-  lastName: z
-    .string({ required_error: 'Last name is required' })
-    .min(1, 'Last name is required')
-    .max(255, 'Last name must not exceed 255 characters'),
-  email: z
-    .string({ required_error: 'Email is required' })
-    .email('Please enter a valid email address'),
-  contactNumber: z.string().optional(),
+  // Customer ID (required)
+  userId: z
+    .number({ required_error: 'Please select a customer' })
+    .min(1, 'Please select a customer'),
 
   // Shipper Information
   shipperFirstName: z
@@ -94,7 +85,6 @@ export const bookingSchema = z.object({
     })
     .optional()
     .nullable(),
-  // ✅ Added Truck Company
   truckCompany: z
     .object({
       value: z.number(),
@@ -104,8 +94,8 @@ export const bookingSchema = z.object({
     .nullable(),
 
   // Dates
-departureDate: z.union([z.date(), z.null()]).optional(),
-deliveryDate: z.union([z.date(), z.null()]).optional(),
+  departureDate: z.union([z.date(), z.null()]).optional(),
+  deliveryDate: z.union([z.date(), z.null()]).optional(),
 
   // Locations
   pickupLocation: z.object({
@@ -145,11 +135,8 @@ deliveryDate: z.union([z.date(), z.null()]).optional(),
 
 // Default values for the booking form
 export const defaultBookingValues = {
-  // Personal Information
-  firstName: '',
-  lastName: '',
-  email: '',
-  contactNumber: '',
+  // Customer
+  userId: null,
 
   // Shipper Information
   shipperFirstName: '',
@@ -168,7 +155,7 @@ export const defaultBookingValues = {
   origin: null,
   destination: null,
   shippingLine: null,
-  truckCompany: null, // ✅ Added
+  truckCompany: null,
 
   // Dates
   departureDate: null,
@@ -179,7 +166,7 @@ export const defaultBookingValues = {
   deliveryLocation: null,
 
   // Terms
-  terms: 0,
+  terms: 1, // Changed from 0 to 1
 
   // Items - start with one empty item
   items: [
@@ -196,10 +183,7 @@ export const defaultBookingValues = {
 
 // Schema for API request (transforms frontend data to backend format)
 export const bookingApiSchema = z.object({
-  first_name: z.string(),
-  last_name: z.string(),
-  email: z.string().email(),
-  contact_number: z.string().optional(),
+  user_id: z.number(),
   shipper_first_name: z.string(),
   shipper_last_name: z.string(),
   shipper_contact: z.string().optional(),
@@ -213,8 +197,8 @@ export const bookingApiSchema = z.object({
   destination_id: z.number(),
   shipping_line_id: z.number().optional().nullable(),
   truck_comp_id: z.number().optional().nullable(),
-departure_date: z.string().optional().nullable(),
-delivery_date: z.string().optional().nullable(),
+  departure_date: z.string().optional().nullable(),
+  delivery_date: z.string().optional().nullable(),
   terms: z.number().min(1),
   pickup_location: z.object({
     address: z.string().optional(),
@@ -241,10 +225,7 @@ delivery_date: z.string().optional().nullable(),
 // Helper function to transform frontend data to API format
 export const transformBookingToApi = (data) => {
   return {
-    first_name: data.firstName,
-    last_name: data.lastName,
-    email: data.email,
-    contact_number: data.contactNumber || null,
+    user_id: data.userId,
     shipper_first_name: data.shipperFirstName,
     shipper_last_name: data.shipperLastName,
     shipper_contact: data.shipperContact || null,
@@ -259,13 +240,11 @@ export const transformBookingToApi = (data) => {
     shipping_line_id: data.shippingLine?.value || null,
     truck_comp_id: data.truckCompany?.value || null,
     departure_date: data.departureDate
-  ? data.departureDate.toISOString().split("T")[0]
-  : null,
-
-delivery_date: data.deliveryDate
-  ? data.deliveryDate.toISOString().split("T")[0]
-  : null,
-
+      ? data.departureDate.toISOString().split("T")[0]
+      : null,
+    delivery_date: data.deliveryDate
+      ? data.deliveryDate.toISOString().split("T")[0]
+      : null,
     terms: data.terms,
     pickup_location: data.pickupLocation || null,
     delivery_location: data.deliveryLocation || null,

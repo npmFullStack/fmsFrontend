@@ -6,10 +6,9 @@ import "react-datepicker/dist/react-datepicker.css";
 import { Calendar, X, CheckCircle, AlertCircle, ChevronUp, ChevronDown } from "lucide-react";
 import LocationFields from "../components/LocationFields";
 import api from "../api";
-import { useCreateBooking } from "../hooks/useBooking";
-import { bookingSchema, transformBookingToApi } from "../schemas/bookingSchema";
+import { useCreateQuote } from "../hooks/useBooking"; // ✅ UPDATED: Use quote hook
+import { quoteSchema, transformQuoteToApi } from "../schemas/quoteSchema"; // ✅ UPDATED: Use quote schema
 import quoteSuccessImg from "../assets/images/quoteSuccess.png";
-
 
 const Quote = () => {
   const [items, setItems] = useState([
@@ -22,6 +21,7 @@ const Quote = () => {
   const [weightValidation, setWeightValidation] = useState({ isValid: true, message: "" });
   const [formErrors, setFormErrors] = useState({});
   const [formData, setFormData] = useState({
+    // ✅ REMOVED: userId field
     firstName: "",
     lastName: "",
     email: "",
@@ -53,6 +53,8 @@ const Quote = () => {
   };
 
   const [currentSection, setCurrentSection] = useState(1);
+
+  // ✅ REMOVED: Users query (not needed for quotes)
 
   // Fetch categories
   const { data: categoriesData, isLoading: categoriesLoading } = useQuery({
@@ -90,7 +92,7 @@ const Quote = () => {
     },
   });
 
-  // ✅ Fetch truck companies
+  // Fetch truck companies
   const { data: truckCompsData, isLoading: truckCompsLoading } = useQuery({
     queryKey: ['truck-comps'],
     queryFn: async () => {
@@ -99,8 +101,8 @@ const Quote = () => {
     },
   });
 
-  // Create booking mutation
-  const createBookingMutation = useCreateBooking();
+  // ✅ UPDATED: Use quote mutation instead of booking mutation
+  const createQuoteMutation = useCreateQuote();
 
   // Generate options
   const containerOptions = React.useMemo(() => {
@@ -137,7 +139,6 @@ const Quote = () => {
     }));
   }, [shippingLinesData]);
 
-  // ✅ Truck company options
   const truckCompanyOptions = React.useMemo(() => {
     if (!truckCompsData?.data) return [];
     return truckCompsData.data.map(truck => ({
@@ -240,11 +241,11 @@ const Quote = () => {
   const showPickup = modeValue === "door-to-door" || modeValue === "door-to-port";
   const showDelivery = modeValue === "door-to-door" || modeValue === "port-to-door";
 
-  // Section completion check
+  // ✅ UPDATED: Section completion check (removed userId requirement)
   const isSectionComplete = (section) => {
     switch (section) {
       case 1:
-        return formData.firstName && formData.lastName && formData.email;
+        return formData.firstName && formData.lastName && formData.email; // ✅ REMOVED: userId
       case 2:
         return formData.shipperFirstName && formData.shipperLastName;
       case 3:
@@ -320,7 +321,7 @@ const Quote = () => {
     </div>
   );
 
-  // Form submission handler with schema validation
+  // ✅ UPDATED: Form submission handler with quote schema
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     console.log("Form submitted");
@@ -335,10 +336,10 @@ const Quote = () => {
         ...formData,
         containerQuantity,
         departureDate: departureDate ?? null,
-deliveryDate: deliveryDate ?? null,
+        deliveryDate: deliveryDate ?? null,
         pickupLocation: showPickup && Object.keys(pickupLocation).length > 0 ? pickupLocation : null,
         deliveryLocation: showDelivery && Object.keys(deliveryLocation).length > 0 ? deliveryLocation : null,
-        terms: parseInt(formData.terms) || 0,
+        terms: parseInt(formData.terms) || 1,
         items: items.map(item => ({
           name: item.name,
           weight: parseFloat(item.weight),
@@ -349,28 +350,25 @@ deliveryDate: deliveryDate ?? null,
 
       console.log("Form data for validation:", formDataForValidation);
 
-      // Fix for date validation - ensure dates are properly handled
-      const validatedData = bookingSchema.parse({
-        ...formDataForValidation,
-        departureDate: departureDate ?? null,
-deliveryDate: deliveryDate ?? null,
-
-      });
+      // ✅ UPDATED: Validate with quote schema (not booking schema)
+      const validatedData = quoteSchema.parse(formDataForValidation);
       console.log("Validation successful:", validatedData);
 
       setFormErrors({});
 
-      const bookingData = transformBookingToApi(validatedData);
-      console.log("Transformed booking data:", bookingData);
+      // ✅ UPDATED: Transform using quote API format
+      const quoteData = transformQuoteToApi(validatedData);
+      console.log("Transformed quote data:", quoteData);
 
-      createBookingMutation.mutate(bookingData, {
+      // ✅ UPDATED: Use quote mutation
+      createQuoteMutation.mutate(quoteData, {
         onSuccess: (data) => {
-          console.log("Booking created successfully:", data);
+          console.log("Quote submitted successfully:", data);
           setQuoteSubmitted(true);
         },
         onError: (error) => {
-          console.error('Booking submission error:', error);
-          alert('Failed to submit booking. Please try again.');
+          console.error('Quote submission error:', error);
+          alert('Failed to submit quote. Please try again.');
         }
       });
     } catch (error) {
@@ -389,7 +387,7 @@ deliveryDate: deliveryDate ?? null,
     }
   };
 
-  // Reset form
+  // ✅ UPDATED: Reset form (removed userId)
   const resetForm = () => {
     setItems([{ id: 1, name: "", weight: "", quantity: "", category: "", customCategory: "" }]);
     setFormData({
@@ -412,51 +410,43 @@ deliveryDate: deliveryDate ?? null,
 
   // Success screen
   if (quoteSubmitted) {
-  return (
-    <div className="min-h-screen bg-main py-12 px-4">
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-surface rounded-2xl shadow-xl border border-main p-8 text-center">
-
-          <img
-            src={quoteSuccessImg}
-            alt="Success"
-            className="w-32 h-32 mx-auto mb-4"
-          />
-
-          <h1 className="text-3xl font-bold text-heading mb-4">
-            Booking Request Submitted
-          </h1>
-
-          <div className="modal-info-box text-left">
-            <div className="modal-info-title">
-              <span>Thank You</span>
+    return (
+      <div className="min-h-screen bg-main py-12 px-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-surface rounded-2xl shadow-xl border border-main p-8 text-center">
+            <img
+              src={quoteSuccessImg}
+              alt="Success"
+              className="w-40 h-64 mx-auto mb-4"
+            />
+            <h1 className="text-3xl font-bold text-heading mb-4">
+              Quote Request Submitted
+            </h1>
+            <div className="modal-info-box text-left">
+              <div className="modal-info-title">
+                <span>Thank You</span>
+              </div>
+              <p className="modal-info-text mb-3">
+                Your quote request has been successfully received and is now
+                waiting for verification.
+              </p>
+              <p className="modal-info-text">
+                A confirmation message will be sent to your email:{" "}
+                <strong>{formData.email}</strong>. Please wait while our team
+                reviews your request.
+              </p>
             </div>
-
-            <p className="modal-info-text mb-3">
-              Your booking request has been successfully received and is now
-              waiting for verification.
-            </p>
-
-            <p className="modal-info-text">
-              A confirmation message will be sent to your email:{" "}
-              <strong>{formData.email}</strong>. Please wait while our team
-              reviews your request.
-            </p>
+            <button
+              onClick={resetForm}
+              className="bg-primary text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-dark transition-colors mt-6"
+            >
+              Submit Another Request
+            </button>
           </div>
-
-          <button
-            onClick={resetForm}
-            className="bg-primary text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-dark transition-colors mt-6"
-          >
-            Submit Another Request
-          </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-
+    );
+  }
 
   // Main form
   return (
@@ -469,11 +459,12 @@ deliveryDate: deliveryDate ?? null,
           </div>
 
           <form onSubmit={handleFormSubmit} className="space-y-8">
-            {/* Section 1: Personal Information - UPDATED LAYOUT */}
+            {/* ✅ UPDATED: Section 1 - Removed customer selection */}
             <div className="space-y-4" ref={sectionRefs[1]}>
               <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">
-                1. Personal Information
+                1. Customer Information
               </h2>
+
               <div className="space-y-4">
                 {/* First Name & Last Name on same row */}
                 <div className="grid md:grid-cols-2 gap-4">
@@ -516,6 +507,7 @@ deliveryDate: deliveryDate ?? null,
                     type="tel"
                   />
                 </div>
+                
                 {/* Email field */}
                 <div>
                   <label className="modal-label">Email</label>
@@ -528,23 +520,19 @@ deliveryDate: deliveryDate ?? null,
                     required
                   />
                   
-<div className="email-notice border border-blue-700 bg-blue-900">
-  <div className="flex items-start gap-4 pl-4">
-    <AlertCircle className="email-notice-icon text-blue-100" />
-    <p className="email-notice-text text-blue-200">
-      <strong className="email-notice-heading text-blue-100">
-        Important:
-      </strong>{' '}
-      Please use an active email address. Your account credentials and quote details will be sent to this email once your booking is approved.
-    </p>
-  </div>
-</div>
+                  <div className="email-notice border border-blue-700 bg-blue-900 mt-2">
+                    <div className="flex items-start gap-4 pl-4">
+                      <AlertCircle className="email-notice-icon text-blue-100" />
+                      <p className="email-notice-text text-blue-200">
+                        <strong className="email-notice-heading text-blue-100">
+                          Important:
+                        </strong>{' '}
+                        Please use an active email address. Your account credentials and quote details will be sent to this email once your booking is approved.
+                      </p>
+                    </div>
+                  </div>
 
-
-
-
-
-            {formErrors.email && (
+                  {formErrors.email && (
                     <p className="text-red-500 text-sm mt-1">{formErrors.email}</p>
                   )}
                 </div>
@@ -729,7 +717,7 @@ deliveryDate: deliveryDate ?? null,
               </button>
             </div>
 
-            {/* Section 5: Shipping Preferences - ✅ REORGANIZED WITH HIERARCHY */}
+            {/* Section 5: Shipping Preferences */}
             <div className="space-y-6" ref={sectionRefs[5]}>
               <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">
                 5. Shipping Preferences
@@ -797,36 +785,36 @@ deliveryDate: deliveryDate ?? null,
                   )}
                 </div>
 
-{/* ✅ Enhanced Weight Display */}
-{items.some(item => item.weight && item.quantity) && formData.containerSize && (
-  <div className={`email-notice ${
-    !weightValidation.isValid 
-      ? 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900' 
-      : 'border-blue-600 bg-white dark:border-blue-700 dark:bg-blue-900'
-  }`}>
-    <div className="flex items-start gap-4 pl-4">
-      <AlertCircle className={`email-notice-icon ${
-        !weightValidation.isValid 
-          ? 'text-red-600 dark:text-red-100' 
-          : 'text-blue-600 dark:text-blue-100'
-      }`} />
-      <p className={`email-notice-text ${
-        !weightValidation.isValid 
-          ? 'text-red-700 dark:text-red-200' 
-          : 'text-black dark:text-blue-200'
-      }`}>
-        <strong className={`email-notice-heading ${
-          !weightValidation.isValid 
-            ? 'text-red-600 dark:text-red-100' 
-            : 'text-blue-600 dark:text-blue-100'
-        }`}>
-          {!weightValidation.isValid ? 'Weight Capacity Exceeded:' : 'Weight Status:'}
-        </strong>{' '}
-        {weightValidation.message}
-      </p>
-    </div>
-  </div>
-)}
+                {/* Enhanced Weight Display */}
+                {items.some(item => item.weight && item.quantity) && formData.containerSize && (
+                  <div className={`email-notice ${
+                    !weightValidation.isValid 
+                      ? 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900' 
+                      : 'border-blue-600 bg-white dark:border-blue-700 dark:bg-blue-900'
+                  }`}>
+                    <div className="flex items-start gap-4 pl-4">
+                      <AlertCircle className={`email-notice-icon ${
+                        !weightValidation.isValid 
+                          ? 'text-red-600 dark:text-red-100' 
+                          : 'text-blue-600 dark:text-blue-100'
+                      }`} />
+                      <p className={`email-notice-text ${
+                        !weightValidation.isValid 
+                          ? 'text-red-700 dark:text-red-200' 
+                          : 'text-black dark:text-blue-200'
+                      }`}>
+                        <strong className={`email-notice-heading ${
+                          !weightValidation.isValid 
+                            ? 'text-red-600 dark:text-red-100' 
+                            : 'text-blue-600 dark:text-blue-100'
+                        }`}>
+                          {!weightValidation.isValid ? 'Weight Capacity Exceeded:' : 'Weight Status:'}
+                        </strong>{' '}
+                        {weightValidation.message}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Route Information */}
@@ -866,7 +854,7 @@ deliveryDate: deliveryDate ?? null,
                 </div>
               </div>
 
-              {/* ✅ Schedule Information with Preferred labels */}
+              {/* Schedule Information with Preferred labels */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-heading">Schedule</h3>
                 <div className="grid md:grid-cols-2 gap-4">
@@ -914,7 +902,6 @@ deliveryDate: deliveryDate ?? null,
                       isClearable
                     />
                   </div>
-                  {/* ✅ Added Truck Company */}
                   <div>
                     <label className="modal-label">Preferred Trucking Company</label>
                     <Select
@@ -931,7 +918,7 @@ deliveryDate: deliveryDate ?? null,
                 </div>
               </div>
 
-              {/* ✅ Location fields with item-like styling and conditional rendering */}
+              {/* Location fields with item-like styling and conditional rendering */}
               {showPickup && (
                 <div className="bg-main border border-main rounded-lg p-4">
                   <h3 className="text-lg font-semibold text-heading mb-4">Pickup Location</h3>
@@ -957,14 +944,14 @@ deliveryDate: deliveryDate ?? null,
               )}
             </div>
 
-            {/* Submit button */}
+            {/* ✅ UPDATED: Submit button with quote mutation */}
             <div className="flex justify-end pt-6 border-t border-main">
               <button
                 type="submit"
-                disabled={createBookingMutation.isPending || !isSectionComplete(5)}
+                disabled={createQuoteMutation.isPending || !isSectionComplete(5)}
                 className="bg-primary text-white px-8 py-3 rounded-lg font-medium hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {createBookingMutation.isPending ? "Submitting..." : "Get Quote"}
+                {createQuoteMutation.isPending ? "Submitting..." : "Get Quote"}
               </button>
             </div>
           </form>

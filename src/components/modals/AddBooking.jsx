@@ -8,14 +8,13 @@ import { Calendar, X, ChevronUp, ChevronDown, Loader2, AlertCircle } from 'lucid
 import SharedModal from '../ui/SharedModal';
 import { bookingSchema, defaultBookingValues, transformBookingToApi } from '../../schemas/bookingSchema';
 import LocationFields from '../LocationFields';
-import { useCreateBooking } from '../../hooks/useBooking';
 import { useUser } from '../../hooks/useUser';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api';
 
 const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
   const [items, setItems] = useState([
-    { id: 1, name: "", weight: "", quantity: "", category: "", category_id: "", customCategory: "" },
+    { id: 1, name: "", weight: "", quantity: "", category: "", customCategory: "" },
   ]);
   const [departureDate, setDepartureDate] = useState(null);
   const [deliveryDate, setDeliveryDate] = useState(null);
@@ -39,12 +38,13 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
     defaultValues: {
       ...defaultBookingValues,
       containerQuantity: 1,
-      terms: 0,
+      terms: 1,
     },
   });
 
   const formData = watch();
-  const createBookingMutation = useCreateBooking();
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch users (customers only)
   const { usersQuery } = useUser();
@@ -124,16 +124,15 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
     const baseOptions = categoriesData.data.map(category => ({
       value: category.name,
       label: category.name,
-      id: category.id, // Include the category ID
     }));
-    return [...baseOptions, { value: "other", label: "Other", id: null }];
+    return [...baseOptions, { value: "other", label: "Other" }];
   }, [categoriesData]);
 
   const portOptions = React.useMemo(() => {
     if (!portsData?.data) return [];
     return portsData.data.map(port => ({
       value: port.id,
-      label: `${port.route_name} (${port.name})`, // Show both route_name and name
+      label: `${port.route_name} (${port.name})`,
     }));
   }, [portsData]);
 
@@ -166,9 +165,16 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
       reset({
         ...defaultBookingValues,
         containerQuantity: 1,
-        terms: 0,
+        terms: 1,
       });
-      setItems([{ id: 1, name: "", weight: "", quantity: "", category: "", category_id: "", customCategory: "" }]);
+      setItems([{ 
+        id: 1, 
+        name: "", 
+        weight: "", 
+        quantity: "", 
+        category: "", 
+        customCategory: "" 
+      }]);
       setDepartureDate(null);
       setDeliveryDate(null);
       setContainerQuantity(1);
@@ -184,22 +190,13 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
     setSelectedUser(selectedOption);
     
     if (selectedOption?.userData) {
-      const user = selectedOption.userData;
-      setValue("firstName", user.first_name, { shouldValidate: true });
-      setValue("lastName", user.last_name, { shouldValidate: true });
-      setValue("email", user.email, { shouldValidate: true });
-      setValue("contactNumber", user.contact_number || "", { shouldValidate: true });
+      setValue("userId", selectedOption.value, { shouldValidate: true });
     } else {
-      // Clear personal info if no user selected
-      setValue("firstName", "", { shouldValidate: true });
-      setValue("lastName", "", { shouldValidate: true });
-      setValue("email", "", { shouldValidate: true });
-      setValue("contactNumber", "", { shouldValidate: true });
+      setValue("userId", null, { shouldValidate: true });
     }
     
-    // Trigger validation after setting values
     setTimeout(() => {
-      trigger(['firstName', 'lastName', 'email']);
+      trigger(['userId']);
     }, 100);
   };
 
@@ -239,35 +236,27 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
 
   // Item management
   const addItem = () => {
-    const newItems = [...items, {
+    setItems((s) => [...s, {
       id: Date.now(),
       name: "",
       weight: "",
       quantity: "",
       category: "",
-      category_id: "",
       customCategory: "",
-    }];
-    setItems(newItems);
+    }]);
   };
 
   const removeItem = (id) => {
-    const newItems = items.filter((it) => it.id !== id);
-    setItems(newItems);
+    setItems((s) => s.filter((it) => it.id !== id));
   };
 
   const handleItemChange = (id, field, value) => {
-    const newItems = items.map((it) => (it.id === id ? { ...it, [field]: value } : it));
-    setItems(newItems);
+    setItems((s) => s.map((it) => (it.id === id ? { ...it, [field]: value } : it)));
   };
 
   const handleCategoryChange = (id, selectedOption) => {
     const categoryValue = selectedOption?.value || "";
-    const categoryId = selectedOption?.id || "";
-    
     handleItemChange(id, "category", categoryValue);
-    handleItemChange(id, "category_id", categoryId);
-    
     if (categoryValue !== "other") {
       handleItemChange(id, "customCategory", "");
     }
@@ -276,7 +265,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
   // Handle terms change
   const handleTermsChange = (value) => {
     if (value === "" || /^\d*$/.test(value)) {
-      const numValue = value === "" ? 0 : parseInt(value);
+      const numValue = value === "" ? 1 : parseInt(value);
       setValue("terms", numValue, { shouldValidate: true });
     }
   };
@@ -301,9 +290,8 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
 
   // Check if form is valid for submission
   const isFormValid = () => {
-    // Check basic required fields
     const hasRequiredFields = 
-      selectedUser &&
+      formData.userId &&
       formData.shipperFirstName &&
       formData.shipperLastName &&
       formData.consigneeFirstName &&
@@ -315,13 +303,27 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
       formData.terms > 0 &&
       items.length > 0;
 
-    // Check if all items have required fields
-    const itemsValid = items.every(item => 
-      item.name && item.weight && item.quantity && item.category
-    );
+    const itemsValid = items.every(item => {
+      const hasCategory = item.category && (item.category !== "other" || item.customCategory);
+      const hasWeight = item.weight && parseFloat(item.weight) > 0;
+      const hasQuantity = item.quantity && parseInt(item.quantity) > 0;
+      return item.name && hasWeight && hasQuantity && hasCategory;
+    });
 
-    // Check weight validation
     const weightValid = weightValidation.isValid;
+
+    console.log('🔍 Form Validation:', {
+      userId: formData.userId,
+      hasRequiredFields,
+      itemsValid,
+      weightValid,
+      items: items.map(i => ({
+        name: i.name,
+        category: i.category,
+        weight: i.weight,
+        quantity: i.quantity
+      }))
+    });
 
     return hasRequiredFields && itemsValid && weightValid;
   };
@@ -386,60 +388,61 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
   );
 
   const onSubmit = async (data) => {
-    try {
-      const bookingData = {
-        ...data,
-        containerQuantity,
-        departureDate: departureDate ?? null,
-        deliveryDate: deliveryDate ?? null,
-        pickupLocation: showPickup && Object.keys(pickupLocation).length > 0 ? pickupLocation : null,
-        deliveryLocation: showDelivery && Object.keys(deliveryLocation).length > 0 ? deliveryLocation : null,
-        terms: parseInt(data.terms) || 0,
-        items: items.map(item => ({
-          name: item.name,
-          weight: parseFloat(item.weight),
-          quantity: parseInt(item.quantity),
-          category: item.category === "other" ? item.customCategory : item.category,
-          category_id: item.category_id || null, // Include category_id
-        })),
-      };
+  try {
+    console.log('📝 Form submitted with data:', data);
+    setIsSubmitting(true); // Start loading
+    
+    const bookingData = {
+      ...data,
+      containerQuantity,
+      departureDate: departureDate ?? null,
+      deliveryDate: deliveryDate ?? null,
+      pickupLocation: showPickup && Object.keys(pickupLocation).length > 0 ? pickupLocation : null,
+      deliveryLocation: showDelivery && Object.keys(deliveryLocation).length > 0 ? deliveryLocation : null,
+      terms: parseInt(data.terms) || 1,
+      items: items.map(item => ({
+        name: item.name,
+        weight: parseFloat(item.weight),
+        quantity: parseInt(item.quantity),
+        category: item.category === "other" ? item.customCategory : item.category,
+      })),
+    };
 
-      console.log("Booking data for validation:", bookingData);
+    console.log("📦 Booking data for validation:", bookingData);
 
-      // Validate with schema
-      const validatedData = bookingSchema.parse(bookingData);
-      console.log("Validation successful:", validatedData);
+    // Validate with schema
+    const validatedData = bookingSchema.parse(bookingData);
+    console.log("✅ Validation successful:", validatedData);
 
-      // Transform to API format
-      const apiData = transformBookingToApi(validatedData);
-      
-      console.log("Transformed API data:", apiData);
+    // Transform to API format
+    const apiData = transformBookingToApi(validatedData);
+    
+    console.log("🚀 Transformed API data:", apiData);
 
-      // Use the mutation hook
-      createBookingMutation.mutate(apiData, {
-        onSuccess: (response) => {
-          console.log("Booking created successfully:", response);
-          onSave(response);
-          onClose();
-        },
-        onError: (error) => {
-          console.error('Booking submission error:', error);
-          alert('Failed to create booking. Please try again.');
-        }
+    // Call the parent's onSave function
+    await onSave(apiData);
+    
+  } catch (error) {
+    console.error('❌ Form submission error:', error);
+    
+    if (error.errors) {
+      const errorMessages = {};
+      error.errors.forEach(err => {
+        const path = err.path.join('.');
+        errorMessages[path] = err.message;
       });
-    } catch (error) {
-      console.error('Validation error:', error);
-      if (error.errors) {
-        const errors = {};
-        error.errors.forEach(err => {
-          const path = err.path.join('.');
-          errors[path] = err.message;
-        });
-        console.log('Form errors:', errors);
-        alert('Please check the form for errors and try again.');
-      }
+      console.log('📋 Validation errors:', errorMessages);
+      alert(`Validation error: ${Object.values(errorMessages).join(', ')}`);
+    } else if (error.response) {
+      console.error('API Error Response:', error.response.data);
+      alert(`API Error: ${error.response.data.message || 'Failed to create booking'}`);
+    } else {
+      alert('An unexpected error occurred. Please check the console for details.');
     }
-  };
+  } finally {
+    setIsSubmitting(false); // Stop loading regardless of outcome
+  }
+};
 
   // Responsive grid class
   const responsiveGrid = "grid grid-cols-1 md:grid-cols-2 gap-4";
@@ -453,29 +456,32 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
             Customer Information
           </h3>
           <div>
-            <label className="modal-label">Select Customer</label>
+            <label className="modal-label">Select Customer *</label>
             <Select
               options={userOptions}
               value={selectedUser}
               onChange={handleUserSelect}
-              className="react-select-container"
+              className={`react-select-container ${errors.userId ? 'border-red-500' : ''}`}
               classNamePrefix="react-select"
               placeholder="Select customer"
               isLoading={usersLoading}
+              isClearable
             />
+            {errors.userId && <span className="modal-error">{errors.userId.message}</span>}
           </div>
 
-          {/* Email Notice - Only show if no user is selected AND email is manually entered */}
-          {!selectedUser && formData.email && (
+          {/* Customer Info Display */}
+          {selectedUser?.userData && (
             <div className="email-notice border border-blue-700 bg-blue-900">
               <div className="flex items-start gap-4 pl-4">
                 <AlertCircle className="email-notice-icon text-blue-100" />
-                <p className="email-notice-text text-blue-200">
-                  <strong className="email-notice-heading text-blue-100">
-                    Important:
-                  </strong>{' '}
-                  Account credentials and booking details will be sent to {formData.email} once the booking is approved.
-                </p>
+                <div className="email-notice-text text-blue-200">
+                  <p><strong>Customer:</strong> {selectedUser.userData.first_name} {selectedUser.userData.last_name}</p>
+                  <p><strong>Email:</strong> {selectedUser.userData.email}</p>
+                  {selectedUser.userData.contact_number && (
+                    <p><strong>Contact:</strong> {selectedUser.userData.contact_number}</p>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -488,7 +494,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
           </h3>
           <div className={responsiveGrid}>
             <div>
-              <label className="modal-label">Shipper First Name</label>
+              <label className="modal-label">Shipper First Name *</label>
               <input
                 type="text"
                 placeholder="Enter shipper's first name"
@@ -498,7 +504,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
               {errors.shipperFirstName && <span className="modal-error">{errors.shipperFirstName.message}</span>}
             </div>
             <div>
-              <label className="modal-label">Shipper Last Name</label>
+              <label className="modal-label">Shipper Last Name *</label>
               <input
                 type="text"
                 placeholder="Enter shipper's last name"
@@ -518,7 +524,6 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                   e.target.value = e.target.value.replace(/[^\d]/g, '');
                 }}
               />
-              {errors.shipperContact && <span className="modal-error">{errors.shipperContact.message}</span>}
             </div>
           </div>
         </div>
@@ -530,7 +535,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
           </h3>
           <div className={responsiveGrid}>
             <div>
-              <label className="modal-label">Consignee First Name</label>
+              <label className="modal-label">Consignee First Name *</label>
               <input
                 type="text"
                 placeholder="Enter consignee's first name"
@@ -540,7 +545,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
               {errors.consigneeFirstName && <span className="modal-error">{errors.consigneeFirstName.message}</span>}
             </div>
             <div>
-              <label className="modal-label">Consignee Last Name</label>
+              <label className="modal-label">Consignee Last Name *</label>
               <input
                 type="text"
                 placeholder="Enter consignee's last name"
@@ -560,7 +565,6 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                   e.target.value = e.target.value.replace(/[^\d]/g, '');
                 }}
               />
-              {errors.consigneeContact && <span className="modal-error">{errors.consigneeContact.message}</span>}
             </div>
           </div>
         </div>
@@ -579,24 +583,23 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-semibold text-heading">Item {idx + 1}</h4>
                   {items.length > 1 && (
-                    <button type="button" onClick={() => removeItem(it.id)} className="text-red-500">
+                    <button type="button" onClick={() => removeItem(it.id)} className="text-red-500 hover:text-red-700">
                       <X className="w-5 h-5" />
                     </button>
                   )}
                 </div>
                 <div className={responsiveGrid}>
                   <div>
-                    <label className="modal-label">Item Name</label>
+                    <label className="modal-label">Item Name *</label>
                     <input
                       className="modal-input"
                       value={it.name}
                       onChange={(e) => handleItemChange(it.id, "name", e.target.value)}
                       placeholder="Enter item name"
-                      required
                     />
                   </div>
                   <div>
-                    <label className="modal-label">Category</label>
+                    <label className="modal-label">Category *</label>
                     <Select
                       options={categoryOptions}
                       value={selectedCategory}
@@ -608,19 +611,18 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                     />
                     {showCustomCategory && (
                       <div className="mt-2">
-                        <label className="modal-label">Category Name</label>
+                        <label className="modal-label">Category Name *</label>
                         <input
                           className="modal-input"
                           value={it.customCategory}
                           onChange={(e) => handleItemChange(it.id, "customCategory", e.target.value)}
                           placeholder="Please specify category name"
-                          required
                         />
                       </div>
                     )}
                   </div>
                   <div>
-                    <label className="modal-label">Weight (kg)</label>
+                    <label className="modal-label">Weight (kg) *</label>
                     <input
                       type="number"
                       className="modal-input"
@@ -629,11 +631,10 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                       placeholder="Enter weight in kg"
                       min="0"
                       step="0.01"
-                      required
                     />
                   </div>
                   <div>
-                    <label className="modal-label">Quantity</label>
+                    <label className="modal-label">Quantity *</label>
                     <input
                       type="number"
                       className="modal-input"
@@ -641,14 +642,13 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                       onChange={(e) => handleItemChange(it.id, "quantity", e.target.value)}
                       placeholder="Enter quantity"
                       min="1"
-                      required
                     />
                   </div>
                 </div>
               </div>
             );
           })}
-          <button type="button" onClick={addItem} className="text-primary font-medium text-sm">
+          <button type="button" onClick={addItem} className="text-primary font-medium text-sm hover:underline">
             + Add another item
           </button>
         </div>
@@ -664,7 +664,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
             <h4 className="font-semibold text-heading">Basic Details</h4>
             <div className={responsiveGrid}>
               <div>
-                <label className="modal-label">Mode of Service</label>
+                <label className="modal-label">Mode of Service *</label>
                 <Select
                   options={modeOptions}
                   value={formData.modeOfService}
@@ -676,7 +676,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                 {errors.modeOfService && <span className="modal-error">{errors.modeOfService.message}</span>}
               </div>
               <div>
-                <label className="modal-label">Terms (Days)</label>
+                <label className="modal-label">Terms (Days) *</label>
                 <input
                   type="text"
                   className={`modal-input ${errors.terms ? 'border-red-500' : ''}`}
@@ -694,7 +694,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
             <h4 className="font-semibold text-heading">Container Information</h4>
             <div className={responsiveGrid}>
               <div>
-                <label className="modal-label">Container Type</label>
+                <label className="modal-label">Container Type *</label>
                 <Select
                   options={containerOptions}
                   value={formData.containerSize}
@@ -708,7 +708,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
               </div>
               {formData.containerSize && (
                 <div>
-                  <label className="modal-label">Container Quantity</label>
+                  <label className="modal-label">Container Quantity *</label>
                   <ContainerQuantityInput />
                 </div>
               )}
@@ -744,9 +744,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                 </div>
               </div>
             )}
-          </div>
-
-          {/* Route Information */}
+          </div>          {/* Route Information */}
           <div className="space-y-4">
             <h4 className="font-semibold text-heading">Route Information</h4>
             <div className={responsiveGrid}>
@@ -819,7 +817,6 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                   placeholder="Select shipping line"
                   isLoading={shippingLinesLoading}
                 />
-                {errors.shippingLine && <span className="modal-error">{errors.shippingLine.message}</span>}
               </div>
               <div>
                 <label className="modal-label">Preferred Trucking Company</label>
@@ -832,7 +829,6 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                   placeholder="Select trucking company"
                   isLoading={truckCompsLoading}
                 />
-                {errors.truckCompany && <span className="modal-error">{errors.truckCompany.message}</span>}
               </div>
             </div>
           </div>
@@ -865,29 +861,29 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
 
         {/* Buttons */}
         <div className="flex justify-end gap-3 pt-6 border-t border-main">
-          <button
-            type="button"
-            onClick={onClose}
-            className={`modal-btn-cancel ${createBookingMutation.isPending ? 'modal-btn-disabled' : ''}`}
-            disabled={createBookingMutation.isPending}
-          >
-            Cancel
-          </button>
+<button
+  type="button"
+  onClick={onClose}
+  className={`modal-btn-cancel ${isSubmitting ? 'modal-btn-disabled' : ''}`}
+  disabled={isSubmitting}
+>
+  Cancel
+</button>
 
-          <button
-            type="submit"
-            className={`modal-btn-primary ${(!isFormValid() || createBookingMutation.isPending) ? 'modal-btn-disabled' : ''}`}
-            disabled={!isFormValid() || createBookingMutation.isPending}
-          >
-            {createBookingMutation.isPending ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Creating...
-              </>
-            ) : (
-              'Add Booking'
-            )}
-          </button>
+<button
+  type="submit"
+  className={`modal-btn-primary ${(!isFormValid() || isSubmitting) ? 'modal-btn-disabled' : ''}`}
+  disabled={!isFormValid() || isSubmitting}
+>
+  {isSubmitting ? (
+    <>
+      <Loader2 className="w-4 h-4 animate-spin" />
+      Creating...
+    </>
+  ) : (
+    'Add Booking'
+  )}
+</button>
         </div>
       </form>
     </SharedModal>
@@ -895,4 +891,3 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
 };
 
 export default AddBooking;
-              
