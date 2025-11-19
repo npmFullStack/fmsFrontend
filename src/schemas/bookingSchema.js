@@ -224,7 +224,7 @@ export const bookingApiSchema = z.object({
 
 // Helper function to transform frontend data to API format
 export const transformBookingToApi = (data) => {
-  return {
+  const apiData = {
     user_id: data.userId,
     shipper_first_name: data.shipperFirstName,
     shipper_last_name: data.shipperLastName,
@@ -232,18 +232,18 @@ export const transformBookingToApi = (data) => {
     consignee_first_name: data.consigneeFirstName,
     consignee_last_name: data.consigneeLastName,
     consignee_contact: data.consigneeContact || null,
-    mode_of_service: data.modeOfService.value,
-    container_size_id: data.containerSize.value,
+    mode_of_service: data.modeOfService?.value || data.modeOfService,
+    container_size_id: data.containerSize?.value || data.containerSize,
     container_quantity: data.containerQuantity,
-    origin_id: data.origin.value,
-    destination_id: data.destination.value,
+    origin_id: data.origin?.value || data.origin,
+    destination_id: data.destination?.value || data.destination,
     shipping_line_id: data.shippingLine?.value || null,
     truck_comp_id: data.truckCompany?.value || null,
     departure_date: data.departureDate
-      ? data.departureDate.toISOString().split("T")[0]
+      ? data.departureDate.toISOString().split('T')[0]
       : null,
     delivery_date: data.deliveryDate
-      ? data.deliveryDate.toISOString().split("T")[0]
+      ? data.deliveryDate.toISOString().split('T')[0]
       : null,
     terms: data.terms,
     pickup_location: data.pickupLocation || null,
@@ -255,4 +255,7 @@ export const transformBookingToApi = (data) => {
       category: item.category === 'other' ? item.customCategory : item.category,
     })),
   };
+
+  console.log('🛠️ Final API Data Being Sent:', apiData);
+  return apiData;
 };

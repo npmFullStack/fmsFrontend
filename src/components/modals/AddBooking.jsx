@@ -1,3 +1,4 @@
+// src/components/modals/AddBooking.jsx
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -43,7 +44,6 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
   });
 
   const formData = watch();
-  
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch users (customers only)
@@ -98,11 +98,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
   // Generate options
   const userOptions = React.useMemo(() => {
     if (!usersData?.data) return [];
-    
-    const customers = usersData.data.filter(user => 
-      user.role === 'customer' || user.role === 'user'
-    );
-    
+    const customers = usersData.data.filter(user => user.role === 'customer' || user.role === 'user');
     return customers.map(user => ({
       value: user.id,
       label: `${user.first_name} ${user.last_name} (${user.email})`,
@@ -162,18 +158,21 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
   // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen) {
+      // Reset react-hook-form values
       reset({
         ...defaultBookingValues,
         containerQuantity: 1,
         terms: 1,
       });
-      setItems([{ 
-        id: 1, 
-        name: "", 
-        weight: "", 
-        quantity: "", 
-        category: "", 
-        customCategory: "" 
+
+      // Sync controlled local states
+      setItems([{
+        id: 1,
+        name: "",
+        weight: "",
+        quantity: "",
+        category: "",
+        customCategory: ""
       }]);
       setDepartureDate(null);
       setDeliveryDate(null);
@@ -182,19 +181,30 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
       setDeliveryLocation({});
       setWeightValidation({ isValid: true, message: "" });
       setSelectedUser(null);
+
+      // Make sure form values and local state are synced
+      setValue('containerQuantity', 1, { shouldValidate: true });
+      setValue('terms', 1, { shouldValidate: true });
+      setValue('modeOfService', null, { shouldValidate: true });
+      setValue('origin', null, { shouldValidate: true });
+      setValue('destination', null, { shouldValidate: true });
+      setValue('shippingLine', null, { shouldValidate: true });
+      setValue('truckCompany', null, { shouldValidate: true });
+      setValue('userId', null, { shouldValidate: true });
     }
-  }, [isOpen, reset]);
+  }, [isOpen, reset, setValue]);
 
   // Handle user selection
   const handleUserSelect = (selectedOption) => {
     setSelectedUser(selectedOption);
-    
+
     if (selectedOption?.userData) {
       setValue("userId", selectedOption.value, { shouldValidate: true });
     } else {
       setValue("userId", null, { shouldValidate: true });
     }
-    
+
+    // trigger validation after value change
     setTimeout(() => {
       trigger(['userId']);
     }, 100);
@@ -214,9 +224,9 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
     if (formData.containerSize && items.length > 0) {
       const totalWeight = calculateTotalWeight();
       const selectedContainer = containerOptions.find(opt => opt.value === formData.containerSize.value);
-      
+
       if (selectedContainer && totalWeight > 0) {
-        const maxWeight = selectedContainer.max_weight * containerQuantity;
+        const maxWeight = (selectedContainer.max_weight || 0) * containerQuantity;
         if (totalWeight > maxWeight) {
           const excessWeight = (totalWeight - maxWeight).toFixed(2);
           setWeightValidation({
@@ -225,12 +235,16 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
           });
         } else {
           const remainingCapacity = (maxWeight - totalWeight).toFixed(2);
-          setWeightValidation({ 
-            isValid: true, 
+          setWeightValidation({
+            isValid: true,
             message: `Total weight: ${totalWeight.toFixed(2)} kg / ${maxWeight.toFixed(2)} kg (${remainingCapacity} kg remaining capacity)`
           });
         }
+      } else {
+        setWeightValidation({ isValid: true, message: "" });
       }
+    } else {
+      setWeightValidation({ isValid: true, message: "" });
     }
   }, [items, formData.containerSize, containerQuantity, containerOptions]);
 
@@ -290,40 +304,30 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
 
   // Check if form is valid for submission
   const isFormValid = () => {
-    const hasRequiredFields = 
-      formData.userId &&
-      formData.shipperFirstName &&
-      formData.shipperLastName &&
-      formData.consigneeFirstName &&
-      formData.consigneeLastName &&
-      formData.modeOfService &&
-      formData.containerSize &&
-      formData.origin &&
-      formData.destination &&
-      formData.terms > 0 &&
+    const hasRequiredFields =
+      !!formData.userId &&
+      !!formData.shipperFirstName &&
+      !!formData.shipperLastName &&
+      !!formData.consigneeFirstName &&
+      !!formData.consigneeLastName &&
+      !!formData.modeOfService?.value &&
+      !!formData.containerSize?.value &&
+      !!formData.origin?.value &&
+      !!formData.destination?.value &&
+      (Number.isInteger(formData.terms) ? formData.terms > 0 : !!formData.terms) &&
       items.length > 0;
 
     const itemsValid = items.every(item => {
       const hasCategory = item.category && (item.category !== "other" || item.customCategory);
-      const hasWeight = item.weight && parseFloat(item.weight) > 0;
-      const hasQuantity = item.quantity && parseInt(item.quantity) > 0;
+      const hasWeight = item.weight !== "" && !isNaN(parseFloat(item.weight)) && parseFloat(item.weight) > 0;
+      const hasQuantity = item.quantity !== "" && !isNaN(parseInt(item.quantity)) && parseInt(item.quantity) > 0;
       return item.name && hasWeight && hasQuantity && hasCategory;
     });
 
     const weightValid = weightValidation.isValid;
 
-    console.log('🔍 Form Validation:', {
-      userId: formData.userId,
-      hasRequiredFields,
-      itemsValid,
-      weightValid,
-      items: items.map(i => ({
-        name: i.name,
-        category: i.category,
-        weight: i.weight,
-        quantity: i.quantity
-      }))
-    });
+    // debug log (you can remove later)
+    // console.log('🔍 Form Validation:', { hasRequiredFields, itemsValid, weightValid, items });
 
     return hasRequiredFields && itemsValid && weightValid;
   };
@@ -360,8 +364,9 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
         value={containerQuantity}
         onChange={(e) => {
           const value = parseInt(e.target.value) || 1;
-          setContainerQuantity(value > 0 ? value : 1);
-          setValue("containerQuantity", value > 0 ? value : 1, { shouldValidate: true });
+          const val = value > 0 ? value : 1;
+          setContainerQuantity(val);
+          setValue("containerQuantity", val, { shouldValidate: true });
         }}
         min="1"
         required
@@ -389,9 +394,9 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
 
   const onSubmit = async (data) => {
   try {
-    console.log('📝 Form submitted with data:', data);
-    setIsSubmitting(true); // Start loading
-    
+    setIsSubmitting(true);
+
+    // Build the booking object matching bookingSchema
     const bookingData = {
       ...data,
       containerQuantity,
@@ -402,49 +407,73 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
       terms: parseInt(data.terms) || 1,
       items: items.map(item => ({
         name: item.name,
-        weight: parseFloat(item.weight),
-        quantity: parseInt(item.quantity),
+        weight: item.weight === "" ? null : parseFloat(item.weight),
+        quantity: item.quantity === "" ? null : parseInt(item.quantity),
         category: item.category === "other" ? item.customCategory : item.category,
+        customCategory: item.customCategory || undefined,
       })),
     };
 
-    console.log("📦 Booking data for validation:", bookingData);
+    console.log('📝 Form Data Before Validation:', bookingData);
 
-    // Validate with schema
+    // Validate using the frontend schema (this throws ZodError on fail)
     const validatedData = bookingSchema.parse(bookingData);
-    console.log("✅ Validation successful:", validatedData);
+    console.log('✅ Frontend Validation Passed:', validatedData);
 
     // Transform to API format
     const apiData = transformBookingToApi(validatedData);
-    
-    console.log("🚀 Transformed API data:", apiData);
+    console.log('📤 Transformed API Data:', apiData);
 
-    // Call the parent's onSave function
+    // Debug: Check for critical missing fields
+    console.log('🔍 Critical Fields Check:', {
+      hasShippingLineId: !!apiData.shipping_line_id,
+      hasDepartureDate: !!apiData.departure_date,
+      hasDeliveryDate: !!apiData.delivery_date,
+      shippingLineId: apiData.shipping_line_id,
+      departureDate: apiData.departure_date,
+      deliveryDate: apiData.delivery_date
+    });
+
+    // Call parent's onSave (expected to call API)
     await onSave(apiData);
-    
+
+    // Close modal on success
+    console.log('✅ Booking created successfully via frontend');
+
   } catch (error) {
-    console.error('❌ Form submission error:', error);
-    
-    if (error.errors) {
+    // Zod validation error
+    if (error?.errors && Array.isArray(error.errors)) {
       const errorMessages = {};
       error.errors.forEach(err => {
         const path = err.path.join('.');
         errorMessages[path] = err.message;
       });
-      console.log('📋 Validation errors:', errorMessages);
+      console.error('❌ Validation errors:', errorMessages);
       alert(`Validation error: ${Object.values(errorMessages).join(', ')}`);
-    } else if (error.response) {
-      console.error('API Error Response:', error.response.data);
-      alert(`API Error: ${error.response.data.message || 'Failed to create booking'}`);
+    } else if (error?.response) {
+      // API error - show detailed error
+      console.error('❌ API Error Response:', error.response);
+      const apiError = error.response.data;
+      console.error('❌ API Error Details:', {
+        message: apiError.message,
+        error: apiError.error,
+        validationErrors: apiError.errors
+      });
+      alert(`API Error: ${apiError.message || 'Failed to create booking'}\n\nDetails: ${apiError.error || 'Check console for more info'}`);
+    } else if (error.message) {
+      // Other errors
+      console.error('❌ Unexpected error:', error);
+      console.error('❌ Error stack:', error.stack);
+      alert(`Error: ${error.message}`);
     } else {
-      alert('An unexpected error occurred. Please check the console for details.');
+      console.error('❌ Unknown error:', error);
+      alert('An unexpected error occurred. Check console for details.');
     }
   } finally {
-    setIsSubmitting(false); // Stop loading regardless of outcome
+    setIsSubmitting(false);
   }
 };
 
-  // Responsive grid class
   const responsiveGrid = "grid grid-cols-1 md:grid-cols-2 gap-4";
 
   return (
@@ -520,9 +549,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                 placeholder="Enter shipper's contact number"
                 className="modal-input"
                 {...register('shipperContact')}
-                onInput={(e) => {
-                  e.target.value = e.target.value.replace(/[^\d]/g, '');
-                }}
+                onInput={(e) => { e.target.value = e.target.value.replace(/[^\d]/g, ''); }}
               />
             </div>
           </div>
@@ -561,9 +588,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                 placeholder="Enter consignee's contact number"
                 className="modal-input"
                 {...register('consigneeContact')}
-                onInput={(e) => {
-                  e.target.value = e.target.value.replace(/[^\d]/g, '');
-                }}
+                onInput={(e) => { e.target.value = e.target.value.replace(/[^\d]/g, ''); }}
               />
             </div>
           </div>
@@ -717,24 +742,24 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
             {/* Weight Display */}
             {items.some(item => item.weight && item.quantity) && formData.containerSize && (
               <div className={`email-notice ${
-                !weightValidation.isValid 
-                  ? 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900' 
+                !weightValidation.isValid
+                  ? 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900'
                   : 'border-blue-600 bg-white dark:border-blue-700 dark:bg-blue-900'
               }`}>
                 <div className="flex items-start gap-4 pl-4">
                   <AlertCircle className={`email-notice-icon ${
-                    !weightValidation.isValid 
-                      ? 'text-red-600 dark:text-red-100' 
+                    !weightValidation.isValid
+                      ? 'text-red-600 dark:text-red-100'
                       : 'text-blue-600 dark:text-blue-100'
                   }`} />
                   <p className={`email-notice-text ${
-                    !weightValidation.isValid 
-                      ? 'text-red-700 dark:text-red-200' 
+                    !weightValidation.isValid
+                      ? 'text-red-700 dark:text-red-200'
                       : 'text-black dark:text-blue-200'
                   }`}>
                     <strong className={`email-notice-heading ${
-                      !weightValidation.isValid 
-                        ? 'text-red-600 dark:text-red-100' 
+                      !weightValidation.isValid
+                        ? 'text-red-600 dark:text-red-100'
                         : 'text-blue-600 dark:text-blue-100'
                     }`}>
                       {!weightValidation.isValid ? 'Weight Capacity Exceeded:' : 'Weight Status:'}
@@ -744,7 +769,9 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                 </div>
               </div>
             )}
-          </div>          {/* Route Information */}
+          </div>
+
+          {/* Route Information */}
           <div className="space-y-4">
             <h4 className="font-semibold text-heading">Route Information</h4>
             <div className={responsiveGrid}>
@@ -785,7 +812,10 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                 <label className="modal-label">Preferred Departure Date (Optional)</label>
                 <DatePicker
                   selected={departureDate}
-                  onChange={setDepartureDate}
+                  onChange={(date) => {
+                    setDepartureDate(date);
+                    setValue('departureDate', date, { shouldValidate: true });
+                  }}
                   customInput={<DateInput placeholder="Select preferred departure date" />}
                   minDate={new Date()}
                 />
@@ -794,7 +824,10 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                 <label className="modal-label">Preferred Delivery Date (Optional)</label>
                 <DatePicker
                   selected={deliveryDate}
-                  onChange={setDeliveryDate}
+                  onChange={(date) => {
+                    setDeliveryDate(date);
+                    setValue('deliveryDate', date, { shouldValidate: true });
+                  }}
                   customInput={<DateInput placeholder="Select preferred delivery date" />}
                   minDate={departureDate}
                 />
@@ -840,7 +873,10 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
               <LocationFields
                 type="pickup"
                 value={pickupLocation}
-                onChange={setPickupLocation}
+                onChange={(val) => {
+                  setPickupLocation(val);
+                  setValue('pickupLocation', val, { shouldValidate: true });
+                }}
                 showStreetSearch={true}
               />
             </div>
@@ -852,7 +888,10 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
               <LocationFields
                 type="delivery"
                 value={deliveryLocation}
-                onChange={setDeliveryLocation}
+                onChange={(val) => {
+                  setDeliveryLocation(val);
+                  setValue('deliveryLocation', val, { shouldValidate: true });
+                }}
                 showStreetSearch={true}
               />
             </div>
@@ -861,29 +900,29 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
 
         {/* Buttons */}
         <div className="flex justify-end gap-3 pt-6 border-t border-main">
-<button
-  type="button"
-  onClick={onClose}
-  className={`modal-btn-cancel ${isSubmitting ? 'modal-btn-disabled' : ''}`}
-  disabled={isSubmitting}
->
-  Cancel
-</button>
+          <button
+            type="button"
+            onClick={onClose}
+            className={`modal-btn-cancel ${isSubmitting ? 'modal-btn-disabled' : ''}`}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </button>
 
-<button
-  type="submit"
-  className={`modal-btn-primary ${(!isFormValid() || isSubmitting) ? 'modal-btn-disabled' : ''}`}
-  disabled={!isFormValid() || isSubmitting}
->
-  {isSubmitting ? (
-    <>
-      <Loader2 className="w-4 h-4 animate-spin" />
-      Creating...
-    </>
-  ) : (
-    'Add Booking'
-  )}
-</button>
+          <button
+            type="submit"
+            className={`modal-btn-primary ${(!isFormValid() || isSubmitting) ? 'modal-btn-disabled' : ''}`}
+            disabled={!isFormValid() || isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              'Add Booking'
+            )}
+          </button>
         </div>
       </form>
     </SharedModal>

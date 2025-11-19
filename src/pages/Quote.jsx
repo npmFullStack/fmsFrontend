@@ -7,7 +7,7 @@ import { Calendar, X, CheckCircle, AlertCircle, ChevronUp, ChevronDown } from "l
 import LocationFields from "../components/LocationFields";
 import api from "../api";
 import { useCreateQuote } from "../hooks/useBooking"; // ✅ UPDATED: Use quote hook
-import { quoteSchema, transformQuoteToApi } from "../schemas/quoteSchema"; // ✅ UPDATED: Use quote schema
+import { quoteSchema, transformQuoteToApi } from "../schemas/quoteSchema";
 import quoteSuccessImg from "../assets/images/quoteSuccess.png";
 
 const Quote = () => {
