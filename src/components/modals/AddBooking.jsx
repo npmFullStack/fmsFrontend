@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import Select from 'react-select';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { Calendar, X, ChevronUp, ChevronDown, Loader2, Info } from 'lucide-react';
+import { Calendar, X, ChevronUp, ChevronDown, Loader2, AlertCircle } from 'lucide-react';
 import SharedModal from '../ui/SharedModal';
 import { bookingSchema, defaultBookingValues, transformBookingToApi } from '../../schemas/bookingSchema';
 import LocationFields from '../LocationFields';
@@ -15,7 +15,7 @@ import api from '../../api';
 
 const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
   const [items, setItems] = useState([
-    { id: 1, name: "", weight: "", quantity: "", category: "", customCategory: "" },
+    { id: 1, name: "", weight: "", quantity: "", category: "", category_id: "", customCategory: "" },
   ]);
   const [departureDate, setDepartureDate] = useState(null);
   const [deliveryDate, setDeliveryDate] = useState(null);
@@ -32,7 +32,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
     setValue,
     watch,
     trigger,
-    formState: { errors, isValid },
+    formState: { errors },
   } = useForm({
     resolver: zodResolver(bookingSchema),
     mode: 'onChange',
@@ -46,7 +46,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
   const formData = watch();
   const createBookingMutation = useCreateBooking();
 
-  // Fetch users (customers only) - FIXED: Use the correct API parameter
+  // Fetch users (customers only)
   const { usersQuery } = useUser();
   const { data: usersData, isLoading: usersLoading } = usersQuery({ role: 'customer' });
 
@@ -95,13 +95,12 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
     },
   });
 
-  // Generate options - FIXED: Filter customers only on frontend if API doesn't filter
+  // Generate options
   const userOptions = React.useMemo(() => {
     if (!usersData?.data) return [];
     
-    // Filter for customers only (in case API doesn't filter properly)
     const customers = usersData.data.filter(user => 
-      user.role === 'customer' || user.role === 'user' // Include both customer and user roles
+      user.role === 'customer' || user.role === 'user'
     );
     
     return customers.map(user => ({
@@ -125,15 +124,16 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
     const baseOptions = categoriesData.data.map(category => ({
       value: category.name,
       label: category.name,
+      id: category.id, // Include the category ID
     }));
-    return [...baseOptions, { value: "other", label: "Other" }];
+    return [...baseOptions, { value: "other", label: "Other", id: null }];
   }, [categoriesData]);
 
   const portOptions = React.useMemo(() => {
     if (!portsData?.data) return [];
     return portsData.data.map(port => ({
       value: port.id,
-      label: port.route_name,
+      label: `${port.route_name} (${port.name})`, // Show both route_name and name
     }));
   }, [portsData]);
 
@@ -168,7 +168,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
         containerQuantity: 1,
         terms: 0,
       });
-      setItems([{ id: 1, name: "", weight: "", quantity: "", category: "", customCategory: "" }]);
+      setItems([{ id: 1, name: "", weight: "", quantity: "", category: "", category_id: "", customCategory: "" }]);
       setDepartureDate(null);
       setDeliveryDate(null);
       setContainerQuantity(1);
@@ -182,7 +182,6 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
   // Handle user selection
   const handleUserSelect = (selectedOption) => {
     setSelectedUser(selectedOption);
-    setValue("user", selectedOption, { shouldValidate: true });
     
     if (selectedOption?.userData) {
       const user = selectedOption.userData;
@@ -246,6 +245,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
       weight: "",
       quantity: "",
       category: "",
+      category_id: "",
       customCategory: "",
     }];
     setItems(newItems);
@@ -263,7 +263,11 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
 
   const handleCategoryChange = (id, selectedOption) => {
     const categoryValue = selectedOption?.value || "";
+    const categoryId = selectedOption?.id || "";
+    
     handleItemChange(id, "category", categoryValue);
+    handleItemChange(id, "category_id", categoryId);
+    
     if (categoryValue !== "other") {
       handleItemChange(id, "customCategory", "");
     }
@@ -319,7 +323,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
     // Check weight validation
     const weightValid = weightValidation.isValid;
 
-    return hasRequiredFields && itemsValid && weightValid && isValid;
+    return hasRequiredFields && itemsValid && weightValid;
   };
 
   // Custom DatePicker input
@@ -393,9 +397,10 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
         terms: parseInt(data.terms) || 0,
         items: items.map(item => ({
           name: item.name,
-          weight: item.weight,
-          quantity: item.quantity,
+          weight: parseFloat(item.weight),
+          quantity: parseInt(item.quantity),
           category: item.category === "other" ? item.customCategory : item.category,
+          category_id: item.category_id || null, // Include category_id
         })),
       };
 
@@ -405,12 +410,8 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
       const validatedData = bookingSchema.parse(bookingData);
       console.log("Validation successful:", validatedData);
 
-      // Transform to API format - FIXED: Make shipping line and truck company required
-      const apiData = transformBookingToApi({
-        ...validatedData,
-        shippingLine: validatedData.shippingLine || { value: 1, label: 'Default' }, // Provide default if needed
-        truckCompany: validatedData.truckCompany || { value: 1, label: 'Default' }, // Provide default if needed
-      });
+      // Transform to API format
+      const apiData = transformBookingToApi(validatedData);
       
       console.log("Transformed API data:", apiData);
 
@@ -444,7 +445,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
   const responsiveGrid = "grid grid-cols-1 md:grid-cols-2 gap-4";
 
   return (
-    <SharedModal isOpen={isOpen} onClose={onClose} title="Add Booking" size="lg">
+    <SharedModal isOpen={isOpen} onClose={onClose} title="Add Booking" size="md">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-h-[80vh] overflow-y-auto">
         {/* Customer Selection */}
         <div className="space-y-4">
@@ -452,7 +453,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
             Customer Information
           </h3>
           <div>
-            <label className="modal-label">Select Customer *</label>
+            <label className="modal-label">Select Customer</label>
             <Select
               options={userOptions}
               value={selectedUser}
@@ -462,10 +463,22 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
               placeholder="Select customer"
               isLoading={usersLoading}
             />
-            {!selectedUser && (
-              <span className="modal-error">Please select a customer</span>
-            )}
           </div>
+
+          {/* Email Notice - Only show if no user is selected AND email is manually entered */}
+          {!selectedUser && formData.email && (
+            <div className="email-notice border border-blue-700 bg-blue-900">
+              <div className="flex items-start gap-4 pl-4">
+                <AlertCircle className="email-notice-icon text-blue-100" />
+                <p className="email-notice-text text-blue-200">
+                  <strong className="email-notice-heading text-blue-100">
+                    Important:
+                  </strong>{' '}
+                  Account credentials and booking details will be sent to {formData.email} once the booking is approved.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Shipper Information */}
@@ -475,7 +488,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
           </h3>
           <div className={responsiveGrid}>
             <div>
-              <label className="modal-label">Shipper First Name *</label>
+              <label className="modal-label">Shipper First Name</label>
               <input
                 type="text"
                 placeholder="Enter shipper's first name"
@@ -485,7 +498,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
               {errors.shipperFirstName && <span className="modal-error">{errors.shipperFirstName.message}</span>}
             </div>
             <div>
-              <label className="modal-label">Shipper Last Name *</label>
+              <label className="modal-label">Shipper Last Name</label>
               <input
                 type="text"
                 placeholder="Enter shipper's last name"
@@ -517,7 +530,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
           </h3>
           <div className={responsiveGrid}>
             <div>
-              <label className="modal-label">Consignee First Name *</label>
+              <label className="modal-label">Consignee First Name</label>
               <input
                 type="text"
                 placeholder="Enter consignee's first name"
@@ -527,7 +540,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
               {errors.consigneeFirstName && <span className="modal-error">{errors.consigneeFirstName.message}</span>}
             </div>
             <div>
-              <label className="modal-label">Consignee Last Name *</label>
+              <label className="modal-label">Consignee Last Name</label>
               <input
                 type="text"
                 placeholder="Enter consignee's last name"
@@ -555,7 +568,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
         {/* Items */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
-            Item / Commodity Information *
+            Item / Commodity Information
           </h3>
           {items.map((it, idx) => {
             const showCustomCategory = it.category === "other";
@@ -573,9 +586,9 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                 </div>
                 <div className={responsiveGrid}>
                   <div>
-                    <label className="modal-label">Item Name *</label>
+                    <label className="modal-label">Item Name</label>
                     <input
-                      className={`modal-input ${!it.name ? 'border-red-500' : ''}`}
+                      className="modal-input"
                       value={it.name}
                       onChange={(e) => handleItemChange(it.id, "name", e.target.value)}
                       placeholder="Enter item name"
@@ -583,7 +596,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                     />
                   </div>
                   <div>
-                    <label className="modal-label">Category *</label>
+                    <label className="modal-label">Category</label>
                     <Select
                       options={categoryOptions}
                       value={selectedCategory}
@@ -595,9 +608,9 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                     />
                     {showCustomCategory && (
                       <div className="mt-2">
-                        <label className="modal-label">Category Name *</label>
+                        <label className="modal-label">Category Name</label>
                         <input
-                          className={`modal-input ${!it.customCategory ? 'border-red-500' : ''}`}
+                          className="modal-input"
                           value={it.customCategory}
                           onChange={(e) => handleItemChange(it.id, "customCategory", e.target.value)}
                           placeholder="Please specify category name"
@@ -607,10 +620,10 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                     )}
                   </div>
                   <div>
-                    <label className="modal-label">Weight (kg) *</label>
+                    <label className="modal-label">Weight (kg)</label>
                     <input
                       type="number"
-                      className={`modal-input ${!it.weight ? 'border-red-500' : ''}`}
+                      className="modal-input"
                       value={it.weight}
                       onChange={(e) => handleItemChange(it.id, "weight", e.target.value)}
                       placeholder="Enter weight in kg"
@@ -620,10 +633,10 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                     />
                   </div>
                   <div>
-                    <label className="modal-label">Quantity *</label>
+                    <label className="modal-label">Quantity</label>
                     <input
                       type="number"
-                      className={`modal-input ${!it.quantity ? 'border-red-500' : ''}`}
+                      className="modal-input"
                       value={it.quantity}
                       onChange={(e) => handleItemChange(it.id, "quantity", e.target.value)}
                       placeholder="Enter quantity"
@@ -651,7 +664,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
             <h4 className="font-semibold text-heading">Basic Details</h4>
             <div className={responsiveGrid}>
               <div>
-                <label className="modal-label">Mode of Service *</label>
+                <label className="modal-label">Mode of Service</label>
                 <Select
                   options={modeOptions}
                   value={formData.modeOfService}
@@ -663,7 +676,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                 {errors.modeOfService && <span className="modal-error">{errors.modeOfService.message}</span>}
               </div>
               <div>
-                <label className="modal-label">Terms (Days) *</label>
+                <label className="modal-label">Terms (Days)</label>
                 <input
                   type="text"
                   className={`modal-input ${errors.terms ? 'border-red-500' : ''}`}
@@ -681,7 +694,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
             <h4 className="font-semibold text-heading">Container Information</h4>
             <div className={responsiveGrid}>
               <div>
-                <label className="modal-label">Container Type *</label>
+                <label className="modal-label">Container Type</label>
                 <Select
                   options={containerOptions}
                   value={formData.containerSize}
@@ -695,7 +708,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
               </div>
               {formData.containerSize && (
                 <div>
-                  <label className="modal-label">Container Quantity *</label>
+                  <label className="modal-label">Container Quantity</label>
                   <ContainerQuantityInput />
                 </div>
               )}
@@ -703,27 +716,31 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
 
             {/* Weight Display */}
             {items.some(item => item.weight && item.quantity) && formData.containerSize && (
-              <div className={`rounded-lg p-4 border-2 ${
+              <div className={`email-notice ${
                 !weightValidation.isValid 
-                  ? 'bg-red-50 border-red-300' 
-                  : 'bg-blue-900 border-blue-700'
+                  ? 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900' 
+                  : 'border-blue-600 bg-white dark:border-blue-700 dark:bg-blue-900'
               }`}>
-                <div className="flex items-start gap-3">
-                  <Info className={`w-5 h-5 mt-0.5 flex-shrink-0 ${
-                    !weightValidation.isValid ? 'text-red-600' : 'text-blue-400'
+                <div className="flex items-start gap-4 pl-4">
+                  <AlertCircle className={`email-notice-icon ${
+                    !weightValidation.isValid 
+                      ? 'text-red-600 dark:text-red-100' 
+                      : 'text-blue-600 dark:text-blue-100'
                   }`} />
-                  <div className="flex-1">
-                    <p className={`font-semibold text-sm mb-1 ${
-                      !weightValidation.isValid ? 'text-red-800' : 'text-blue-400'
+                  <p className={`email-notice-text ${
+                    !weightValidation.isValid 
+                      ? 'text-red-700 dark:text-red-200' 
+                      : 'text-black dark:text-blue-200'
+                  }`}>
+                    <strong className={`email-notice-heading ${
+                      !weightValidation.isValid 
+                        ? 'text-red-600 dark:text-red-100' 
+                        : 'text-blue-600 dark:text-blue-100'
                     }`}>
-                      {!weightValidation.isValid ? 'Weight Capacity Exceeded' : 'Weight Status'}
-                    </p>
-                    <p className={`text-sm ${
-                      !weightValidation.isValid ? 'text-red-700' : 'text-blue-300'
-                    }`}>
-                      {weightValidation.message}
-                    </p>
-                  </div>
+                      {!weightValidation.isValid ? 'Weight Capacity Exceeded:' : 'Weight Status:'}
+                    </strong>{' '}
+                    {weightValidation.message}
+                  </p>
                 </div>
               </div>
             )}
@@ -734,7 +751,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
             <h4 className="font-semibold text-heading">Route Information</h4>
             <div className={responsiveGrid}>
               <div>
-                <label className="modal-label">Origin Port *</label>
+                <label className="modal-label">Origin Port</label>
                 <Select
                   options={portOptions}
                   value={formData.origin}
@@ -747,7 +764,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                 {errors.origin && <span className="modal-error">{errors.origin.message}</span>}
               </div>
               <div>
-                <label className="modal-label">Destination Port *</label>
+                <label className="modal-label">Destination Port</label>
                 <Select
                   options={portOptions}
                   value={formData.destination}
@@ -787,12 +804,12 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
             </div>
           </div>
 
-          {/* Service Providers - FIXED: Made required */}
+          {/* Service Providers */}
           <div className="space-y-4">
-            <h4 className="font-semibold text-heading">Service Providers *</h4>
+            <h4 className="font-semibold text-heading">Service Providers</h4>
             <div className={responsiveGrid}>
               <div>
-                <label className="modal-label">Preferred Shipping Line *</label>
+                <label className="modal-label">Preferred Shipping Line</label>
                 <Select
                   options={shippingLineOptions}
                   value={formData.shippingLine}
@@ -805,7 +822,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                 {errors.shippingLine && <span className="modal-error">{errors.shippingLine.message}</span>}
               </div>
               <div>
-                <label className="modal-label">Preferred Trucking Company *</label>
+                <label className="modal-label">Preferred Trucking Company</label>
                 <Select
                   options={truckCompanyOptions}
                   value={formData.truckCompany}
@@ -878,3 +895,4 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
 };
 
 export default AddBooking;
+              
