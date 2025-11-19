@@ -78,18 +78,21 @@ const Booking = () => {
    * CRUD ACTIONS
    * --- */
   const handleAdd = useCallback(
-    async (bookingData) => {
-      try {
-        await createBooking.mutateAsync(bookingData);
-        toast.success('Booking added successfully');
-        setIsAddModalOpen(false);
-      } catch (error) {
-        console.error('Add booking error:', error);
-        toast.error(error.response?.data?.message || 'Failed to add booking');
-      }
-    },
-    [createBooking]
-  );
+  async (bookingData) => {
+    console.log('🎯 PARENT: handleAdd called with data:', bookingData);
+    try {
+      console.log('🎯 PARENT: Calling createBooking.mutateAsync...');
+      await createBooking.mutateAsync(bookingData);
+      console.log('🎯 PARENT: createBooking completed successfully');
+      toast.success('Booking added successfully');
+      setIsAddModalOpen(false);
+    } catch (error) {
+      console.error('🎯 PARENT: Add booking error:', error);
+      toast.error(error.response?.data?.message || 'Failed to add booking');
+    }
+  },
+  [createBooking]
+);
 
   const handleUpdate = useCallback(
     async (id, bookingData) => {

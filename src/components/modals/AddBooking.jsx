@@ -158,14 +158,12 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
   // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      // Reset react-hook-form values
       reset({
         ...defaultBookingValues,
         containerQuantity: 1,
         terms: 1,
       });
 
-      // Sync controlled local states
       setItems([{
         id: 1,
         name: "",
@@ -182,7 +180,6 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
       setWeightValidation({ isValid: true, message: "" });
       setSelectedUser(null);
 
-      // Make sure form values and local state are synced
       setValue('containerQuantity', 1, { shouldValidate: true });
       setValue('terms', 1, { shouldValidate: true });
       setValue('modeOfService', null, { shouldValidate: true });
@@ -204,7 +201,6 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
       setValue("userId", null, { shouldValidate: true });
     }
 
-    // trigger validation after value change
     setTimeout(() => {
       trigger(['userId']);
     }, 100);
@@ -305,16 +301,16 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
   // Check if form is valid for submission
   const isFormValid = () => {
     const hasRequiredFields =
-      !!formData.userId &&
-      !!formData.shipperFirstName &&
-      !!formData.shipperLastName &&
-      !!formData.consigneeFirstName &&
-      !!formData.consigneeLastName &&
-      !!formData.modeOfService?.value &&
-      !!formData.containerSize?.value &&
-      !!formData.origin?.value &&
-      !!formData.destination?.value &&
-      (Number.isInteger(formData.terms) ? formData.terms > 0 : !!formData.terms) &&
+      formData.userId && 
+      formData.shipperFirstName &&
+      formData.shipperLastName &&
+      formData.consigneeFirstName &&
+      formData.consigneeLastName &&
+      formData.modeOfService?.value &&
+      formData.containerSize?.value &&
+      formData.origin?.value &&
+      formData.destination?.value &&
+      (Number.isInteger(formData.terms) ? formData.terms > 0 : formData.terms) &&
       items.length > 0;
 
     const itemsValid = items.every(item => {
@@ -325,9 +321,6 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
     });
 
     const weightValid = weightValidation.isValid;
-
-    // debug log (you can remove later)
-    // console.log('🔍 Form Validation:', { hasRequiredFields, itemsValid, weightValid, items });
 
     return hasRequiredFields && itemsValid && weightValid;
   };
@@ -393,539 +386,516 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
   );
 
   const onSubmit = async (data) => {
-  try {
-    setIsSubmitting(true);
+    try {
+      setIsSubmitting(true);
 
-    // Build the booking object matching bookingSchema
-    const bookingData = {
-      ...data,
-      containerQuantity,
-      departureDate: departureDate ?? null,
-      deliveryDate: deliveryDate ?? null,
-      pickupLocation: showPickup && Object.keys(pickupLocation).length > 0 ? pickupLocation : null,
-      deliveryLocation: showDelivery && Object.keys(deliveryLocation).length > 0 ? deliveryLocation : null,
-      terms: parseInt(data.terms) || 1,
-      items: items.map(item => ({
-        name: item.name,
-        weight: item.weight === "" ? null : parseFloat(item.weight),
-        quantity: item.quantity === "" ? null : parseInt(item.quantity),
-        category: item.category === "other" ? item.customCategory : item.category,
-        customCategory: item.customCategory || undefined,
-      })),
-    };
+      const bookingData = {
+        ...data,
+        containerQuantity,
+        departureDate: departureDate ?? null,
+        deliveryDate: deliveryDate ?? null,
+        pickupLocation: showPickup && Object.keys(pickupLocation).length > 0 ? pickupLocation : null,
+        deliveryLocation: showDelivery && Object.keys(deliveryLocation).length > 0 ? deliveryLocation : null,
+        terms: parseInt(data.terms) || 1,
+        items: items.map(item => ({
+          name: item.name,
+          weight: parseFloat(item.weight),
+          quantity: parseInt(item.quantity),
+          category: item.category === "other" ? item.customCategory : item.category,
+        })),
+      };
 
-    console.log('📝 Form Data Before Validation:', bookingData);
+      const validatedData = bookingSchema.parse(bookingData);
+      const apiData = transformBookingToApi(validatedData);
+      await onSave(apiData);
 
-    // Validate using the frontend schema (this throws ZodError on fail)
-    const validatedData = bookingSchema.parse(bookingData);
-    console.log('✅ Frontend Validation Passed:', validatedData);
-
-    // Transform to API format
-    const apiData = transformBookingToApi(validatedData);
-    console.log('📤 Transformed API Data:', apiData);
-
-    // Debug: Check for critical missing fields
-    console.log('🔍 Critical Fields Check:', {
-      hasShippingLineId: !!apiData.shipping_line_id,
-      hasDepartureDate: !!apiData.departure_date,
-      hasDeliveryDate: !!apiData.delivery_date,
-      shippingLineId: apiData.shipping_line_id,
-      departureDate: apiData.departure_date,
-      deliveryDate: apiData.delivery_date
-    });
-
-    // Call parent's onSave (expected to call API)
-    await onSave(apiData);
-
-    // Close modal on success
-    console.log('✅ Booking created successfully via frontend');
-
-  } catch (error) {
-    // Zod validation error
-    if (error?.errors && Array.isArray(error.errors)) {
-      const errorMessages = {};
-      error.errors.forEach(err => {
-        const path = err.path.join('.');
-        errorMessages[path] = err.message;
-      });
-      console.error('❌ Validation errors:', errorMessages);
-      alert(`Validation error: ${Object.values(errorMessages).join(', ')}`);
-    } else if (error?.response) {
-      // API error - show detailed error
-      console.error('❌ API Error Response:', error.response);
-      const apiError = error.response.data;
-      console.error('❌ API Error Details:', {
-        message: apiError.message,
-        error: apiError.error,
-        validationErrors: apiError.errors
-      });
-      alert(`API Error: ${apiError.message || 'Failed to create booking'}\n\nDetails: ${apiError.error || 'Check console for more info'}`);
-    } else if (error.message) {
-      // Other errors
-      console.error('❌ Unexpected error:', error);
-      console.error('❌ Error stack:', error.stack);
-      alert(`Error: ${error.message}`);
-    } else {
-      console.error('❌ Unknown error:', error);
-      alert('An unexpected error occurred. Check console for details.');
+    } catch (error) {
+      if (error?.errors && Array.isArray(error.errors)) {
+        const errorMessages = error.errors.map(err => err.message);
+        alert(`Validation error: ${errorMessages.join(', ')}`);
+      } else if (error?.response) {
+        alert(`API Error: ${error.response.data.message || 'Failed to create booking'}`);
+      } else {
+        alert('An unexpected error occurred. Please try again.');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+  };
 
   const responsiveGrid = "grid grid-cols-1 md:grid-cols-2 gap-4";
 
   return (
-    <SharedModal isOpen={isOpen} onClose={onClose} title="Add Booking" size="md">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-h-[80vh] overflow-y-auto">
-        {/* Customer Selection */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
-            Customer Information
-          </h3>
-          <div>
-            <label className="modal-label">Select Customer *</label>
-            <Select
-              options={userOptions}
-              value={selectedUser}
-              onChange={handleUserSelect}
-              className={`react-select-container ${errors.userId ? 'border-red-500' : ''}`}
-              classNamePrefix="react-select"
-              placeholder="Select customer"
-              isLoading={usersLoading}
-              isClearable
-            />
-            {errors.userId && <span className="modal-error">{errors.userId.message}</span>}
-          </div>
+<SharedModal isOpen={isOpen} onClose={onClose} title="Add Booking" size="md">
+  <div className="space-y-6 max-h-[80vh] overflow-y-auto">
+    {/* Customer Selection */}
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
+        Customer Information
+      </h3>
+      <div>
+        <label className="modal-label">Select Customer *</label>
+        <Select
+          options={userOptions}
+          value={selectedUser}
+          onChange={handleUserSelect}
+          className={`react-select-container ${errors.userId ? 'border-red-500' : ''}`}
+          classNamePrefix="react-select"
+          placeholder="Select customer"
+          isLoading={usersLoading}
+          isClearable
+        />
+        {errors.userId && <span className="modal-error">{errors.userId.message}</span>}
+      </div>
 
-          {/* Customer Info Display */}
-          {selectedUser?.userData && (
-            <div className="email-notice border border-blue-700 bg-blue-900">
-              <div className="flex items-start gap-4 pl-4">
-                <AlertCircle className="email-notice-icon text-blue-100" />
-                <div className="email-notice-text text-blue-200">
-                  <p><strong>Customer:</strong> {selectedUser.userData.first_name} {selectedUser.userData.last_name}</p>
-                  <p><strong>Email:</strong> {selectedUser.userData.email}</p>
-                  {selectedUser.userData.contact_number && (
-                    <p><strong>Contact:</strong> {selectedUser.userData.contact_number}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Shipper Information */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
-            Shipper Information
-          </h3>
-          <div className={responsiveGrid}>
-            <div>
-              <label className="modal-label">Shipper First Name *</label>
-              <input
-                type="text"
-                placeholder="Enter shipper's first name"
-                className={`modal-input ${errors.shipperFirstName ? 'border-red-500' : ''}`}
-                {...register('shipperFirstName')}
-              />
-              {errors.shipperFirstName && <span className="modal-error">{errors.shipperFirstName.message}</span>}
-            </div>
-            <div>
-              <label className="modal-label">Shipper Last Name *</label>
-              <input
-                type="text"
-                placeholder="Enter shipper's last name"
-                className={`modal-input ${errors.shipperLastName ? 'border-red-500' : ''}`}
-                {...register('shipperLastName')}
-              />
-              {errors.shipperLastName && <span className="modal-error">{errors.shipperLastName.message}</span>}
-            </div>
-            <div className="md:col-span-2">
-              <label className="modal-label">Contact Number (Optional)</label>
-              <input
-                type="tel"
-                placeholder="Enter shipper's contact number"
-                className="modal-input"
-                {...register('shipperContact')}
-                onInput={(e) => { e.target.value = e.target.value.replace(/[^\d]/g, ''); }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Consignee Information */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
-            Consignee Information
-          </h3>
-          <div className={responsiveGrid}>
-            <div>
-              <label className="modal-label">Consignee First Name *</label>
-              <input
-                type="text"
-                placeholder="Enter consignee's first name"
-                className={`modal-input ${errors.consigneeFirstName ? 'border-red-500' : ''}`}
-                {...register('consigneeFirstName')}
-              />
-              {errors.consigneeFirstName && <span className="modal-error">{errors.consigneeFirstName.message}</span>}
-            </div>
-            <div>
-              <label className="modal-label">Consignee Last Name *</label>
-              <input
-                type="text"
-                placeholder="Enter consignee's last name"
-                className={`modal-input ${errors.consigneeLastName ? 'border-red-500' : ''}`}
-                {...register('consigneeLastName')}
-              />
-              {errors.consigneeLastName && <span className="modal-error">{errors.consigneeLastName.message}</span>}
-            </div>
-            <div className="md:col-span-2">
-              <label className="modal-label">Contact Number (Optional)</label>
-              <input
-                type="tel"
-                placeholder="Enter consignee's contact number"
-                className="modal-input"
-                {...register('consigneeContact')}
-                onInput={(e) => { e.target.value = e.target.value.replace(/[^\d]/g, ''); }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Items */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
-            Item / Commodity Information
-          </h3>
-          {items.map((it, idx) => {
-            const showCustomCategory = it.category === "other";
-            const selectedCategory = categoryOptions.find((o) => o.value === it.category) || null;
-
-            return (
-              <div key={it.id} className="bg-main border border-main rounded-lg p-4 space-y-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-semibold text-heading">Item {idx + 1}</h4>
-                  {items.length > 1 && (
-                    <button type="button" onClick={() => removeItem(it.id)} className="text-red-500 hover:text-red-700">
-                      <X className="w-5 h-5" />
-                    </button>
-                  )}
-                </div>
-                <div className={responsiveGrid}>
-                  <div>
-                    <label className="modal-label">Item Name *</label>
-                    <input
-                      className="modal-input"
-                      value={it.name}
-                      onChange={(e) => handleItemChange(it.id, "name", e.target.value)}
-                      placeholder="Enter item name"
-                    />
-                  </div>
-                  <div>
-                    <label className="modal-label">Category *</label>
-                    <Select
-                      options={categoryOptions}
-                      value={selectedCategory}
-                      onChange={(s) => handleCategoryChange(it.id, s)}
-                      className="react-select-container"
-                      classNamePrefix="react-select"
-                      placeholder="Select category"
-                      isLoading={categoriesLoading}
-                    />
-                    {showCustomCategory && (
-                      <div className="mt-2">
-                        <label className="modal-label">Category Name *</label>
-                        <input
-                          className="modal-input"
-                          value={it.customCategory}
-                          onChange={(e) => handleItemChange(it.id, "customCategory", e.target.value)}
-                          placeholder="Please specify category name"
-                        />
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <label className="modal-label">Weight (kg) *</label>
-                    <input
-                      type="number"
-                      className="modal-input"
-                      value={it.weight}
-                      onChange={(e) => handleItemChange(it.id, "weight", e.target.value)}
-                      placeholder="Enter weight in kg"
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
-                  <div>
-                    <label className="modal-label">Quantity *</label>
-                    <input
-                      type="number"
-                      className="modal-input"
-                      value={it.quantity}
-                      onChange={(e) => handleItemChange(it.id, "quantity", e.target.value)}
-                      placeholder="Enter quantity"
-                      min="1"
-                    />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-          <button type="button" onClick={addItem} className="text-primary font-medium text-sm hover:underline">
-            + Add another item
-          </button>
-        </div>
-
-        {/* Shipping Preferences */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
-            Shipping Preferences
-          </h3>
-
-          {/* Basic Shipping Details */}
-          <div className="space-y-4">
-            <h4 className="font-semibold text-heading">Basic Details</h4>
-            <div className={responsiveGrid}>
-              <div>
-                <label className="modal-label">Mode of Service *</label>
-                <Select
-                  options={modeOptions}
-                  value={formData.modeOfService}
-                  onChange={(s) => setValue("modeOfService", s, { shouldValidate: true })}
-                  className={`react-select-container ${errors.modeOfService ? 'border-red-500' : ''}`}
-                  classNamePrefix="react-select"
-                  placeholder="Select mode of service"
-                />
-                {errors.modeOfService && <span className="modal-error">{errors.modeOfService.message}</span>}
-              </div>
-              <div>
-                <label className="modal-label">Terms (Days) *</label>
-                <input
-                  type="text"
-                  className={`modal-input ${errors.terms ? 'border-red-500' : ''}`}
-                  placeholder="Enter terms in days"
-                  value={formData.terms || ""}
-                  onChange={(e) => handleTermsChange(e.target.value)}
-                />
-                {errors.terms && <span className="modal-error">{errors.terms.message}</span>}
-              </div>
-            </div>
-          </div>
-
-          {/* Container Information */}
-          <div className="space-y-4">
-            <h4 className="font-semibold text-heading">Container Information</h4>
-            <div className={responsiveGrid}>
-              <div>
-                <label className="modal-label">Container Type *</label>
-                <Select
-                  options={containerOptions}
-                  value={formData.containerSize}
-                  onChange={(s) => setValue("containerSize", s, { shouldValidate: true })}
-                  className={`react-select-container ${errors.containerSize ? 'border-red-500' : ''}`}
-                  classNamePrefix="react-select"
-                  placeholder="Select container type"
-                  isLoading={containerTypesLoading}
-                />
-                {errors.containerSize && <span className="modal-error">{errors.containerSize.message}</span>}
-              </div>
-              {formData.containerSize && (
-                <div>
-                  <label className="modal-label">Container Quantity *</label>
-                  <ContainerQuantityInput />
-                </div>
+      {selectedUser?.userData && (
+        <div className="email-notice border border-blue-700 bg-blue-900">
+          <div className="flex items-start gap-4 pl-4">
+            <AlertCircle className="email-notice-icon text-blue-100" />
+            <div className="email-notice-text text-blue-200">
+              <p><strong>Customer:</strong> {selectedUser.userData.first_name} {selectedUser.userData.last_name}</p>
+              <p><strong>Email:</strong> {selectedUser.userData.email}</p>
+              {selectedUser.userData.contact_number && (
+                <p><strong>Contact:</strong> {selectedUser.userData.contact_number}</p>
               )}
             </div>
+          </div>
+        </div>
+      )}
+    </div>
 
-            {/* Weight Display */}
-            {items.some(item => item.weight && item.quantity) && formData.containerSize && (
-              <div className={`email-notice ${
+    {/* Shipper Information */}
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
+        Shipper Information
+      </h3>
+      <div className={responsiveGrid}>
+        <div>
+          <label className="modal-label">Shipper First Name *</label>
+          <input
+            type="text"
+            placeholder="Enter shipper's first name"
+            className={`modal-input ${errors.shipperFirstName ? 'border-red-500' : ''}`}
+            {...register('shipperFirstName')}
+          />
+          {errors.shipperFirstName && <span className="modal-error">{errors.shipperFirstName.message}</span>}
+        </div>
+        <div>
+          <label className="modal-label">Shipper Last Name *</label>
+          <input
+            type="text"
+            placeholder="Enter shipper's last name"
+            className={`modal-input ${errors.shipperLastName ? 'border-red-500' : ''}`}
+            {...register('shipperLastName')}
+          />
+          {errors.shipperLastName && <span className="modal-error">{errors.shipperLastName.message}</span>}
+        </div>
+        <div className="md:col-span-2">
+          <label className="modal-label">Contact Number (Optional)</label>
+          <input
+            type="tel"
+            placeholder="Enter shipper's contact number"
+            className="modal-input"
+            {...register('shipperContact')}
+            onInput={(e) => { e.target.value = e.target.value.replace(/[^\d]/g, ''); }}
+          />
+        </div>
+      </div>
+    </div>
+
+    {/* Consignee Information */}
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
+        Consignee Information
+      </h3>
+      <div className={responsiveGrid}>
+        <div>
+          <label className="modal-label">Consignee First Name *</label>
+          <input
+            type="text"
+            placeholder="Enter consignee's first name"
+            className={`modal-input ${errors.consigneeFirstName ? 'border-red-500' : ''}`}
+            {...register('consigneeFirstName')}
+          />
+          {errors.consigneeFirstName && <span className="modal-error">{errors.consigneeFirstName.message}</span>}
+        </div>
+        <div>
+          <label className="modal-label">Consignee Last Name *</label>
+          <input
+            type="text"
+            placeholder="Enter consignee's last name"
+            className={`modal-input ${errors.consigneeLastName ? 'border-red-500' : ''}`}
+            {...register('consigneeLastName')}
+          />
+          {errors.consigneeLastName && <span className="modal-error">{errors.consigneeLastName.message}</span>}
+        </div>
+        <div className="md:col-span-2">
+          <label className="modal-label">Contact Number (Optional)</label>
+          <input
+            type="tel"
+            placeholder="Enter consignee's contact number"
+            className="modal-input"
+            {...register('consigneeContact')}
+            onInput={(e) => { e.target.value = e.target.value.replace(/[^\d]/g, ''); }}
+          />
+        </div>
+      </div>
+    </div>
+
+    {/* Items */}
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
+        Item / Commodity Information
+      </h3>
+      {items.map((it, idx) => {
+        const showCustomCategory = it.category === "other";
+        const selectedCategory = categoryOptions.find((o) => o.value === it.category) || null;
+
+        return (
+          <div key={it.id} className="bg-main border border-main rounded-lg p-4 space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-semibold text-heading">Item {idx + 1}</h4>
+              {items.length > 1 && (
+                <button type="button" onClick={() => removeItem(it.id)} className="text-red-500 hover:text-red-700">
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+            <div className={responsiveGrid}>
+              <div>
+                <label className="modal-label">Item Name *</label>
+                <input
+                  className="modal-input"
+                  value={it.name}
+                  onChange={(e) => handleItemChange(it.id, "name", e.target.value)}
+                  placeholder="Enter item name"
+                />
+              </div>
+              <div>
+                <label className="modal-label">Category *</label>
+                <Select
+                  options={categoryOptions}
+                  value={selectedCategory}
+                  onChange={(s) => handleCategoryChange(it.id, s)}
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                  placeholder="Select category"
+                  isLoading={categoriesLoading}
+                />
+                {showCustomCategory && (
+                  <div className="mt-2">
+                    <label className="modal-label">Category Name *</label>
+                    <input
+                      className="modal-input"
+                      value={it.customCategory}
+                      onChange={(e) => handleItemChange(it.id, "customCategory", e.target.value)}
+                      placeholder="Please specify category name"
+                    />
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="modal-label">Weight (kg) *</label>
+                <input
+                  type="number"
+                  className="modal-input"
+                  value={it.weight}
+                  onChange={(e) => handleItemChange(it.id, "weight", e.target.value)}
+                  placeholder="Enter weight in kg"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div>
+                <label className="modal-label">Quantity *</label>
+                <input
+                  type="number"
+                  className="modal-input"
+                  value={it.quantity}
+                  onChange={(e) => handleItemChange(it.id, "quantity", e.target.value)}
+                  placeholder="Enter quantity"
+                  min="1"
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      <button type="button" onClick={addItem} className="text-primary font-medium text-sm hover:underline">
+        + Add another item
+      </button>
+    </div>
+
+    {/* Shipping Preferences */}
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
+        Shipping Preferences
+      </h3>
+
+      {/* Basic Shipping Details */}
+      <div className="space-y-4">
+        <h4 className="font-semibold text-heading">Basic Details</h4>
+        <div className={responsiveGrid}>
+          <div>
+            <label className="modal-label">Mode of Service *</label>
+            <Select
+              options={modeOptions}
+              value={formData.modeOfService}
+              onChange={(s) => setValue("modeOfService", s, { shouldValidate: true })}
+              className={`react-select-container ${errors.modeOfService ? 'border-red-500' : ''}`}
+              classNamePrefix="react-select"
+              placeholder="Select mode of service"
+            />
+            {errors.modeOfService && <span className="modal-error">{errors.modeOfService.message}</span>}
+          </div>
+          <div>
+            <label className="modal-label">Terms (Days) *</label>
+            <input
+              type="text"
+              className={`modal-input ${errors.terms ? 'border-red-500' : ''}`}
+              placeholder="Enter terms in days"
+              value={formData.terms || ""}
+              onChange={(e) => handleTermsChange(e.target.value)}
+            />
+            {errors.terms && <span className="modal-error">{errors.terms.message}</span>}
+          </div>
+        </div>
+      </div>
+
+      {/* Container Information */}
+      <div className="space-y-4">
+        <h4 className="font-semibold text-heading">Container Information</h4>
+        <div className={responsiveGrid}>
+          <div>
+            <label className="modal-label">Container Type *</label>
+            <Select
+              options={containerOptions}
+              value={formData.containerSize}
+              onChange={(s) => setValue("containerSize", s, { shouldValidate: true })}
+              className={`react-select-container ${errors.containerSize ? 'border-red-500' : ''}`}
+              classNamePrefix="react-select"
+              placeholder="Select container type"
+              isLoading={containerTypesLoading}
+            />
+            {errors.containerSize && <span className="modal-error">{errors.containerSize.message}</span>}
+          </div>
+          {formData.containerSize && (
+            <div>
+              <label className="modal-label">Container Quantity *</label>
+              <ContainerQuantityInput />
+            </div>
+          )}
+        </div>
+
+        {/* Weight Display */}
+        {items.some(item => item.weight && item.quantity) && formData.containerSize && (
+          <div className={`email-notice ${
+            !weightValidation.isValid
+              ? 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900'
+              : 'border-blue-600 bg-white dark:border-blue-700 dark:bg-blue-900'
+          }`}>
+            <div className="flex items-start gap-4 pl-4">
+              <AlertCircle className={`email-notice-icon ${
                 !weightValidation.isValid
-                  ? 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900'
-                  : 'border-blue-600 bg-white dark:border-blue-700 dark:bg-blue-900'
+                  ? 'text-red-600 dark:text-red-100'
+                  : 'text-blue-600 dark:text-blue-100'
+              }`} />
+              <p className={`email-notice-text ${
+                !weightValidation.isValid
+                  ? 'text-red-700 dark:text-red-200'
+                  : 'text-black dark:text-blue-200'
               }`}>
-                <div className="flex items-start gap-4 pl-4">
-                  <AlertCircle className={`email-notice-icon ${
-                    !weightValidation.isValid
-                      ? 'text-red-600 dark:text-red-100'
-                      : 'text-blue-600 dark:text-blue-100'
-                  }`} />
-                  <p className={`email-notice-text ${
-                    !weightValidation.isValid
-                      ? 'text-red-700 dark:text-red-200'
-                      : 'text-black dark:text-blue-200'
-                  }`}>
-                    <strong className={`email-notice-heading ${
-                      !weightValidation.isValid
-                        ? 'text-red-600 dark:text-red-100'
-                        : 'text-blue-600 dark:text-blue-100'
-                    }`}>
-                      {!weightValidation.isValid ? 'Weight Capacity Exceeded:' : 'Weight Status:'}
-                    </strong>{' '}
-                    {weightValidation.message}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Route Information */}
-          <div className="space-y-4">
-            <h4 className="font-semibold text-heading">Route Information</h4>
-            <div className={responsiveGrid}>
-              <div>
-                <label className="modal-label">Origin Port</label>
-                <Select
-                  options={portOptions}
-                  value={formData.origin}
-                  onChange={(s) => setValue("origin", s, { shouldValidate: true })}
-                  className={`react-select-container ${errors.origin ? 'border-red-500' : ''}`}
-                  classNamePrefix="react-select"
-                  placeholder="Select origin port"
-                  isLoading={portsLoading}
-                />
-                {errors.origin && <span className="modal-error">{errors.origin.message}</span>}
-              </div>
-              <div>
-                <label className="modal-label">Destination Port</label>
-                <Select
-                  options={portOptions}
-                  value={formData.destination}
-                  onChange={(s) => setValue("destination", s, { shouldValidate: true })}
-                  className={`react-select-container ${errors.destination ? 'border-red-500' : ''}`}
-                  classNamePrefix="react-select"
-                  placeholder="Select destination port"
-                  isLoading={portsLoading}
-                />
-                {errors.destination && <span className="modal-error">{errors.destination.message}</span>}
-              </div>
+                <strong className={`email-notice-heading ${
+                  !weightValidation.isValid
+                    ? 'text-red-600 dark:text-red-100'
+                    : 'text-blue-600 dark:text-blue-100'
+                }`}>
+                  {!weightValidation.isValid ? 'Weight Capacity Exceeded:' : 'Weight Status:'}
+                </strong>{' '}
+                {weightValidation.message}
+              </p>
             </div>
           </div>
+        )}
+      </div>
 
-          {/* Schedule Information */}
-          <div className="space-y-4">
-            <h4 className="font-semibold text-heading">Schedule</h4>
-            <div className={responsiveGrid}>
-              <div>
-                <label className="modal-label">Preferred Departure Date (Optional)</label>
-                <DatePicker
-                  selected={departureDate}
-                  onChange={(date) => {
-                    setDepartureDate(date);
-                    setValue('departureDate', date, { shouldValidate: true });
-                  }}
-                  customInput={<DateInput placeholder="Select preferred departure date" />}
-                  minDate={new Date()}
-                />
-              </div>
-              <div>
-                <label className="modal-label">Preferred Delivery Date (Optional)</label>
-                <DatePicker
-                  selected={deliveryDate}
-                  onChange={(date) => {
-                    setDeliveryDate(date);
-                    setValue('deliveryDate', date, { shouldValidate: true });
-                  }}
-                  customInput={<DateInput placeholder="Select preferred delivery date" />}
-                  minDate={departureDate}
-                />
-              </div>
-            </div>
+      {/* Route Information */}
+      <div className="space-y-4">
+        <h4 className="font-semibold text-heading">Route Information</h4>
+        <div className={responsiveGrid}>
+          <div>
+            <label className="modal-label">Origin Port</label>
+            <Select
+              options={portOptions}
+              value={formData.origin}
+              onChange={(s) => setValue("origin", s, { shouldValidate: true })}
+              className={`react-select-container ${errors.origin ? 'border-red-500' : ''}`}
+              classNamePrefix="react-select"
+              placeholder="Select origin port"
+              isLoading={portsLoading}
+            />
+            {errors.origin && <span className="modal-error">{errors.origin.message}</span>}
           </div>
-
-          {/* Service Providers */}
-          <div className="space-y-4">
-            <h4 className="font-semibold text-heading">Service Providers</h4>
-            <div className={responsiveGrid}>
-              <div>
-                <label className="modal-label">Preferred Shipping Line</label>
-                <Select
-                  options={shippingLineOptions}
-                  value={formData.shippingLine}
-                  onChange={(s) => setValue("shippingLine", s, { shouldValidate: true })}
-                  className={`react-select-container ${errors.shippingLine ? 'border-red-500' : ''}`}
-                  classNamePrefix="react-select"
-                  placeholder="Select shipping line"
-                  isLoading={shippingLinesLoading}
-                />
-              </div>
-              <div>
-                <label className="modal-label">Preferred Trucking Company</label>
-                <Select
-                  options={truckCompanyOptions}
-                  value={formData.truckCompany}
-                  onChange={(s) => setValue("truckCompany", s, { shouldValidate: true })}
-                  className={`react-select-container ${errors.truckCompany ? 'border-red-500' : ''}`}
-                  classNamePrefix="react-select"
-                  placeholder="Select trucking company"
-                  isLoading={truckCompsLoading}
-                />
-              </div>
-            </div>
+          <div>
+            <label className="modal-label">Destination Port</label>
+            <Select
+              options={portOptions}
+              value={formData.destination}
+              onChange={(s) => setValue("destination", s, { shouldValidate: true })}
+              className={`react-select-container ${errors.destination ? 'border-red-500' : ''}`}
+              classNamePrefix="react-select"
+              placeholder="Select destination port"
+              isLoading={portsLoading}
+            />
+            {errors.destination && <span className="modal-error">{errors.destination.message}</span>}
           </div>
-
-          {/* Location fields */}
-          {showPickup && (
-            <div className="bg-main border border-main rounded-lg p-4">
-              <h4 className="font-semibold text-heading mb-4">Pickup Location</h4>
-              <LocationFields
-                type="pickup"
-                value={pickupLocation}
-                onChange={(val) => {
-                  setPickupLocation(val);
-                  setValue('pickupLocation', val, { shouldValidate: true });
-                }}
-                showStreetSearch={true}
-              />
-            </div>
-          )}
-
-          {showDelivery && (
-            <div className="bg-main border border-main rounded-lg p-4">
-              <h4 className="font-semibold text-heading mb-4">Delivery Location</h4>
-              <LocationFields
-                type="delivery"
-                value={deliveryLocation}
-                onChange={(val) => {
-                  setDeliveryLocation(val);
-                  setValue('deliveryLocation', val, { shouldValidate: true });
-                }}
-                showStreetSearch={true}
-              />
-            </div>
-          )}
         </div>
+      </div>
 
-        {/* Buttons */}
-        <div className="flex justify-end gap-3 pt-6 border-t border-main">
-          <button
-            type="button"
-            onClick={onClose}
-            className={`modal-btn-cancel ${isSubmitting ? 'modal-btn-disabled' : ''}`}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </button>
-
-          <button
-            type="submit"
-            className={`modal-btn-primary ${(!isFormValid() || isSubmitting) ? 'modal-btn-disabled' : ''}`}
-            disabled={!isFormValid() || isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Creating...
-              </>
-            ) : (
-              'Add Booking'
-            )}
-          </button>
+      {/* Schedule Information */}
+      <div className="space-y-4">
+        <h4 className="font-semibold text-heading">Schedule</h4>
+        <div className={responsiveGrid}>
+          <div>
+            <label className="modal-label">Preferred Departure Date (Optional)</label>
+            <DatePicker
+              selected={departureDate}
+              onChange={(date) => {
+                setDepartureDate(date);
+                setValue('departureDate', date, { shouldValidate: true });
+              }}
+              customInput={<DateInput placeholder="Select preferred departure date" />}
+              minDate={new Date()}
+            />
+          </div>
+          <div>
+            <label className="modal-label">Preferred Delivery Date (Optional)</label>
+            <DatePicker
+              selected={deliveryDate}
+              onChange={(date) => {
+                setDeliveryDate(date);
+                setValue('deliveryDate', date, { shouldValidate: true });
+              }}
+              customInput={<DateInput placeholder="Select preferred delivery date" />}
+              minDate={departureDate}
+            />
+          </div>
         </div>
-      </form>
-    </SharedModal>
+      </div>
+
+      {/* Service Providers */}
+      <div className="space-y-4">
+        <h4 className="font-semibold text-heading">Service Providers</h4>
+        <div className={responsiveGrid}>
+          <div>
+            <label className="modal-label">Preferred Shipping Line</label>
+            <Select
+              options={shippingLineOptions}
+              value={formData.shippingLine}
+              onChange={(s) => setValue("shippingLine", s, { shouldValidate: true })}
+              className={`react-select-container ${errors.shippingLine ? 'border-red-500' : ''}`}
+              classNamePrefix="react-select"
+              placeholder="Select shipping line"
+              isLoading={shippingLinesLoading}
+            />
+          </div>
+          <div>
+            <label className="modal-label">Preferred Trucking Company</label>
+            <Select
+              options={truckCompanyOptions}
+              value={formData.truckCompany}
+              onChange={(s) => setValue("truckCompany", s, { shouldValidate: true })}
+              className={`react-select-container ${errors.truckCompany ? 'border-red-500' : ''}`}
+              classNamePrefix="react-select"
+              placeholder="Select trucking company"
+              isLoading={truckCompsLoading}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Location fields */}
+      {showPickup && (
+        <div className="bg-main border border-main rounded-lg p-4">
+          <h4 className="font-semibold text-heading mb-4">Pickup Location</h4>
+          <LocationFields
+            type="pickup"
+            value={pickupLocation}
+            onChange={(val) => {
+              setPickupLocation(val);
+              setValue('pickupLocation', val, { shouldValidate: true });
+            }}
+            showStreetSearch={true}
+          />
+        </div>
+      )}
+
+      {showDelivery && (
+        <div className="bg-main border border-main rounded-lg p-4">
+          <h4 className="font-semibold text-heading mb-4">Delivery Location</h4>
+          <LocationFields
+            type="delivery"
+            value={deliveryLocation}
+            onChange={(val) => {
+              setDeliveryLocation(val);
+              setValue('deliveryLocation', val, { shouldValidate: true });
+            }}
+            showStreetSearch={true}
+          />
+        </div>
+      )}
+    </div>
+
+    {/* Buttons */}
+    <div className="flex justify-end gap-3 pt-6 border-t border-main">
+      <button
+        type="button"
+        onClick={onClose}
+        className={`modal-btn-cancel ${isSubmitting ? 'modal-btn-disabled' : ''}`}
+        disabled={isSubmitting}
+      >
+        Cancel
+      </button>
+
+      <button
+        type="button"
+        onClick={() => {
+          // Manually gather all form data exactly like the bypass button
+          const formData = watch();
+          const bookingData = {
+            ...formData,
+            containerQuantity,
+            departureDate: departureDate ?? null,
+            deliveryDate: deliveryDate ?? null,
+            pickupLocation: showPickup && Object.keys(pickupLocation).length > 0 ? pickupLocation : null,
+            deliveryLocation: showDelivery && Object.keys(deliveryLocation).length > 0 ? deliveryLocation : null,
+            terms: parseInt(formData.terms) || 1,
+            items: items.map(item => ({
+              name: item.name,
+              weight: parseFloat(item.weight),
+              quantity: parseInt(item.quantity),
+              category: item.category === "other" ? item.customCategory : item.category,
+            })),
+          };
+          
+          // Call onSubmit directly with the manually gathered data
+          onSubmit(bookingData);
+        }}
+        className={`modal-btn-primary ${(!isFormValid() || isSubmitting) ? 'modal-btn-disabled' : ''}`}
+        disabled={!isFormValid() || isSubmitting}
+      >
+        {isSubmitting ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Creating...
+          </>
+        ) : (
+          'Add Booking'
+        )}
+      </button>
+    </div>
+  </div>
+</SharedModal>
   );
 };
 
