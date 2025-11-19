@@ -161,12 +161,12 @@ export const defaultBookingValues = {
   departureDate: null,
   deliveryDate: null,
 
-  // Locations
-  pickupLocation: null,
-  deliveryLocation: null,
+  // Locations - CHANGED FROM null TO EMPTY OBJECTS
+  pickupLocation: {},
+  deliveryLocation: {},
 
   // Terms
-  terms: 1, // Changed from 0 to 1
+  terms: 1,
 
   // Items - start with one empty item
   items: [

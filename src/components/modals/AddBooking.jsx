@@ -24,24 +24,27 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
   const [pickupLocation, setPickupLocation] = useState({});
   const [deliveryLocation, setDeliveryLocation] = useState({});
   const [selectedUser, setSelectedUser] = useState(null);
+  const [formTouched, setFormTouched] = useState(false);
 
   const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    trigger,
-    formState: { errors },
-  } = useForm({
-    resolver: zodResolver(bookingSchema),
-    mode: 'onChange',
-    defaultValues: {
-      ...defaultBookingValues,
-      containerQuantity: 1,
-      terms: 1,
-    },
-  });
+  register,
+  handleSubmit,
+  reset,
+  setValue,
+  watch,
+  trigger,
+  formState: { errors },
+} = useForm({
+  resolver: zodResolver(bookingSchema),
+  mode: 'onBlur',
+  defaultValues: {
+    ...defaultBookingValues,
+    containerQuantity: 1,
+    terms: 1,
+  },
+  shouldFocusError: false,
+  shouldUseNativeValidation: false,
+});
 
   const formData = watch();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -128,7 +131,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
     if (!portsData?.data) return [];
     return portsData.data.map(port => ({
       value: port.id,
-      label: `${port.route_name} (${port.name})`,
+      label: `${port.name} (${port.route_name})`,
     }));
   }, [portsData]);
 
@@ -156,44 +159,62 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
   ];
 
   // Reset form when modal opens/closes
-  useEffect(() => {
-    if (isOpen) {
-      reset({
-        ...defaultBookingValues,
-        containerQuantity: 1,
-        terms: 1,
-      });
+useEffect(() => {
+  if (isOpen) {
+    reset({
+      ...defaultBookingValues,
+      containerQuantity: 1,
+      terms: 1,
+    }, {
+      keepErrors: false, // This ensures errors are cleared on reset
+      keepDirty: false,
+      keepIsSubmitted: false,
+      keepTouched: false,
+      keepIsValid: false,
+      keepSubmitCount: false,
+    });
 
-      setItems([{
-        id: 1,
-        name: "",
-        weight: "",
-        quantity: "",
-        category: "",
-        customCategory: ""
-      }]);
-      setDepartureDate(null);
-      setDeliveryDate(null);
-      setContainerQuantity(1);
-      setPickupLocation({});
-      setDeliveryLocation({});
-      setWeightValidation({ isValid: true, message: "" });
-      setSelectedUser(null);
+    setItems([{
+      id: 1,
+      name: "",
+      weight: "",
+      quantity: "",
+      category: "",
+      customCategory: ""
+    }]);
+    setDepartureDate(null);
+    setDeliveryDate(null);
+    setContainerQuantity(1);
+    setPickupLocation({});
+    setDeliveryLocation({});
+    setWeightValidation({ isValid: true, message: "" });
+    setSelectedUser(null);
+    setFormTouched(false);
 
-      setValue('containerQuantity', 1, { shouldValidate: true });
-      setValue('terms', 1, { shouldValidate: true });
-      setValue('modeOfService', null, { shouldValidate: true });
-      setValue('origin', null, { shouldValidate: true });
-      setValue('destination', null, { shouldValidate: true });
-      setValue('shippingLine', null, { shouldValidate: true });
-      setValue('truckCompany', null, { shouldValidate: true });
-      setValue('userId', null, { shouldValidate: true });
+    // Remove shouldValidate: true from these setValue calls
+    setValue('containerQuantity', 1);
+    setValue('terms', 1);
+    setValue('modeOfService', null);
+    setValue('origin', null);
+    setValue('destination', null);
+    setValue('shippingLine', null);
+    setValue('truckCompany', null);
+    setValue('userId', null);
+  }
+}, [isOpen, reset, setValue]);
+
+  // Handle form field changes to set touched state
+  const handleFieldChange = (field, value, options = {}) => {
+    setFormTouched(true);
+    if (options.setValue) {
+      setValue(field, value, { shouldValidate: true });
     }
-  }, [isOpen, reset, setValue]);
+  };
 
   // Handle user selection
   const handleUserSelect = (selectedOption) => {
     setSelectedUser(selectedOption);
+    setFormTouched(true);
 
     if (selectedOption?.userData) {
       setValue("userId", selectedOption.value, { shouldValidate: true });
@@ -254,14 +275,17 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
       category: "",
       customCategory: "",
     }]);
+    setFormTouched(true);
   };
 
   const removeItem = (id) => {
     setItems((s) => s.filter((it) => it.id !== id));
+    setFormTouched(true);
   };
 
   const handleItemChange = (id, field, value) => {
     setItems((s) => s.map((it) => (it.id === id ? { ...it, [field]: value } : it)));
+    setFormTouched(true);
   };
 
   const handleCategoryChange = (id, selectedOption) => {
@@ -274,6 +298,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
 
   // Handle terms change
   const handleTermsChange = (value) => {
+    setFormTouched(true);
     if (value === "" || /^\d*$/.test(value)) {
       const numValue = value === "" ? 1 : parseInt(value);
       setValue("terms", numValue, { shouldValidate: true });
@@ -282,12 +307,14 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
 
   // Container quantity increment/decrement
   const incrementContainerQuantity = () => {
+    setFormTouched(true);
     const newQuantity = containerQuantity + 1;
     setContainerQuantity(newQuantity);
     setValue("containerQuantity", newQuantity, { shouldValidate: true });
   };
 
   const decrementContainerQuantity = () => {
+    setFormTouched(true);
     const newQuantity = containerQuantity > 1 ? containerQuantity - 1 : 1;
     setContainerQuantity(newQuantity);
     setValue("containerQuantity", newQuantity, { shouldValidate: true });
@@ -356,6 +383,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
         className="modal-input pr-16"
         value={containerQuantity}
         onChange={(e) => {
+          setFormTouched(true);
           const value = parseInt(e.target.value) || 1;
           const val = value > 0 ? value : 1;
           setContainerQuantity(val);
@@ -434,18 +462,18 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
         Customer Information
       </h3>
       <div>
-        <label className="modal-label">Select Customer *</label>
+        <label className="modal-label">Select Customer</label>
         <Select
           options={userOptions}
           value={selectedUser}
           onChange={handleUserSelect}
-          className={`react-select-container ${errors.userId ? 'border-red-500' : ''}`}
+          className={`react-select-container ${formTouched && errors.userId ? 'border-red-500' : ''}`}
           classNamePrefix="react-select"
           placeholder="Select customer"
           isLoading={usersLoading}
           isClearable
         />
-        {errors.userId && <span className="modal-error">{errors.userId.message}</span>}
+        {formTouched && errors.userId && <span className="modal-error">{errors.userId.message}</span>}
       </div>
 
       {selectedUser?.userData && (
@@ -471,24 +499,28 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
       </h3>
       <div className={responsiveGrid}>
         <div>
-          <label className="modal-label">Shipper First Name *</label>
+          <label className="modal-label">Shipper First Name</label>
           <input
             type="text"
             placeholder="Enter shipper's first name"
-            className={`modal-input ${errors.shipperFirstName ? 'border-red-500' : ''}`}
-            {...register('shipperFirstName')}
+            className={`modal-input ${formTouched && errors.shipperFirstName ? 'border-red-500' : ''}`}
+            {...register('shipperFirstName', {
+              onChange: () => setFormTouched(true)
+            })}
           />
-          {errors.shipperFirstName && <span className="modal-error">{errors.shipperFirstName.message}</span>}
+          {formTouched && errors.shipperFirstName && <span className="modal-error">{errors.shipperFirstName.message}</span>}
         </div>
         <div>
-          <label className="modal-label">Shipper Last Name *</label>
+          <label className="modal-label">Shipper Last Name</label>
           <input
             type="text"
             placeholder="Enter shipper's last name"
-            className={`modal-input ${errors.shipperLastName ? 'border-red-500' : ''}`}
-            {...register('shipperLastName')}
+            className={`modal-input ${formTouched && errors.shipperLastName ? 'border-red-500' : ''}`}
+            {...register('shipperLastName', {
+              onChange: () => setFormTouched(true)
+            })}
           />
-          {errors.shipperLastName && <span className="modal-error">{errors.shipperLastName.message}</span>}
+          {formTouched && errors.shipperLastName && <span className="modal-error">{errors.shipperLastName.message}</span>}
         </div>
         <div className="md:col-span-2">
           <label className="modal-label">Contact Number (Optional)</label>
@@ -510,24 +542,28 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
       </h3>
       <div className={responsiveGrid}>
         <div>
-          <label className="modal-label">Consignee First Name *</label>
+          <label className="modal-label">Consignee First Name</label>
           <input
             type="text"
             placeholder="Enter consignee's first name"
-            className={`modal-input ${errors.consigneeFirstName ? 'border-red-500' : ''}`}
-            {...register('consigneeFirstName')}
+            className={`modal-input ${formTouched && errors.consigneeFirstName ? 'border-red-500' : ''}`}
+            {...register('consigneeFirstName', {
+              onChange: () => setFormTouched(true)
+            })}
           />
-          {errors.consigneeFirstName && <span className="modal-error">{errors.consigneeFirstName.message}</span>}
+          {formTouched && errors.consigneeFirstName && <span className="modal-error">{errors.consigneeFirstName.message}</span>}
         </div>
         <div>
-          <label className="modal-label">Consignee Last Name *</label>
+          <label className="modal-label">Consignee Last Name</label>
           <input
             type="text"
             placeholder="Enter consignee's last name"
-            className={`modal-input ${errors.consigneeLastName ? 'border-red-500' : ''}`}
-            {...register('consigneeLastName')}
+            className={`modal-input ${formTouched && errors.consigneeLastName ? 'border-red-500' : ''}`}
+            {...register('consigneeLastName', {
+              onChange: () => setFormTouched(true)
+            })}
           />
-          {errors.consigneeLastName && <span className="modal-error">{errors.consigneeLastName.message}</span>}
+          {formTouched && errors.consigneeLastName && <span className="modal-error">{errors.consigneeLastName.message}</span>}
         </div>
         <div className="md:col-span-2">
           <label className="modal-label">Contact Number (Optional)</label>
@@ -563,7 +599,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
             </div>
             <div className={responsiveGrid}>
               <div>
-                <label className="modal-label">Item Name *</label>
+                <label className="modal-label">Item Name</label>
                 <input
                   className="modal-input"
                   value={it.name}
@@ -572,7 +608,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                 />
               </div>
               <div>
-                <label className="modal-label">Category *</label>
+                <label className="modal-label">Category</label>
                 <Select
                   options={categoryOptions}
                   value={selectedCategory}
@@ -584,7 +620,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                 />
                 {showCustomCategory && (
                   <div className="mt-2">
-                    <label className="modal-label">Category Name *</label>
+                    <label className="modal-label">Category Name</label>
                     <input
                       className="modal-input"
                       value={it.customCategory}
@@ -595,7 +631,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                 )}
               </div>
               <div>
-                <label className="modal-label">Weight (kg) *</label>
+                <label className="modal-label">Weight (kg)</label>
                 <input
                   type="number"
                   className="modal-input"
@@ -607,7 +643,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
                 />
               </div>
               <div>
-                <label className="modal-label">Quantity *</label>
+                <label className="modal-label">Quantity</label>
                 <input
                   type="number"
                   className="modal-input"
@@ -636,28 +672,29 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
       <div className="space-y-4">
         <h4 className="font-semibold text-heading">Basic Details</h4>
         <div className={responsiveGrid}>
+{/* Mode of Service */}
+<div>
+  <label className="modal-label">Mode of Service</label>
+  <Select
+    options={modeOptions}
+    value={formData.modeOfService}
+    onChange={(s) => handleFieldChange("modeOfService", s, { setValue: true })}
+    className={`react-select-container ${formTouched && errors.modeOfService ? 'border-red-500' : ''}`}
+    classNamePrefix="react-select"
+    placeholder="Select mode of service"
+  />
+  {formTouched && errors.modeOfService && <span className="modal-error">{errors.modeOfService.message}</span>}
+</div>
           <div>
-            <label className="modal-label">Mode of Service *</label>
-            <Select
-              options={modeOptions}
-              value={formData.modeOfService}
-              onChange={(s) => setValue("modeOfService", s, { shouldValidate: true })}
-              className={`react-select-container ${errors.modeOfService ? 'border-red-500' : ''}`}
-              classNamePrefix="react-select"
-              placeholder="Select mode of service"
-            />
-            {errors.modeOfService && <span className="modal-error">{errors.modeOfService.message}</span>}
-          </div>
-          <div>
-            <label className="modal-label">Terms (Days) *</label>
+            <label className="modal-label">Terms (Days)</label>
             <input
               type="text"
-              className={`modal-input ${errors.terms ? 'border-red-500' : ''}`}
+              className={`modal-input ${formTouched && errors.terms ? 'border-red-500' : ''}`}
               placeholder="Enter terms in days"
               value={formData.terms || ""}
               onChange={(e) => handleTermsChange(e.target.value)}
             />
-            {errors.terms && <span className="modal-error">{errors.terms.message}</span>}
+            {formTouched && errors.terms && <span className="modal-error">{errors.terms.message}</span>}
           </div>
         </div>
       </div>
@@ -667,21 +704,21 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
         <h4 className="font-semibold text-heading">Container Information</h4>
         <div className={responsiveGrid}>
           <div>
-            <label className="modal-label">Container Type *</label>
+            <label className="modal-label">Container Type</label>
             <Select
               options={containerOptions}
               value={formData.containerSize}
-              onChange={(s) => setValue("containerSize", s, { shouldValidate: true })}
-              className={`react-select-container ${errors.containerSize ? 'border-red-500' : ''}`}
+              onChange={(s) => handleFieldChange("containerSize", s, { setValue: true })}
+              className={`react-select-container ${formTouched && errors.containerSize ? 'border-red-500' : ''}`}
               classNamePrefix="react-select"
               placeholder="Select container type"
               isLoading={containerTypesLoading}
             />
-            {errors.containerSize && <span className="modal-error">{errors.containerSize.message}</span>}
+            {formTouched && errors.containerSize && <span className="modal-error">{errors.containerSize.message}</span>}
           </div>
           {formData.containerSize && (
             <div>
-              <label className="modal-label">Container Quantity *</label>
+              <label className="modal-label">Container Quantity</label>
               <ContainerQuantityInput />
             </div>
           )}
@@ -723,32 +760,36 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
       <div className="space-y-4">
         <h4 className="font-semibold text-heading">Route Information</h4>
         <div className={responsiveGrid}>
-          <div>
-            <label className="modal-label">Origin Port</label>
-            <Select
-              options={portOptions}
-              value={formData.origin}
-              onChange={(s) => setValue("origin", s, { shouldValidate: true })}
-              className={`react-select-container ${errors.origin ? 'border-red-500' : ''}`}
-              classNamePrefix="react-select"
-              placeholder="Select origin port"
-              isLoading={portsLoading}
-            />
-            {errors.origin && <span className="modal-error">{errors.origin.message}</span>}
-          </div>
-          <div>
-            <label className="modal-label">Destination Port</label>
-            <Select
-              options={portOptions}
-              value={formData.destination}
-              onChange={(s) => setValue("destination", s, { shouldValidate: true })}
-              className={`react-select-container ${errors.destination ? 'border-red-500' : ''}`}
-              classNamePrefix="react-select"
-              placeholder="Select destination port"
-              isLoading={portsLoading}
-            />
-            {errors.destination && <span className="modal-error">{errors.destination.message}</span>}
-          </div>
+
+{/* Origin Port */}
+<div>
+  <label className="modal-label">Origin Port</label>
+  <Select
+    options={portOptions}
+    value={formData.origin}
+    onChange={(s) => handleFieldChange("origin", s, { setValue: true })}
+    className={`react-select-container ${formTouched && errors.origin ? 'border-red-500' : ''}`}
+    classNamePrefix="react-select"
+    placeholder="Select origin port"
+    isLoading={portsLoading}
+  />
+  {formTouched && errors.origin && <span className="modal-error">{errors.origin.message}</span>}
+</div>
+
+{/* Destination Port */}
+<div>
+  <label className="modal-label">Destination Port</label>
+  <Select
+    options={portOptions}
+    value={formData.destination}
+    onChange={(s) => handleFieldChange("destination", s, { setValue: true })}
+    className={`react-select-container ${formTouched && errors.destination ? 'border-red-500' : ''}`}
+    classNamePrefix="react-select"
+    placeholder="Select destination port"
+    isLoading={portsLoading}
+  />
+  {formTouched && errors.destination && <span className="modal-error">{errors.destination.message}</span>}
+</div>
         </div>
       </div>
 
@@ -761,6 +802,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
             <DatePicker
               selected={departureDate}
               onChange={(date) => {
+                setFormTouched(true);
                 setDepartureDate(date);
                 setValue('departureDate', date, { shouldValidate: true });
               }}
@@ -773,6 +815,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
             <DatePicker
               selected={deliveryDate}
               onChange={(date) => {
+                setFormTouched(true);
                 setDeliveryDate(date);
                 setValue('deliveryDate', date, { shouldValidate: true });
               }}
@@ -792,8 +835,8 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
             <Select
               options={shippingLineOptions}
               value={formData.shippingLine}
-              onChange={(s) => setValue("shippingLine", s, { shouldValidate: true })}
-              className={`react-select-container ${errors.shippingLine ? 'border-red-500' : ''}`}
+              onChange={(s) => handleFieldChange("shippingLine", s, { setValue: true })}
+              className={`react-select-container ${formTouched && errors.shippingLine ? 'border-red-500' : ''}`}
               classNamePrefix="react-select"
               placeholder="Select shipping line"
               isLoading={shippingLinesLoading}
@@ -804,8 +847,8 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
             <Select
               options={truckCompanyOptions}
               value={formData.truckCompany}
-              onChange={(s) => setValue("truckCompany", s, { shouldValidate: true })}
-              className={`react-select-container ${errors.truckCompany ? 'border-red-500' : ''}`}
+              onChange={(s) => handleFieldChange("truckCompany", s, { setValue: true })}
+              className={`react-select-container ${formTouched && errors.truckCompany ? 'border-red-500' : ''}`}
               classNamePrefix="react-select"
               placeholder="Select trucking company"
               isLoading={truckCompsLoading}
@@ -822,6 +865,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
             type="pickup"
             value={pickupLocation}
             onChange={(val) => {
+              setFormTouched(true);
               setPickupLocation(val);
               setValue('pickupLocation', val, { shouldValidate: true });
             }}
@@ -837,6 +881,7 @@ const AddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
             type="delivery"
             value={deliveryLocation}
             onChange={(val) => {
+              setFormTouched(true);
               setDeliveryLocation(val);
               setValue('deliveryLocation', val, { shouldValidate: true });
             }}
