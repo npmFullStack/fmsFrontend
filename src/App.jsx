@@ -20,6 +20,7 @@ const ShippingLine = lazy(() => import('./pages/ShippingLine'));
 const BookingRequest = lazy(() => import('./pages/BookingRequest'));
 const Booking = lazy(() => import('./pages/Booking'));
 const User = lazy(() => import('./pages/User'));
+const CargoMonitoring = lazy(() => import('./pages/CargoMonitoring'));
 
 function App() {
   const { initializeAuth } = useAuth();
@@ -50,6 +51,7 @@ function App() {
             <Route path="/booking-request" element={<BookingRequest />} />
             <Route path="/booking" element={<Booking />} />
             <Route path="/users" element={<User />} />
+            <Route path="/cargo-monitoring" element={<CargoMonitoring />} />
           </Route>
         </Routes>
       </Suspense>

@@ -1,5 +1,5 @@
 // src/components/modals/UpdateBooking.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Select from 'react-select';
@@ -26,6 +26,7 @@ const UpdateBooking = ({ isOpen, onClose, onUpdate, booking, isLoading = false }
   const [selectedUser, setSelectedUser] = useState(null);
   const [formTouched, setFormTouched] = useState(false);
   const [bookingStatus, setBookingStatus] = useState('pending');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
     register,
@@ -38,17 +39,12 @@ const UpdateBooking = ({ isOpen, onClose, onUpdate, booking, isLoading = false }
   } = useForm({
     resolver: zodResolver(bookingSchema),
     mode: 'onBlur',
-    defaultValues: {
-      ...defaultBookingValues,
-      containerQuantity: 1,
-      terms: 1,
-    },
+    defaultValues: defaultBookingValues,
     shouldFocusError: false,
     shouldUseNativeValidation: false,
   });
 
   const formData = watch();
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch users (customers only)
   const { usersQuery } = useUser();
@@ -165,91 +161,121 @@ const UpdateBooking = ({ isOpen, onClose, onUpdate, booking, isLoading = false }
     { value: "delivered", label: "Delivered" },
   ];
 
-  // Populate form with booking data when modal opens or booking changes
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      reset(defaultBookingValues);
+      setItems([{ id: 1, name: "", weight: "", quantity: "", category: "", customCategory: "" }]);
+      setDepartureDate(null);
+      setDeliveryDate(null);
+      setContainerQuantity(1);
+      setPickupLocation({});
+      setDeliveryLocation({});
+      setSelectedUser(null);
+      setFormTouched(false);
+      setBookingStatus('pending');
+      setWeightValidation({ isValid: true, message: "" });
+      setIsSubmitting(false);
+    }
+  }, [isOpen, reset]);
+
+  // Populate form with booking data when modal opens
   useEffect(() => {
     if (isOpen && booking) {
-      // Reset form first
-      reset({
-        ...defaultBookingValues,
-        containerQuantity: 1,
-        terms: 1,
-      });
-
-      // Populate form with booking data
       const populateForm = async () => {
         try {
+          // Reset to defaults first
+          reset(defaultBookingValues);
+          
           // Set basic fields
-          setValue('userId', booking.user_id);
-          setValue('shipperFirstName', booking.shipper_first_name);
-          setValue('shipperLastName', booking.shipper_last_name);
-          setValue('shipperContact', booking.shipper_contact || '');
-          setValue('consigneeFirstName', booking.consignee_first_name);
-          setValue('consigneeLastName', booking.consignee_last_name);
-          setValue('consigneeContact', booking.consignee_contact || '');
-          setValue('terms', booking.terms || 1);
+          setValue('userId', booking.user_id, { shouldValidate: true });
+          setValue('shipperFirstName', booking.shipper_first_name, { shouldValidate: true });
+          setValue('shipperLastName', booking.shipper_last_name, { shouldValidate: true });
+          setValue('shipperContact', booking.shipper_contact || '', { shouldValidate: true });
+          setValue('consigneeFirstName', booking.consignee_first_name, { shouldValidate: true });
+          setValue('consigneeLastName', booking.consignee_last_name, { shouldValidate: true });
+          setValue('consigneeContact', booking.consignee_contact || '', { shouldValidate: true });
+          setValue('terms', booking.terms || 1, { shouldValidate: true });
 
-          // Set select fields
+          // Set select fields - wait for options to load
           if (booking.mode_of_service) {
-            setValue('modeOfService', modeOptions.find(opt => opt.value === booking.mode_of_service) || null);
+            const modeOption = modeOptions.find(opt => opt.value === booking.mode_of_service);
+            if (modeOption) {
+              setValue('modeOfService', modeOption, { shouldValidate: true });
+            }
           }
           
-          if (booking.container_size_id) {
+          if (booking.container_size_id && containerOptions.length > 0) {
             const containerOption = containerOptions.find(opt => opt.value === booking.container_size_id);
-            setValue('containerSize', containerOption || null);
+            if (containerOption) {
+              setValue('containerSize', containerOption, { shouldValidate: true });
+            }
           }
           
-          if (booking.origin_id) {
+          if (booking.origin_id && portOptions.length > 0) {
             const originOption = portOptions.find(opt => opt.value === booking.origin_id);
-            setValue('origin', originOption || null);
+            if (originOption) {
+              setValue('origin', originOption, { shouldValidate: true });
+            }
           }
           
-          if (booking.destination_id) {
+          if (booking.destination_id && portOptions.length > 0) {
             const destinationOption = portOptions.find(opt => opt.value === booking.destination_id);
-            setValue('destination', destinationOption || null);
+            if (destinationOption) {
+              setValue('destination', destinationOption, { shouldValidate: true });
+            }
           }
           
-          if (booking.shipping_line_id) {
+          if (booking.shipping_line_id && shippingLineOptions.length > 0) {
             const shippingLineOption = shippingLineOptions.find(opt => opt.value === booking.shipping_line_id);
-            setValue('shippingLine', shippingLineOption || null);
+            if (shippingLineOption) {
+              setValue('shippingLine', shippingLineOption, { shouldValidate: true });
+            }
           }
           
-          if (booking.truck_comp_id) {
+          if (booking.truck_comp_id && truckCompanyOptions.length > 0) {
             const truckCompanyOption = truckCompanyOptions.find(opt => opt.value === booking.truck_comp_id);
-            setValue('truckCompany', truckCompanyOption || null);
+            if (truckCompanyOption) {
+              setValue('truckCompany', truckCompanyOption, { shouldValidate: true });
+            }
           }
 
           // Set user selection
-          if (booking.user_id) {
+          if (booking.user_id && userOptions.length > 0) {
             const userOption = userOptions.find(opt => opt.value === booking.user_id);
-            setSelectedUser(userOption || null);
+            if (userOption) {
+              setSelectedUser(userOption);
+            }
           }
 
           // Set dates
           if (booking.departure_date) {
-            setDepartureDate(new Date(booking.departure_date));
-            setValue('departureDate', new Date(booking.departure_date));
+            const departure = new Date(booking.departure_date);
+            setDepartureDate(departure);
+            setValue('departureDate', departure, { shouldValidate: true });
           }
           
           if (booking.delivery_date) {
-            setDeliveryDate(new Date(booking.delivery_date));
-            setValue('deliveryDate', new Date(booking.delivery_date));
+            const delivery = new Date(booking.delivery_date);
+            setDeliveryDate(delivery);
+            setValue('deliveryDate', delivery, { shouldValidate: true });
           }
 
           // Set container quantity
           if (booking.container_quantity) {
             setContainerQuantity(booking.container_quantity);
-            setValue('containerQuantity', booking.container_quantity);
+            setValue('containerQuantity', booking.container_quantity, { shouldValidate: true });
           }
 
           // Set locations
           if (booking.pickup_location) {
             setPickupLocation(booking.pickup_location);
-            setValue('pickupLocation', booking.pickup_location);
+            setValue('pickupLocation', booking.pickup_location, { shouldValidate: true });
           }
           
           if (booking.delivery_location) {
             setDeliveryLocation(booking.delivery_location);
-            setValue('deliveryLocation', booking.delivery_location);
+            setValue('deliveryLocation', booking.delivery_location, { shouldValidate: true });
           }
 
           // Set items
@@ -275,20 +301,25 @@ const UpdateBooking = ({ isOpen, onClose, onUpdate, booking, isLoading = false }
         }
       };
 
-      populateForm();
+      // Small delay to ensure options are loaded
+      const timer = setTimeout(() => {
+        populateForm();
+      }, 100);
+
+      return () => clearTimeout(timer);
     }
   }, [isOpen, booking, reset, setValue, containerOptions, portOptions, shippingLineOptions, truckCompanyOptions, userOptions, modeOptions]);
 
   // Handle form field changes to set touched state
-  const handleFieldChange = (field, value, options = {}) => {
+  const handleFieldChange = useCallback((field, value, options = {}) => {
     setFormTouched(true);
     if (options.setValue) {
       setValue(field, value, { shouldValidate: true });
     }
-  };
+  }, [setValue]);
 
   // Handle user selection
-  const handleUserSelect = (selectedOption) => {
+  const handleUserSelect = useCallback((selectedOption) => {
     setSelectedUser(selectedOption);
     setFormTouched(true);
 
@@ -301,16 +332,16 @@ const UpdateBooking = ({ isOpen, onClose, onUpdate, booking, isLoading = false }
     setTimeout(() => {
       trigger(['userId']);
     }, 100);
-  };
+  }, [setValue, trigger]);
 
   // Calculate total weight
-  const calculateTotalWeight = () => {
+  const calculateTotalWeight = useCallback(() => {
     return items.reduce((total, item) => {
       const weight = parseFloat(item.weight) || 0;
       const quantity = parseInt(item.quantity) || 0;
       return total + (weight * quantity);
     }, 0);
-  };
+  }, [items]);
 
   // Validate weight against container capacity
   useEffect(() => {
@@ -339,10 +370,10 @@ const UpdateBooking = ({ isOpen, onClose, onUpdate, booking, isLoading = false }
     } else {
       setWeightValidation({ isValid: true, message: "" });
     }
-  }, [items, formData.containerSize, containerQuantity, containerOptions]);
+  }, [items, formData.containerSize, containerQuantity, containerOptions, calculateTotalWeight]);
 
   // Item management
-  const addItem = () => {
+  const addItem = useCallback(() => {
     setItems((s) => [...s, {
       id: Date.now(),
       name: "",
@@ -352,49 +383,49 @@ const UpdateBooking = ({ isOpen, onClose, onUpdate, booking, isLoading = false }
       customCategory: "",
     }]);
     setFormTouched(true);
-  };
+  }, []);
 
-  const removeItem = (id) => {
+  const removeItem = useCallback((id) => {
     setItems((s) => s.filter((it) => it.id !== id));
     setFormTouched(true);
-  };
+  }, []);
 
-  const handleItemChange = (id, field, value) => {
+  const handleItemChange = useCallback((id, field, value) => {
     setItems((s) => s.map((it) => (it.id === id ? { ...it, [field]: value } : it)));
     setFormTouched(true);
-  };
+  }, []);
 
-  const handleCategoryChange = (id, selectedOption) => {
+  const handleCategoryChange = useCallback((id, selectedOption) => {
     const categoryValue = selectedOption?.value || "";
     handleItemChange(id, "category", categoryValue);
     if (categoryValue !== "other") {
       handleItemChange(id, "customCategory", "");
     }
-  };
+  }, [handleItemChange]);
 
   // Handle terms change
-  const handleTermsChange = (value) => {
+  const handleTermsChange = useCallback((value) => {
     setFormTouched(true);
     if (value === "" || /^\d*$/.test(value)) {
       const numValue = value === "" ? 1 : parseInt(value);
       setValue("terms", numValue, { shouldValidate: true });
     }
-  };
+  }, [setValue]);
 
   // Container quantity increment/decrement
-  const incrementContainerQuantity = () => {
+  const incrementContainerQuantity = useCallback(() => {
     setFormTouched(true);
     const newQuantity = containerQuantity + 1;
     setContainerQuantity(newQuantity);
     setValue("containerQuantity", newQuantity, { shouldValidate: true });
-  };
+  }, [containerQuantity, setValue]);
 
-  const decrementContainerQuantity = () => {
+  const decrementContainerQuantity = useCallback(() => {
     setFormTouched(true);
     const newQuantity = containerQuantity > 1 ? containerQuantity - 1 : 1;
     setContainerQuantity(newQuantity);
     setValue("containerQuantity", newQuantity, { shouldValidate: true });
-  };
+  }, [containerQuantity, setValue]);
 
   // Mode-based visibility
   const modeValue = formData.modeOfService?.value || null;
@@ -402,7 +433,7 @@ const UpdateBooking = ({ isOpen, onClose, onUpdate, booking, isLoading = false }
   const showDelivery = modeValue === "door-to-door" || modeValue === "port-to-door";
 
   // Check if form is valid for submission
-  const isFormValid = () => {
+  const isFormValid = useCallback(() => {
     const hasRequiredFields =
       formData.userId && 
       formData.shipperFirstName &&
@@ -426,7 +457,7 @@ const UpdateBooking = ({ isOpen, onClose, onUpdate, booking, isLoading = false }
     const weightValid = weightValidation.isValid;
 
     return hasRequiredFields && itemsValid && weightValid;
-  };
+  }, [formData, items, weightValidation]);
 
   // Custom DatePicker input
   const DateInput = React.forwardRef(({ value, onClick, placeholder }, ref) => (
@@ -501,7 +532,7 @@ const UpdateBooking = ({ isOpen, onClose, onUpdate, booking, isLoading = false }
         pickupLocation: showPickup && Object.keys(pickupLocation).length > 0 ? pickupLocation : null,
         deliveryLocation: showDelivery && Object.keys(deliveryLocation).length > 0 ? deliveryLocation : null,
         terms: parseInt(data.terms) || 1,
-        booking_status: bookingStatus, // Include booking status
+        booking_status: bookingStatus,
         items: items.map(item => ({
           name: item.name,
           weight: parseFloat(item.weight),
@@ -513,18 +544,21 @@ const UpdateBooking = ({ isOpen, onClose, onUpdate, booking, isLoading = false }
       const validatedData = bookingSchema.parse(bookingData);
       const apiData = transformBookingToApi(validatedData);
       
-      // Include tracking numbers and booking status in the update
+      // Include all necessary fields for update
       const updateData = {
         ...apiData,
         booking_status: bookingStatus,
+        status: booking.status, // Keep the original status
         booking_number: booking?.booking_number,
         hwb_number: booking?.hwb_number,
         van_number: booking?.van_number,
       };
 
       await onUpdate(booking.id, updateData);
+      onClose();
 
     } catch (error) {
+      console.error('Update booking error:', error);
       if (error?.errors && Array.isArray(error.errors)) {
         const errorMessages = error.errors.map(err => err.message);
         alert(`Validation error: ${errorMessages.join(', ')}`);
@@ -542,541 +576,523 @@ const UpdateBooking = ({ isOpen, onClose, onUpdate, booking, isLoading = false }
 
   return (
     <SharedModal isOpen={isOpen} onClose={onClose} title="Update Booking" size="md">
-      <div className="space-y-6 max-h-[80vh] overflow-y-auto">
-        {/* Tracking Numbers Section - NEW */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
-            Tracking Information
-          </h3>
-          <div className={responsiveGrid}>
-            <div>
-              <label className="modal-label">Booking Number</label>
-              <input
-                type="text"
-                value={booking?.booking_number || 'Not generated'}
-                className="modal-input bg-gray-100 cursor-not-allowed"
-                readOnly
-                disabled
-              />
-            </div>
-            <div>
-              <label className="modal-label">HWB Number</label>
-              <input
-                type="text"
-                value={booking?.hwb_number || 'Not generated'}
-                className="modal-input bg-gray-100 cursor-not-allowed"
-                readOnly
-                disabled
-              />
-            </div>
-            <div>
-              <label className="modal-label">Van Number</label>
-              <input
-                type="text"
-                value={booking?.van_number || 'Not generated'}
-                className="modal-input bg-gray-100 cursor-not-allowed"
-                readOnly
-                disabled
-              />
-            </div>
-            <div>
-              <label className="modal-label">Booking Status</label>
-              <Select
-                options={bookingStatusOptions}
-                value={bookingStatusOptions.find(opt => opt.value === bookingStatus)}
-                onChange={(selected) => setBookingStatus(selected.value)}
-                className="react-select-container"
-                classNamePrefix="react-select"
-                placeholder="Select booking status"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Customer Selection */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
-            Customer Information
-          </h3>
-          <div>
-            <label className="modal-label">Select Customer</label>
-            <Select
-              options={userOptions}
-              value={selectedUser}
-              onChange={handleUserSelect}
-              className={`react-select-container ${formTouched && errors.userId ? 'border-red-500' : ''}`}
-              classNamePrefix="react-select"
-              placeholder="Select customer"
-              isLoading={usersLoading}
-              isClearable
-            />
-            {formTouched && errors.userId && <span className="modal-error">{errors.userId.message}</span>}
-          </div>
-
-          {selectedUser?.userData && (
-            <div className="email-notice border border-blue-700 bg-blue-900">
-              <div className="flex items-start gap-4 pl-4">
-                <AlertCircle className="email-notice-icon text-blue-100" />
-                <div className="email-notice-text text-blue-200">
-                  <p><strong>Customer:</strong> {selectedUser.userData.first_name} {selectedUser.userData.last_name}</p>
-                  <p><strong>Email:</strong> {selectedUser.userData.email}</p>
-                  {selectedUser.userData.contact_number && (
-                    <p><strong>Contact:</strong> {selectedUser.userData.contact_number}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Shipper Information */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
-            Shipper Information
-          </h3>
-          <div className={responsiveGrid}>
-            <div>
-              <label className="modal-label">Shipper First Name</label>
-              <input
-                type="text"
-                placeholder="Enter shipper's first name"
-                className={`modal-input ${formTouched && errors.shipperFirstName ? 'border-red-500' : ''}`}
-                {...register('shipperFirstName', {
-                  onChange: () => setFormTouched(true)
-                })}
-              />
-              {formTouched && errors.shipperFirstName && <span className="modal-error">{errors.shipperFirstName.message}</span>}
-            </div>
-            <div>
-              <label className="modal-label">Shipper Last Name</label>
-              <input
-                type="text"
-                placeholder="Enter shipper's last name"
-                className={`modal-input ${formTouched && errors.shipperLastName ? 'border-red-500' : ''}`}
-                {...register('shipperLastName', {
-                  onChange: () => setFormTouched(true)
-                })}
-              />
-              {formTouched && errors.shipperLastName && <span className="modal-error">{errors.shipperLastName.message}</span>}
-            </div>
-            <div className="md:col-span-2">
-              <label className="modal-label">Contact Number (Optional)</label>
-              <input
-                type="tel"
-                placeholder="Enter shipper's contact number"
-                className="modal-input"
-                {...register('shipperContact')}
-                onInput={(e) => { e.target.value = e.target.value.replace(/[^\d]/g, ''); }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Consignee Information */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
-            Consignee Information
-          </h3>
-          <div className={responsiveGrid}>
-            <div>
-              <label className="modal-label">Consignee First Name</label>
-              <input
-                type="text"
-                placeholder="Enter consignee's first name"
-                className={`modal-input ${formTouched && errors.consigneeFirstName ? 'border-red-500' : ''}`}
-                {...register('consigneeFirstName', {
-                  onChange: () => setFormTouched(true)
-                })}
-              />
-              {formTouched && errors.consigneeFirstName && <span className="modal-error">{errors.consigneeFirstName.message}</span>}
-            </div>
-            <div>
-              <label className="modal-label">Consignee Last Name</label>
-              <input
-                type="text"
-                placeholder="Enter consignee's last name"
-                className={`modal-input ${formTouched && errors.consigneeLastName ? 'border-red-500' : ''}`}
-                {...register('consigneeLastName', {
-                  onChange: () => setFormTouched(true)
-                })}
-              />
-              {formTouched && errors.consigneeLastName && <span className="modal-error">{errors.consigneeLastName.message}</span>}
-            </div>
-            <div className="md:col-span-2">
-              <label className="modal-label">Contact Number (Optional)</label>
-              <input
-                type="tel"
-                placeholder="Enter consignee's contact number"
-                className="modal-input"
-                {...register('consigneeContact')}
-                onInput={(e) => { e.target.value = e.target.value.replace(/[^\d]/g, ''); }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Items */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
-            Item / Commodity Information
-          </h3>
-          {items.map((it, idx) => {
-            const showCustomCategory = it.category === "other";
-            const selectedCategory = categoryOptions.find((o) => o.value === it.category) || null;
-
-            return (
-              <div key={it.id} className="bg-main border border-main rounded-lg p-4 space-y-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-semibold text-heading">Item {idx + 1}</h4>
-                  {items.length > 1 && (
-                    <button type="button" onClick={() => removeItem(it.id)} className="text-red-500 hover:text-red-700">
-                      <X className="w-5 h-5" />
-                    </button>
-                  )}
-                </div>
-                <div className={responsiveGrid}>
-                  <div>
-                    <label className="modal-label">Item Name</label>
-                    <input
-                      className="modal-input"
-                      value={it.name}
-                      onChange={(e) => handleItemChange(it.id, "name", e.target.value)}
-                      placeholder="Enter item name"
-                    />
-                  </div>
-                  <div>
-                    <label className="modal-label">Category</label>
-                    <Select
-                      options={categoryOptions}
-                      value={selectedCategory}
-                      onChange={(s) => handleCategoryChange(it.id, s)}
-                      className="react-select-container"
-                      classNamePrefix="react-select"
-                      placeholder="Select category"
-                      isLoading={categoriesLoading}
-                    />
-                    {showCustomCategory && (
-                      <div className="mt-2">
-                        <label className="modal-label">Category Name</label>
-                        <input
-                          className="modal-input"
-                          value={it.customCategory}
-                          onChange={(e) => handleItemChange(it.id, "customCategory", e.target.value)}
-                          placeholder="Please specify category name"
-                        />
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <label className="modal-label">Weight (kg)</label>
-                    <input
-                      type="number"
-                      className="modal-input"
-                      value={it.weight}
-                      onChange={(e) => handleItemChange(it.id, "weight", e.target.value)}
-                      placeholder="Enter weight in kg"
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
-                  <div>
-                    <label className="modal-label">Quantity</label>
-                    <input
-                      type="number"
-                      className="modal-input"
-                      value={it.quantity}
-                      onChange={(e) => handleItemChange(it.id, "quantity", e.target.value)}
-                      placeholder="Enter quantity"
-                      min="1"
-                    />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-          <button type="button" onClick={addItem} className="text-primary font-medium text-sm hover:underline">
-            + Add another item
-          </button>
-        </div>
-
-        {/* Shipping Preferences */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
-            Shipping Preferences
-          </h3>
-
-          {/* Basic Shipping Details */}
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <div className="space-y-6 max-h-[80vh] overflow-y-auto">
+          {/* Tracking Numbers Section */}
           <div className="space-y-4">
-            <h4 className="font-semibold text-heading">Basic Details</h4>
+            <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
+              Tracking Information
+            </h3>
             <div className={responsiveGrid}>
-              {/* Mode of Service */}
               <div>
-                <label className="modal-label">Mode of Service</label>
-                <Select
-                  options={modeOptions}
-                  value={formData.modeOfService}
-                  onChange={(s) => handleFieldChange("modeOfService", s, { setValue: true })}
-                  className={`react-select-container ${formTouched && errors.modeOfService ? 'border-red-500' : ''}`}
-                  classNamePrefix="react-select"
-                  placeholder="Select mode of service"
-                />
-                {formTouched && errors.modeOfService && <span className="modal-error">{errors.modeOfService.message}</span>}
-              </div>
-              <div>
-                <label className="modal-label">Terms (Days)</label>
+                <label className="modal-label">Booking Number</label>
                 <input
                   type="text"
-                  className={`modal-input ${formTouched && errors.terms ? 'border-red-500' : ''}`}
-                  placeholder="Enter terms in days"
-                  value={formData.terms || ""}
-                  onChange={(e) => handleTermsChange(e.target.value)}
+                  value={booking?.booking_number || 'Not generated'}
+                  className="modal-input bg-gray-100 cursor-not-allowed"
+                  readOnly
+                  disabled
                 />
-                {formTouched && errors.terms && <span className="modal-error">{errors.terms.message}</span>}
+              </div>
+              <div>
+                <label className="modal-label">HWB Number</label>
+                <input
+                  type="text"
+                  value={booking?.hwb_number || 'Not generated'}
+                  className="modal-input bg-gray-100 cursor-not-allowed"
+                  readOnly
+                  disabled
+                />
+              </div>
+              <div>
+                <label className="modal-label">Van Number</label>
+                <input
+                  type="text"
+                  value={booking?.van_number || 'Not generated'}
+                  className="modal-input bg-gray-100 cursor-not-allowed"
+                  readOnly
+                  disabled
+                />
+              </div>
+              <div>
+                <label className="modal-label">Booking Status</label>
+                <Select
+                  options={bookingStatusOptions}
+                  value={bookingStatusOptions.find(opt => opt.value === bookingStatus)}
+                  onChange={(selected) => {
+                    setFormTouched(true);
+                    setBookingStatus(selected.value);
+                  }}
+                  className="react-select-container"
+                  classNamePrefix="react-select"
+                  placeholder="Select booking status"
+                />
               </div>
             </div>
           </div>
 
-          {/* Container Information */}
+          {/* Customer Selection */}
           <div className="space-y-4">
-            <h4 className="font-semibold text-heading">Container Information</h4>
+            <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
+              Customer Information
+            </h3>
+            <div>
+              <label className="modal-label">Select Customer</label>
+              <Select
+                options={userOptions}
+                value={selectedUser}
+                onChange={handleUserSelect}
+                className={`react-select-container ${formTouched && errors.userId ? 'border-red-500' : ''}`}
+                classNamePrefix="react-select"
+                placeholder="Select customer"
+                isLoading={usersLoading}
+                isClearable
+              />
+              {formTouched && errors.userId && <span className="modal-error">{errors.userId.message}</span>}
+            </div>
+
+            {selectedUser?.userData && (
+              <div className="email-notice border border-blue-700 bg-blue-900">
+                <div className="flex items-start gap-4 pl-4">
+                  <AlertCircle className="email-notice-icon text-blue-100" />
+                  <div className="email-notice-text text-blue-200">
+                    <p><strong>Customer:</strong> {selectedUser.userData.first_name} {selectedUser.userData.last_name}</p>
+                    <p><strong>Email:</strong> {selectedUser.userData.email}</p>
+                    {selectedUser.userData.contact_number && (
+                      <p><strong>Contact:</strong> {selectedUser.userData.contact_number}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Shipper Information */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
+              Shipper Information
+            </h3>
             <div className={responsiveGrid}>
               <div>
-                <label className="modal-label">Container Type</label>
-                <Select
-                  options={containerOptions}
-                  value={formData.containerSize}
-                  onChange={(s) => handleFieldChange("containerSize", s, { setValue: true })}
-                  className={`react-select-container ${formTouched && errors.containerSize ? 'border-red-500' : ''}`}
-                  classNamePrefix="react-select"
-                  placeholder="Select container type"
-                  isLoading={containerTypesLoading}
+                <label className="modal-label">Shipper First Name</label>
+                <input
+                  type="text"
+                  placeholder="Enter shipper's first name"
+                  className={`modal-input ${formTouched && errors.shipperFirstName ? 'border-red-500' : ''}`}
+                  {...register('shipperFirstName', {
+                    onChange: () => setFormTouched(true)
+                  })}
                 />
-                {formTouched && errors.containerSize && <span className="modal-error">{errors.containerSize.message}</span>}
+                {formTouched && errors.shipperFirstName && <span className="modal-error">{errors.shipperFirstName.message}</span>}
               </div>
-              {formData.containerSize && (
+              <div>
+                <label className="modal-label">Shipper Last Name</label>
+                <input
+                  type="text"
+                  placeholder="Enter shipper's last name"
+                  className={`modal-input ${formTouched && errors.shipperLastName ? 'border-red-500' : ''}`}
+                  {...register('shipperLastName', {
+                    onChange: () => setFormTouched(true)
+                  })}
+                />
+                {formTouched && errors.shipperLastName && <span className="modal-error">{errors.shipperLastName.message}</span>}
+              </div>
+              <div className="md:col-span-2">
+                <label className="modal-label">Contact Number (Optional)</label>
+                <input
+                  type="tel"
+                  placeholder="Enter shipper's contact number"
+                  className="modal-input"
+                  {...register('shipperContact')}
+                  onInput={(e) => { e.target.value = e.target.value.replace(/[^\d]/g, ''); }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Consignee Information */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
+              Consignee Information
+            </h3>
+            <div className={responsiveGrid}>
+              <div>
+                <label className="modal-label">Consignee First Name</label>
+                <input
+                  type="text"
+                  placeholder="Enter consignee's first name"
+                  className={`modal-input ${formTouched && errors.consigneeFirstName ? 'border-red-500' : ''}`}
+                  {...register('consigneeFirstName', {
+                    onChange: () => setFormTouched(true)
+                  })}
+                />
+                {formTouched && errors.consigneeFirstName && <span className="modal-error">{errors.consigneeFirstName.message}</span>}
+              </div>
+              <div>
+                <label className="modal-label">Consignee Last Name</label>
+                <input
+                  type="text"
+                  placeholder="Enter consignee's last name"
+                  className={`modal-input ${formTouched && errors.consigneeLastName ? 'border-red-500' : ''}`}
+                  {...register('consigneeLastName', {
+                    onChange: () => setFormTouched(true)
+                  })}
+                />
+                {formTouched && errors.consigneeLastName && <span className="modal-error">{errors.consigneeLastName.message}</span>}
+              </div>
+              <div className="md:col-span-2">
+                <label className="modal-label">Contact Number (Optional)</label>
+                <input
+                  type="tel"
+                  placeholder="Enter consignee's contact number"
+                  className="modal-input"
+                  {...register('consigneeContact')}
+                  onInput={(e) => { e.target.value = e.target.value.replace(/[^\d]/g, ''); }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Items */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
+              Item / Commodity Information
+            </h3>
+            {items.map((it, idx) => {
+              const showCustomCategory = it.category === "other";
+              const selectedCategory = categoryOptions.find((o) => o.value === it.category) || null;
+
+              return (
+                <div key={it.id} className="bg-main border border-main rounded-lg p-4 space-y-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold text-heading">Item {idx + 1}</h4>
+                    {items.length > 1 && (
+                      <button type="button" onClick={() => removeItem(it.id)} className="text-red-500 hover:text-red-700">
+                        <X className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                  <div className={responsiveGrid}>
+                    <div>
+                      <label className="modal-label">Item Name</label>
+                      <input
+                        className="modal-input"
+                        value={it.name}
+                        onChange={(e) => handleItemChange(it.id, "name", e.target.value)}
+                        placeholder="Enter item name"
+                      />
+                    </div>
+                    <div>
+                      <label className="modal-label">Category</label>
+                      <Select
+                        options={categoryOptions}
+                        value={selectedCategory}
+                        onChange={(s) => handleCategoryChange(it.id, s)}
+                        className="react-select-container"
+                        classNamePrefix="react-select"
+                        placeholder="Select category"
+                        isLoading={categoriesLoading}
+                      />
+                      {showCustomCategory && (
+                        <div className="mt-2">
+                          <label className="modal-label">Category Name</label>
+                          <input
+                            className="modal-input"
+                            value={it.customCategory}
+                            onChange={(e) => handleItemChange(it.id, "customCategory", e.target.value)}
+                            placeholder="Please specify category name"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="modal-label">Weight (kg)</label>
+                      <input
+                        type="number"
+                        className="modal-input"
+                        value={it.weight}
+                        onChange={(e) => handleItemChange(it.id, "weight", e.target.value)}
+                        placeholder="Enter weight in kg"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    <div>
+                      <label className="modal-label">Quantity</label>
+                      <input
+                        type="number"
+                        className="modal-input"
+                        value={it.quantity}
+                        onChange={(e) => handleItemChange(it.id, "quantity", e.target.value)}
+                        placeholder="Enter quantity"
+                        min="1"
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <button type="button" onClick={addItem} className="text-primary font-medium text-sm hover:underline">
+              + Add another item
+            </button>
+          </div>
+
+          {/* Shipping Preferences */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
+              Shipping Preferences
+            </h3>
+
+            {/* Basic Shipping Details */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-heading">Basic Details</h4>
+              <div className={responsiveGrid}>
+                {/* Mode of Service */}
                 <div>
-                  <label className="modal-label">Container Quantity</label>
-                  <ContainerQuantityInput />
+                  <label className="modal-label">Mode of Service</label>
+                  <Select
+                    options={modeOptions}
+                    value={formData.modeOfService}
+                    onChange={(s) => handleFieldChange("modeOfService", s, { setValue: true })}
+                    className={`react-select-container ${formTouched && errors.modeOfService ? 'border-red-500' : ''}`}
+                    classNamePrefix="react-select"
+                    placeholder="Select mode of service"
+                  />
+                  {formTouched && errors.modeOfService && <span className="modal-error">{errors.modeOfService.message}</span>}
+                </div>
+                <div>
+                  <label className="modal-label">Terms (Days)</label>
+                  <input
+                    type="text"
+                    className={`modal-input ${formTouched && errors.terms ? 'border-red-500' : ''}`}
+                    placeholder="Enter terms in days"
+                    value={formData.terms || ""}
+                    onChange={(e) => handleTermsChange(e.target.value)}
+                  />
+                  {formTouched && errors.terms && <span className="modal-error">{errors.terms.message}</span>}
+                </div>
+              </div>
+            </div>
+
+            {/* Container Information */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-heading">Container Information</h4>
+              <div className={responsiveGrid}>
+                <div>
+                  <label className="modal-label">Container Type</label>
+                  <Select
+                    options={containerOptions}
+                    value={formData.containerSize}
+                    onChange={(s) => handleFieldChange("containerSize", s, { setValue: true })}
+                    className={`react-select-container ${formTouched && errors.containerSize ? 'border-red-500' : ''}`}
+                    classNamePrefix="react-select"
+                    placeholder="Select container type"
+                    isLoading={containerTypesLoading}
+                  />
+                  {formTouched && errors.containerSize && <span className="modal-error">{errors.containerSize.message}</span>}
+                </div>
+                {formData.containerSize && (
+                  <div>
+                    <label className="modal-label">Container Quantity</label>
+                    <ContainerQuantityInput />
+                  </div>
+                )}
+              </div>
+
+              {/* Weight Display */}
+              {items.some(item => item.weight && item.quantity) && formData.containerSize && (
+                <div className={`email-notice ${
+                  !weightValidation.isValid
+                    ? 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900'
+                    : 'border-blue-600 bg-white dark:border-blue-700 dark:bg-blue-900'
+                }`}>
+                  <div className="flex items-start gap-4 pl-4">
+                    <AlertCircle className={`email-notice-icon ${
+                      !weightValidation.isValid
+                        ? 'text-red-600 dark:text-red-100'
+                        : 'text-blue-600 dark:text-blue-100'
+                    }`} />
+                    <p className={`email-notice-text ${
+                      !weightValidation.isValid
+                        ? 'text-red-700 dark:text-red-200'
+                        : 'text-black dark:text-blue-200'
+                    }`}>
+                      <strong className={`email-notice-heading ${
+                        !weightValidation.isValid
+                          ? 'text-red-600 dark:text-red-100'
+                          : 'text-blue-600 dark:text-blue-100'
+                      }`}>
+                        {!weightValidation.isValid ? 'Weight Capacity Exceeded:' : 'Weight Status:'}
+                      </strong>{' '}
+                      {weightValidation.message}
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Weight Display */}
-            {items.some(item => item.weight && item.quantity) && formData.containerSize && (
-              <div className={`email-notice ${
-                !weightValidation.isValid
-                  ? 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900'
-                  : 'border-blue-600 bg-white dark:border-blue-700 dark:bg-blue-900'
-              }`}>
-                <div className="flex items-start gap-4 pl-4">
-                  <AlertCircle className={`email-notice-icon ${
-                    !weightValidation.isValid
-                      ? 'text-red-600 dark:text-red-100'
-                      : 'text-blue-600 dark:text-blue-100'
-                  }`} />
-                  <p className={`email-notice-text ${
-                    !weightValidation.isValid
-                      ? 'text-red-700 dark:text-red-200'
-                      : 'text-black dark:text-blue-200'
-                  }`}>
-                    <strong className={`email-notice-heading ${
-                      !weightValidation.isValid
-                        ? 'text-red-600 dark:text-red-100'
-                        : 'text-blue-600 dark:text-blue-100'
-                    }`}>
-                      {!weightValidation.isValid ? 'Weight Capacity Exceeded:' : 'Weight Status:'}
-                    </strong>{' '}
-                    {weightValidation.message}
-                  </p>
+            {/* Route Information */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-heading">Route Information</h4>
+              <div className={responsiveGrid}>
+                {/* Origin Port */}
+                <div>
+                  <label className="modal-label">Origin Port</label>
+                  <Select
+                    options={portOptions}
+                    value={formData.origin}
+                    onChange={(s) => handleFieldChange("origin", s, { setValue: true })}
+                    className={`react-select-container ${formTouched && errors.origin ? 'border-red-500' : ''}`}
+                    classNamePrefix="react-select"
+                    placeholder="Select origin port"
+                    isLoading={portsLoading}
+                  />
+                  {formTouched && errors.origin && <span className="modal-error">{errors.origin.message}</span>}
+                </div>
+
+                {/* Destination Port */}
+                <div>
+                  <label className="modal-label">Destination Port</label>
+                  <Select
+                    options={portOptions}
+                    value={formData.destination}
+                    onChange={(s) => handleFieldChange("destination", s, { setValue: true })}
+                    className={`react-select-container ${formTouched && errors.destination ? 'border-red-500' : ''}`}
+                    classNamePrefix="react-select"
+                    placeholder="Select destination port"
+                    isLoading={portsLoading}
+                  />
+                  {formTouched && errors.destination && <span className="modal-error">{errors.destination.message}</span>}
                 </div>
               </div>
+            </div>
+
+            {/* Schedule Information */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-heading">Schedule</h4>
+              <div className={responsiveGrid}>
+                <div>
+                  <label className="modal-label">Preferred Departure Date (Optional)</label>
+                  <DatePicker
+                    selected={departureDate}
+                    onChange={(date) => {
+                      setFormTouched(true);
+                      setDepartureDate(date);
+                      setValue('departureDate', date, { shouldValidate: true });
+                    }}
+                    customInput={<DateInput placeholder="Select preferred departure date" />}
+                    minDate={new Date()}
+                  />
+                </div>
+                <div>
+                  <label className="modal-label">Preferred Delivery Date (Optional)</label>
+                  <DatePicker
+                    selected={deliveryDate}
+                    onChange={(date) => {
+                      setFormTouched(true);
+                      setDeliveryDate(date);
+                      setValue('deliveryDate', date, { shouldValidate: true });
+                    }}
+                    customInput={<DateInput placeholder="Select preferred delivery date" />}
+                    minDate={departureDate}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Service Providers */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-heading">Service Providers</h4>
+              <div className={responsiveGrid}>
+                <div>
+                  <label className="modal-label">Preferred Shipping Line</label>
+                  <Select
+                    options={shippingLineOptions}
+                    value={formData.shippingLine}
+                    onChange={(s) => handleFieldChange("shippingLine", s, { setValue: true })}
+                    className={`react-select-container ${formTouched && errors.shippingLine ? 'border-red-500' : ''}`}
+                    classNamePrefix="react-select"
+                    placeholder="Select shipping line"
+                    isLoading={shippingLinesLoading}
+                  />
+                </div>
+                <div>
+                  <label className="modal-label">Preferred Trucking Company</label>
+                  <Select
+                    options={truckCompanyOptions}
+                    value={formData.truckCompany}
+                    onChange={(s) => handleFieldChange("truckCompany", s, { setValue: true })}
+                    className={`react-select-container ${formTouched && errors.truckCompany ? 'border-red-500' : ''}`}
+                    classNamePrefix="react-select"
+                    placeholder="Select trucking company"
+                    isLoading={truckCompsLoading}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Location fields */}
+            {showPickup && (
+              <div className="bg-main border border-main rounded-lg p-4">
+                <h4 className="font-semibold text-heading mb-4">Pickup Location</h4>
+                <LocationFields
+                  type="pickup"
+                  value={pickupLocation}
+                  onChange={(val) => {
+                    setFormTouched(true);
+                    setPickupLocation(val);
+                    setValue('pickupLocation', val, { shouldValidate: true });
+                  }}
+                  showStreetSearch={true}
+                />
+              </div>
+            )}
+
+            {showDelivery && (
+              <div className="bg-main border border-main rounded-lg p-4">
+                <h4 className="font-semibold text-heading mb-4">Delivery Location</h4>
+                <LocationFields
+                  type="delivery"
+                  value={deliveryLocation}
+                  onChange={(val) => {
+                    setFormTouched(true);
+                    setDeliveryLocation(val);
+                    setValue('deliveryLocation', val, { shouldValidate: true });
+                  }}
+                  showStreetSearch={true}
+                />
+              </div>
             )}
           </div>
 
-          {/* Route Information */}
-          <div className="space-y-4">
-            <h4 className="font-semibold text-heading">Route Information</h4>
-            <div className={responsiveGrid}>
-              {/* Origin Port */}
-              <div>
-                <label className="modal-label">Origin Port</label>
-                <Select
-                  options={portOptions}
-                  value={formData.origin}
-                  onChange={(s) => handleFieldChange("origin", s, { setValue: true })}
-                  className={`react-select-container ${formTouched && errors.origin ? 'border-red-500' : ''}`}
-                  classNamePrefix="react-select"
-                  placeholder="Select origin port"
-                  isLoading={portsLoading}
-                />
-                {formTouched && errors.origin && <span className="modal-error">{errors.origin.message}</span>}
-              </div>
+          {/* Buttons */}
+          <div className="flex justify-end gap-3 pt-6 border-t border-main">
+            <button
+              type="button"
+              onClick={onClose}
+              className={`modal-btn-cancel ${isSubmitting ? 'modal-btn-disabled' : ''}`}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
 
-              {/* Destination Port */}
-              <div>
-                <label className="modal-label">Destination Port</label>
-                <Select
-                  options={portOptions}
-                  value={formData.destination}
-                  onChange={(s) => handleFieldChange("destination", s, { setValue: true })}
-                  className={`react-select-container ${formTouched && errors.destination ? 'border-red-500' : ''}`}
-                  classNamePrefix="react-select"
-                  placeholder="Select destination port"
-                  isLoading={portsLoading}
-                />
-                {formTouched && errors.destination && <span className="modal-error">{errors.destination.message}</span>}
-              </div>
-            </div>
+            <button
+              type="submit"
+              className={`modal-btn-primary ${(!isFormValid() || isSubmitting) ? 'modal-btn-disabled' : ''}`}
+              disabled={!isFormValid() || isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                'Update Booking'
+              )}
+            </button>
           </div>
-
-          {/* Schedule Information */}
-          <div className="space-y-4">
-            <h4 className="font-semibold text-heading">Schedule</h4>
-            <div className={responsiveGrid}>
-              <div>
-                <label className="modal-label">Preferred Departure Date (Optional)</label>
-                <DatePicker
-                  selected={departureDate}
-                  onChange={(date) => {
-                    setFormTouched(true);
-                    setDepartureDate(date);
-                    setValue('departureDate', date, { shouldValidate: true });
-                  }}
-                  customInput={<DateInput placeholder="Select preferred departure date" />}
-                  minDate={new Date()}
-                />
-              </div>
-              <div>
-                <label className="modal-label">Preferred Delivery Date (Optional)</label>
-                <DatePicker
-                  selected={deliveryDate}
-                  onChange={(date) => {
-                    setFormTouched(true);
-                    setDeliveryDate(date);
-                    setValue('deliveryDate', date, { shouldValidate: true });
-                  }}
-                  customInput={<DateInput placeholder="Select preferred delivery date" />}
-                  minDate={departureDate}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Service Providers */}
-          <div className="space-y-4">
-            <h4 className="font-semibold text-heading">Service Providers</h4>
-            <div className={responsiveGrid}>
-              <div>
-                <label className="modal-label">Preferred Shipping Line</label>
-                <Select
-                  options={shippingLineOptions}
-                  value={formData.shippingLine}
-                  onChange={(s) => handleFieldChange("shippingLine", s, { setValue: true })}
-                  className={`react-select-container ${formTouched && errors.shippingLine ? 'border-red-500' : ''}`}
-                  classNamePrefix="react-select"
-                  placeholder="Select shipping line"
-                  isLoading={shippingLinesLoading}
-                />
-              </div>
-              <div>
-                <label className="modal-label">Preferred Trucking Company</label>
-                <Select
-                  options={truckCompanyOptions}
-                  value={formData.truckCompany}
-                  onChange={(s) => handleFieldChange("truckCompany", s, { setValue: true })}
-                  className={`react-select-container ${formTouched && errors.truckCompany ? 'border-red-500' : ''}`}
-                  classNamePrefix="react-select"
-                  placeholder="Select trucking company"
-                  isLoading={truckCompsLoading}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Location fields */}
-          {showPickup && (
-            <div className="bg-main border border-main rounded-lg p-4">
-              <h4 className="font-semibold text-heading mb-4">Pickup Location</h4>
-              <LocationFields
-                type="pickup"
-                value={pickupLocation}
-                onChange={(val) => {
-                  setFormTouched(true);
-                  setPickupLocation(val);
-                  setValue('pickupLocation', val, { shouldValidate: true });
-                }}
-                showStreetSearch={true}
-              />
-            </div>
-          )}
-
-          {showDelivery && (
-            <div className="bg-main border border-main rounded-lg p-4">
-              <h4 className="font-semibold text-heading mb-4">Delivery Location</h4>
-              <LocationFields
-                type="delivery"
-                value={deliveryLocation}
-                onChange={(val) => {
-                  setFormTouched(true);
-                  setDeliveryLocation(val);
-                  setValue('deliveryLocation', val, { shouldValidate: true });
-                }}
-                showStreetSearch={true}
-              />
-            </div>
-          )}
         </div>
-
-        {/* Buttons */}
-        <div className="flex justify-end gap-3 pt-6 border-t border-main">
-          <button
-            type="button"
-            onClick={onClose}
-            className={`modal-btn-cancel ${isSubmitting ? 'modal-btn-disabled' : ''}`}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              // Manually gather all form data exactly like the bypass button
-              const formData = watch();
-              const bookingData = {
-                ...formData,
-                containerQuantity,
-                departureDate: departureDate ?? null,
-                deliveryDate: deliveryDate ?? null,
-                pickupLocation: showPickup && Object.keys(pickupLocation).length > 0 ? pickupLocation : null,
-                deliveryLocation: showDelivery && Object.keys(deliveryLocation).length > 0 ? deliveryLocation : null,
-                terms: parseInt(formData.terms) || 1,
-                booking_status: bookingStatus,
-                items: items.map(item => ({
-                  name: item.name,
-                  weight: parseFloat(item.weight),
-                  quantity: parseInt(item.quantity),
-                  category: item.category === "other" ? item.customCategory : item.category,
-                })),
-              };
-              
-              // Call onSubmit directly with the manually gathered data
-              onSubmit(bookingData);
-            }}
-            className={`modal-btn-primary ${(!isFormValid() || isSubmitting) ? 'modal-btn-disabled' : ''}`}
-            disabled={!isFormValid() || isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Updating...
-              </>
-            ) : (
-              'Update Booking'
-            )}
-          </button>
-        </div>
-      </div>
+      </form>
     </SharedModal>
   );
 };

@@ -44,6 +44,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
         { icon: Ship, label: 'Shipping', path: '/shipping-line' },
         { icon: Clipboard, label: 'Booking', path: '/booking' },
         { icon: ClipboardCheck, label: 'Booking Request', path: '/booking-request' },
+        { icon: Container, label: 'Cargo Monitoring', path: '/cargo-monitoring' },
       ]
     },
     {

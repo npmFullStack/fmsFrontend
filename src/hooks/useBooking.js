@@ -4,7 +4,7 @@ import api from '../api';
 
 const BOOKING_KEY = ['bookings'];
 
-// ✅ API functions
+// API functions
 const bookingApi = {
   getAll: async (params = {}) => {
     const { data } = await api.get('/bookings', { params });
@@ -18,7 +18,6 @@ const bookingApi = {
     const { data } = await api.post('/bookings', payload);
     return data;
   },
-  // ✅ NEW: Quote endpoint
   quote: async (payload) => {
     const { data } = await api.post('/bookings/quote', payload);
     return data;
@@ -32,7 +31,7 @@ const bookingApi = {
     return data;
   },
   bulkDelete: async (ids) => {
-    const { data } = await api.post('/bookings/bulk-destroy', { ids });
+    const { data } = await api.post('/bookings/bulk-delete', { ids }); // ✅ FIXED - using POST
     return data;
   },
   restore: async (id) => {
@@ -53,7 +52,7 @@ const bookingApi = {
   },
 };
 
-// ✅ Hook
+// Hook
 export const useBooking = () => {
   const queryClient = useQueryClient();
 
@@ -75,25 +74,25 @@ export const useBooking = () => {
     mutationFn: bookingApi.create,
     onSuccess: (data) => {
       queryClient.invalidateQueries(BOOKING_KEY);
-      console.log('✅ Booking created successfully', data);
+      console.log('Booking created successfully', data);
       return data;
     },
     onError: (error) => {
-      console.error('❌ Create booking error:', error.response?.data || error.message);
+      console.error('Create booking error:', error.response?.data || error.message);
       throw error;
     },
   });
 
-  // ✅ NEW: Create quote
+  // Create quote
   const createQuote = useMutation({
     mutationFn: bookingApi.quote,
     onSuccess: (data) => {
       queryClient.invalidateQueries(BOOKING_KEY);
-      console.log('✅ Quote created successfully', data);
+      console.log('Quote created successfully', data);
       return data;
     },
     onError: (error) => {
-      console.error('❌ Create quote error:', error.response?.data || error.message);
+      console.error('Create quote error:', error.response?.data || error.message);
       throw error;
     },
   });
@@ -103,10 +102,10 @@ export const useBooking = () => {
     mutationFn: bookingApi.update,
     onSuccess: () => {
       queryClient.invalidateQueries(BOOKING_KEY);
-      console.log('✅ Booking updated');
+      console.log('✔️ Booking updated');
     },
     onError: (error) => {
-      console.error('❌ Update booking error:', error.response?.data || error.message);
+      console.error('✗️ Update booking error:', error.response?.data || error.message);
     },
   });
 
@@ -115,22 +114,22 @@ export const useBooking = () => {
     mutationFn: bookingApi.delete,
     onSuccess: () => {
       queryClient.invalidateQueries(BOOKING_KEY);
-      console.log('✅ Booking deleted');
+      console.log('✔️ Booking deleted');
     },
     onError: (error) => {
-      console.error('❌ Delete booking error:', error.response?.data || error.message);
+      console.error('✗️ Delete booking error:', error.response?.data || error.message);
     },
   });
 
-  // Bulk delete bookings
+  // Bulk delete bookings - FIXED
   const bulkDeleteBookings = useMutation({
     mutationFn: bookingApi.bulkDelete,
     onSuccess: () => {
       queryClient.invalidateQueries(BOOKING_KEY);
-      console.log('✅ Bulk delete successful');
+      console.log('✔️ Bulk delete successful');
     },
     onError: (error) => {
-      console.error('❌ Bulk delete error:', error.response?.data || error.message);
+      console.error('✗️ Bulk delete error:', error.response?.data || error.message);
     },
   });
 
@@ -139,10 +138,10 @@ export const useBooking = () => {
     mutationFn: bookingApi.restore,
     onSuccess: () => {
       queryClient.invalidateQueries(BOOKING_KEY);
-      console.log('✅ Booking restored');
+      console.log('✔️ Booking restored');
     },
     onError: (error) => {
-      console.error('❌ Restore booking error:', error.response?.data || error.message);
+      console.error('✗️ Restore booking error:', error.response?.data || error.message);
     },
   });
 
@@ -151,10 +150,10 @@ export const useBooking = () => {
     mutationFn: bookingApi.updateStatus,
     onSuccess: () => {
       queryClient.invalidateQueries(BOOKING_KEY);
-      console.log('✅ Booking status updated');
+      console.log('✔️ Booking status updated');
     },
     onError: (error) => {
-      console.error('❌ Update status error:', error.response?.data || error.message);
+      console.error('✗️ Update status error:', error.response?.data || error.message);
     },
   });
 
@@ -163,10 +162,10 @@ export const useBooking = () => {
     mutationFn: bookingApi.updateBookingStatus,
     onSuccess: () => {
       queryClient.invalidateQueries(BOOKING_KEY);
-      console.log('✅ Booking shipping status updated');
+      console.log('✔️ Booking shipping status updated');
     },
     onError: (error) => {
-      console.error('❌ Update shipping status error:', error.response?.data || error.message);
+      console.error('✗️ Update shipping status error:', error.response?.data || error.message);
     },
   });
 
@@ -175,10 +174,10 @@ export const useBooking = () => {
     mutationFn: bookingApi.approve,
     onSuccess: () => {
       queryClient.invalidateQueries(BOOKING_KEY);
-      console.log('✅ Booking approved and email sent');
+      console.log('✔️ Booking approved and email sent');
     },
     onError: (error) => {
-      console.error('❌ Approve booking error:', error.response?.data || error.message);
+      console.error('✗️ Approve booking error:', error.response?.data || error.message);
       throw error;
     },
   });
@@ -189,10 +188,10 @@ export const useBooking = () => {
     bookingQuery,
     // Mutations
     createBooking,
-    createQuote, // ✅ NEW: Quote mutation
+    createQuote,
     updateBooking,
     deleteBooking,
-    bulkDeleteBookings,
+    bulkDeleteBookings, // ✅ Now this will work with POST
     restoreBooking,
     updateBookingStatus,
     updateBookingShippingStatus,
@@ -200,20 +199,19 @@ export const useBooking = () => {
   };
 };
 
-
-// ✅ NEW: Specialized hook for quote form (without user_id)
+// Specialized hook for quote form (without user_id)
 export const useCreateQuote = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: bookingApi.quote,
     onSuccess: (data) => {
       queryClient.invalidateQueries(BOOKING_KEY);
-      console.log('✅ Quote created successfully', data);
+      console.log('✔ Quote created successfully', data);
       return data;
     },
     onError: (error) => {
-      console.error('❌ Create quote error:', error.response?.data || error.message);
+      console.error('✗ Create quote error:', error.response?.data || error.message);
       throw error;
     },
   });
