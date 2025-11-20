@@ -33,6 +33,9 @@ const BookingRequest = lazyWithRetry(() => import('./pages/BookingRequest'));
 const Booking = lazyWithRetry(() => import('./pages/Booking'));
 const User = lazyWithRetry(() => import('./pages/User'));
 const CargoMonitoring = lazyWithRetry(() => import('./pages/CargoMonitoring'));
+const AccountsPayable = lazyWithRetry(() => import('./pages/AccountsPayable'));
+
+
 
 function App() {
   const { initializeAuth } = useAuth();
@@ -64,6 +67,9 @@ function App() {
             <Route path="/booking" element={<Booking />} />
             <Route path="/users" element={<User />} />
             <Route path="/cargo-monitoring" element={<CargoMonitoring />} />
+            
+            <Route path="/accounts-payable" element={<AccountsPayable />} />
+            
           </Route>
         </Routes>
       </Suspense>

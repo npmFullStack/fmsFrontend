@@ -565,8 +565,13 @@
   @apply bg-yellow-500 text-white border-yellow-600;
 }
 
-.badge-fcl {
-  @apply bg-blue-600 text-white border-blue-700;
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 
 .badge-neutral {
