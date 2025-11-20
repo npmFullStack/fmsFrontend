@@ -3,8 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Select from 'react-select';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+import DateTime from 'react-datetime';
+import 'react-datetime/css/react-datetime.css';
 import { Calendar, X, ChevronUp, ChevronDown, Loader2, AlertCircle } from 'lucide-react';
 import SharedModal from '../ui/SharedModal';
 import { bookingSchema, defaultBookingValues, transformBookingToApi } from '../../schemas/bookingSchema';
@@ -352,28 +352,29 @@ useEffect(() => {
     return hasRequiredFields && itemsValid && weightValid;
   };
 
-  // Custom DatePicker input
-  const DateInput = React.forwardRef(({ value, onClick, placeholder }, ref) => (
+  // Custom DateTime input
+  const DateTimeInput = (props) => (
     <div className="relative">
-      <input
-        ref={ref}
-        onClick={onClick}
-        value={value || ""}
-        readOnly
-        placeholder={placeholder}
-        className="modal-input pr-10 cursor-pointer"
+      <DateTime
+        {...props}
+        inputProps={{
+          placeholder: props.placeholder,
+          className: "modal-input pr-10 cursor-pointer w-full",
+          readOnly: true
+        }}
+        timeFormat={false}
+        closeOnSelect={true}
       />
       <button
         type="button"
-        onClick={onClick}
+        onClick={() => document.querySelector(`input[placeholder="${props.placeholder}"]`).focus()}
         className="absolute right-2 top-1/2 -translate-y-1/2 p-1"
         aria-label="open-calendar"
       >
         <Calendar className="w-5 h-5 text-gray-500" />
       </button>
     </div>
-  ));
-  DateInput.displayName = "DateInput";
+  );
 
   // Custom Container Quantity Input
   const ContainerQuantityInput = () => (
@@ -799,28 +800,32 @@ useEffect(() => {
         <div className={responsiveGrid}>
           <div>
             <label className="modal-label">Preferred Departure Date (Optional)</label>
-            <DatePicker
-              selected={departureDate}
+            <DateTime
+              value={departureDate}
               onChange={(date) => {
                 setFormTouched(true);
                 setDepartureDate(date);
                 setValue('departureDate', date, { shouldValidate: true });
               }}
-              customInput={<DateInput placeholder="Select preferred departure date" />}
-              minDate={new Date()}
+              renderInput={(props) => <DateTimeInput {...props} placeholder="Select preferred departure date" />}
+              timeFormat={false}
+              closeOnSelect={true}
+              isValidDate={(current) => current.isAfter(new Date())}
             />
           </div>
           <div>
             <label className="modal-label">Preferred Delivery Date (Optional)</label>
-            <DatePicker
-              selected={deliveryDate}
+            <DateTime
+              value={deliveryDate}
               onChange={(date) => {
                 setFormTouched(true);
                 setDeliveryDate(date);
                 setValue('deliveryDate', date, { shouldValidate: true });
               }}
-              customInput={<DateInput placeholder="Select preferred delivery date" />}
-              minDate={departureDate}
+              renderInput={(props) => <DateTimeInput {...props} placeholder="Select preferred delivery date" />}
+              timeFormat={false}
+              closeOnSelect={true}
+              isValidDate={(current) => !departureDate || current.isAfter(departureDate)}
             />
           </div>
         </div>

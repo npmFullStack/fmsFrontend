@@ -4,6 +4,7 @@ import { Plus, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { useBooking } from '../hooks/useBooking';
+import { useCargoMonitoring } from '../hooks/useCargoMonitoring'; // NEW: Import cargo monitoring hook
 import TableLayout from '../components/layout/TableLayout';
 import BookingTable from '../components/tables/BookingTable';
 import AddBooking from '../components/modals/AddBooking';
@@ -35,6 +36,10 @@ const Booking = () => {
     approveBooking,
   } = useBooking();
 
+  // NEW: Fetch cargo monitoring data
+  const { cargoMonitoringQuery } = useCargoMonitoring();
+  const { data: cargoData, isLoading: isCargoLoading } = cargoMonitoringQuery();
+
   // Fetch bookings (server-side pagination & search)
   const { data, isLoading, isError } = bookingsQuery({
     search: debouncedSearch,
@@ -44,10 +49,25 @@ const Booking = () => {
     direction
   });
 
+  // NEW: Merge booking data with cargo monitoring data
+  const bookingsWithCargo = useMemo(() => {
+    if (!data?.data || !cargoData?.data) return data?.data || [];
+    
+    return data.data.map(booking => {
+      // Find matching cargo monitoring record for this booking
+      const cargoRecord = cargoData.data.find(cargo => cargo.booking_id === booking.id);
+      
+      return {
+        ...booking,
+        cargo_monitoring: cargoRecord || null
+      };
+    });
+  }, [data?.data, cargoData?.data]);
+
   // Client-side sorting (fallback if server-side sorting isn't working)
   const sortedBookings = useMemo(() => {
-    if (!data?.data) return [];
-    return [...data.data].sort((a, b) => {
+    if (!bookingsWithCargo) return [];
+    return [...bookingsWithCargo].sort((a, b) => {
       let aVal = a[sort];
       let bVal = b[sort];
 
@@ -58,7 +78,7 @@ const Booking = () => {
 
       return direction === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
     });
-  }, [data?.data, sort, direction]);
+  }, [bookingsWithCargo, sort, direction]);
 
   const bookings = sortedBookings;
   const pagination = {
@@ -178,7 +198,9 @@ const Booking = () => {
    * STATES
    *
    *================================================*/
-  if (isLoading && !data) {
+  const isLoadingCombined = isLoading || isCargoLoading;
+
+  if (isLoadingCombined && !data) {
     return (
       <div className="page-loading">
         <div className="page-loading-spinner"></div>
@@ -243,7 +265,7 @@ const Booking = () => {
             sortField={sort}
             sortDirection={direction}
             onSortChange={handleSortChange}
-            isLoading={isLoading}
+            isLoading={isLoadingCombined}
           />
         </TableLayout>
       </div>

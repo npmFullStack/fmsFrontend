@@ -56,20 +56,48 @@ const BookingTable = ({
     setSelected(allSelected ? [] : approvedBookings.map((item) => item.id));
   }, [selected, approvedBookings]);
 
-  const getBookingStatusBadge = (bookingStatus) => {
-    switch (bookingStatus) {
-      case 'delivered': return 'bg-green-500 text-white border-green-600';
-      case 'in_transit': return 'bg-blue-500 text-white border-blue-600';
-      default: return 'bg-gray-500 text-white border-gray-600';
+  // NEW: Get display status from cargo monitoring or fallback to booking_status
+  const getDisplayStatus = (booking) => {
+    // Priority 1: Use cargo monitoring status if available
+    if (booking.cargo_monitoring && booking.cargo_monitoring.current_status) {
+      return booking.cargo_monitoring.current_status;
     }
+    
+    // Priority 2: Map booking_status to cargo monitoring status format
+    const statusMap = {
+      'pending': 'Pending',
+      'in_transit': 'In Transit', 
+      'delivered': 'Delivered'
+    };
+    
+    return statusMap[booking.booking_status] || 'Pending';
   };
 
-  const getBookingStatusIcon = (bookingStatus) => {
-    switch (bookingStatus) {
-      case 'delivered': return <CheckCircle className="w-4 h-4" />;
-      case 'in_transit': return <Truck className="w-4 h-4" />;
-      default: return <Clock className="w-4 h-4" />;
-    }
+  // Updated status system to match CargoMonitoringTable
+  const getBookingStatusBadge = (status) => {
+    const statusConfig = {
+      'Pending': 'bg-gray-500 text-white border-gray-600',
+      'Picked Up': 'bg-blue-500 text-white border-blue-600',
+      'Origin Port': 'bg-purple-500 text-white border-purple-600',
+      'In Transit': 'bg-orange-500 text-white border-orange-600',
+      'Destination Port': 'bg-indigo-500 text-white border-indigo-600',
+      'Out for Delivery': 'bg-yellow-500 text-black border-yellow-600',
+      'Delivered': 'bg-green-500 text-white border-green-600'
+    };
+    return statusConfig[status] || 'bg-gray-500 text-white border-gray-600';
+  };
+
+  const getBookingStatusIcon = (status) => {
+    const iconConfig = {
+      'Pending': <Clock className="w-4 h-4" />,
+      'Picked Up': <Truck className="w-4 h-4" />,
+      'Origin Port': <Ship className="w-4 h-4" />,
+      'In Transit': <Ship className="w-4 h-4" />,
+      'Destination Port': <MapPin className="w-4 h-4" />,
+      'Out for Delivery': <Truck className="w-4 h-4" />,
+      'Delivered': <CheckCircle className="w-4 h-4" />
+    };
+    return iconConfig[status] || <Clock className="w-4 h-4" />;
   };
 
   const calculateTotalWeight = (items) => items?.reduce((sum, i) => sum + i.weight * i.quantity, 0) || 0;
@@ -140,6 +168,9 @@ const BookingTable = ({
         const totalItems = calculateTotalItems(item.items);
         const isExpanded = expandedCards[item.id || index];
         const isSelected = selected.includes(item.id);
+        
+        // NEW: Use the unified status display
+        const displayStatus = getDisplayStatus(item);
 
         return (
           <div
@@ -180,10 +211,10 @@ const BookingTable = ({
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  {/* Booking Status moved to top right */}
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getBookingStatusBadge(item.booking_status)} flex items-center gap-1`}>
-                    {getBookingStatusIcon(item.booking_status)}
-                    {item.booking_status?.replace('_', ' ').toUpperCase() || 'PENDING'}
+                  {/* Booking Status moved to top right - NOW USING UNIFIED STATUS */}
+                  <span className={`px-3 py-1 text-sm font-medium rounded-full border ${getBookingStatusBadge(displayStatus)} flex items-center gap-2`}>
+                    {getBookingStatusIcon(displayStatus)}
+                    {displayStatus}
                   </span>
                 </div>
               </div>
@@ -254,6 +285,50 @@ const BookingTable = ({
 
               {isExpanded && (
                 <div className="mt-3 text-xs space-y-3 border-t pt-3">
+                  {/* NEW: Cargo Monitoring Status Timeline */}
+                  {item.cargo_monitoring && (
+                    <div>
+                      <div className="font-bold text-muted mb-2 uppercase">CARGO STATUS TIMELINE:</div>
+                      <div className="flex flex-wrap gap-2">
+                        {['Pending', 'Picked Up', 'Origin Port', 'In Transit', 'Destination Port', 'Out for Delivery', 'Delivered'].map(status => {
+                          const dateField = `${status.toLowerCase().replace(' ', '_')}_at`;
+                          const date = item.cargo_monitoring[dateField];
+                          const isCurrent = item.cargo_monitoring.current_status === status;
+                          const isCompleted = date !== null;
+                          
+                          return (
+                            <div 
+                              key={status} 
+                              className={`
+                                inline-flex items-center gap-2 px-3 py-2 rounded-full border text-sm font-medium transition-all
+                                ${isCurrent 
+                                  ? 'border-blue-900 bg-blue-600 text-white shadow-sm' 
+                                  : isCompleted 
+                                    ? 'border-green-200 bg-green-50 text-green-800' 
+                                    : 'border-gray-200 bg-gray-50 text-gray-500'
+                                }
+                              `}
+                            >
+                              <div className="flex items-center gap-1.5">
+                                {getBookingStatusIcon(status)}
+                                <span className="font-semibold whitespace-nowrap">{status}</span>
+                              </div>
+                              
+                              {date && (
+                                <div className="flex items-center gap-1 ml-1 pl-2 border-l border-current border-opacity-30">
+                                  <Clock className="w-3 h-3" />
+                                  <span className="text-xs font-mono whitespace-nowrap">
+                                    {formatDate(date, true)}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Payment Terms */}
                   {item.terms !== undefined && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
