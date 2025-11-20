@@ -14,6 +14,10 @@ const apApi = {
     const { data } = await api.get(`/accounts-payables/${id}`);
     return data;
   },
+  getByBooking: async (bookingId) => {
+    const { data } = await api.get(`/accounts-payables/booking/${bookingId}`);
+    return data;
+  },
   create: async (payload) => {
     const { data } = await api.post('/accounts-payables', payload);
     return data;
@@ -40,6 +44,13 @@ export const useAP = () => {
   const apQuery = (params = {}) => useQuery({
     queryKey: [...AP_KEY, params],
     queryFn: () => apApi.getAll(params),
+  });
+
+  // Fetch AP by booking ID
+  const apByBookingQuery = (bookingId) => useQuery({
+    queryKey: [...AP_KEY, 'booking', bookingId],
+    queryFn: () => apApi.getByBooking(bookingId),
+    enabled: !!bookingId,
   });
 
   // Create AP record
@@ -93,6 +104,7 @@ export const useAP = () => {
 
   return {
     apQuery,
+    apByBookingQuery,
     createAP,
     updateAP,
     deleteAP,

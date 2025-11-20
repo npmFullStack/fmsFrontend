@@ -57,21 +57,52 @@ const AccountsPayableTable = ({
     return total;
   };
 
+  // Calculate paid amount for each AP record
+  const calculatePaidAmount = (ap) => {
+    let paid = 0;
+
+    // Freight charges
+    if (ap.freight_charge && ap.freight_charge.is_paid) {
+      paid += parseFloat(ap.freight_charge.amount) || 0;
+    }
+
+    // Trucking charges
+    if (ap.trucking_charges) {
+      paid += ap.trucking_charges
+        .filter(charge => charge.is_paid)
+        .reduce((sum, charge) => sum + (parseFloat(charge.amount) || 0), 0);
+    }
+
+    // Port charges
+    if (ap.port_charges) {
+      paid += ap.port_charges
+        .filter(charge => charge.is_paid)
+        .reduce((sum, charge) => sum + (parseFloat(charge.amount) || 0), 0);
+    }
+
+    // Misc charges
+    if (ap.misc_charges) {
+      paid += ap.misc_charges
+        .filter(charge => charge.is_paid)
+        .reduce((sum, charge) => sum + (parseFloat(charge.amount) || 0), 0);
+    }
+
+    return paid;
+  };
+
+  // Determine payment status
+  const getPaymentStatus = (ap) => {
+    const totalAmount = calculateTotalAmount(ap);
+    const paidAmount = calculatePaidAmount(ap);
+    
+    if (totalAmount === 0) return { status: 'No Charges', badge: 'table-badge-neutral' };
+    if (paidAmount === 0) return { status: 'Unpaid', badge: 'table-badge-warning' };
+    if (paidAmount === totalAmount) return { status: 'Paid', badge: 'table-badge-success' };
+    return { status: 'Partial', badge: 'table-badge-info' };
+  };
+
   const columns = useMemo(
     () => [
-      {
-        accessorKey: 'voucher_number',
-        header: () => (
-          <button onClick={() => handleSort('voucher_number')} className="table-header-button">
-            VOUCHER {getSortIcon('voucher_number')}
-          </button>
-        ),
-        cell: ({ getValue }) => (
-          <span className="table-cell-monospace table-cell-heading">
-            {getValue()}
-          </span>
-        ),
-      },
       {
         accessorKey: 'booking.booking_number',
         header: () => (
@@ -113,17 +144,53 @@ const AccountsPayableTable = ({
         meta: { cellClassName: 'table-cell-right' },
       },
       {
-        accessorKey: 'is_paid',
+        accessorKey: 'paid_amount',
         header: () => (
-          <button onClick={() => handleSort('is_paid')} className="table-header-button">
-            STATUS {getSortIcon('is_paid')}
+          <button onClick={() => handleSort('paid_amount')} className="table-header-button">
+            PAID AMOUNT {getSortIcon('paid_amount')}
           </button>
         ),
-        cell: ({ getValue }) => (
-          <span className={`table-badge ${getValue() ? 'table-badge-success' : 'table-badge-warning'}`}>
-            {getValue() ? 'Paid' : 'Unpaid'}
+        cell: ({ row }) => (
+          <span className="table-cell-monospace">
+            {formatCurrency(calculatePaidAmount(row.original))}
           </span>
         ),
+        meta: { cellClassName: 'table-cell-right' },
+      },
+      {
+        accessorKey: 'balance',
+        header: () => (
+          <button onClick={() => handleSort('balance')} className="table-header-button">
+            BALANCE {getSortIcon('balance')}
+          </button>
+        ),
+        cell: ({ row }) => {
+          const total = calculateTotalAmount(row.original);
+          const paid = calculatePaidAmount(row.original);
+          const balance = total - paid;
+          return (
+            <span className={`table-cell-monospace ${balance > 0 ? 'table-cell-emphasis text-red-600' : ''}`}>
+              {formatCurrency(balance)}
+            </span>
+          );
+        },
+        meta: { cellClassName: 'table-cell-right' },
+      },
+      {
+        id: 'status',
+        header: () => (
+          <button onClick={() => handleSort('status')} className="table-header-button">
+            STATUS {getSortIcon('status')}
+          </button>
+        ),
+        cell: ({ row }) => {
+          const { status, badge } = getPaymentStatus(row.original);
+          return (
+            <span className={`table-badge ${badge}`}>
+              {status}
+            </span>
+          );
+        },
         meta: { cellClassName: 'table-cell-center' },
       },
       {

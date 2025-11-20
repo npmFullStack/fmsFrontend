@@ -1,7 +1,7 @@
 // src/schemas/apSchema.js
 import { z } from 'zod';
 
-// Base charge schema
+// Base charge schema with improved date validation
 const baseChargeSchema = {
   amount: z.number().min(0, 'Amount must be greater than or equal to 0').default(0),
   check_date: z.string().optional().nullable(),

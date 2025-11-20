@@ -1,6 +1,6 @@
 // src/components/modals/AddCharge.jsx
-import React, { useState, useEffect } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Select from 'react-select';
 import DateTime from 'react-datetime';
@@ -8,105 +8,44 @@ import 'react-datetime/css/react-datetime.css';
 import { 
   apSchema, 
   defaultAPValues, 
-  chargeTypes, 
   truckingTypes, 
   portChargeTypes, 
   miscChargeTypes 
 } from '../../schemas/apSchema';
 import SharedModal from '../ui/SharedModal';
-import { Loader2, Anchor, Plus, Trash2, DollarSign, FileText, Truck, Calendar, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
+import { useAP } from '../../hooks/useAP';
+import { Loader2, Anchor, Plus, Trash2, DollarSign, FileText, Truck, Calendar, AlertCircle } from 'lucide-react';
 
-const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }) => {
-  const [activeTab, setActiveTab] = useState('freight');
-
-  const {
-    register,
-    handleSubmit,
-    control,
-    reset,
-    watch,
-    setValue,
-    formState: { errors, isValid },
-  } = useForm({
-    resolver: zodResolver(apSchema),
-    mode: 'onChange',
-    defaultValues: defaultAPValues,
-  });
-
-  // Field arrays for array fields
-  const {
-    fields: truckingFields,
-    append: appendTrucking,
-    remove: removeTrucking,
-  } = useFieldArray({
-    control,
-    name: 'trucking_charges',
-  });
-
-  const {
-    fields: portFields,
-    append: appendPort,
-    remove: removePort,
-  } = useFieldArray({
-    control,
-    name: 'port_charges',
-  });
-
-  const {
-    fields: miscFields,
-    append: appendMisc,
-    remove: removeMisc,
-  } = useFieldArray({
-    control,
-    name: 'misc_charges',
-  });
-
-  // Debug logging
-  useEffect(() => {
-    console.log('Form isValid:', isValid);
-    console.log('Form errors:', errors);
-    console.log('Booking ID:', watch('booking_id'));
-  }, [isValid, errors, watch('booking_id')]);
-
-  useEffect(() => {
-    if (isOpen) {
-      reset(defaultAPValues);
-      setActiveTab('freight');
+// Simple DateTime component
+const DateTimeInput = React.memo(({ value, onChange, placeholder }) => {
+  // Format date to remove time part (00:00:00)
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    // If it's already just a date (YYYY-MM-DD), return as is
+    if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return dateString;
     }
-  }, [isOpen, reset]);
-
-  const onSubmit = (data) => {
-    console.log('Submitting data:', data);
-    // Filter out empty arrays and null values
-    const formattedData = {
-      booking_id: data.booking_id,
-      freight_charge: data.freight_charge?.amount && data.freight_charge.amount > 0 ? data.freight_charge : null,
-      trucking_charges: data.trucking_charges?.filter(charge => charge.amount > 0) || [],
-      port_charges: data.port_charges?.filter(charge => charge.amount > 0) || [],
-      misc_charges: data.misc_charges?.filter(charge => charge.amount > 0) || [],
-    };
-    console.log('Formatted data for API:', formattedData);
-    onSave(formattedData);
+    // If it has time part, extract just the date
+    if (typeof dateString === 'string' && dateString.includes(' ')) {
+      return dateString.split(' ')[0];
+    }
+    // If it's a Date object or other format, try to format it
+    try {
+      const date = new Date(dateString);
+      return date.toISOString().split('T')[0];
+    } catch {
+      return dateString;
+    }
   };
 
-  const addTruckingCharge = () => {
-    appendTrucking({ type: 'ORIGIN', amount: 0, check_date: '', voucher: '' });
-  };
-
-  const addPortCharge = () => {
-    appendPort({ charge_type: 'CRAINAGE', payee: '', amount: 0, check_date: '', voucher: '' });
-  };
-
-  const addMiscCharge = () => {
-    appendMisc({ charge_type: 'REBATES', payee: '', amount: 0, check_date: '', voucher: '' });
-  };
-
-  // Custom DateTime input component
-  const DateTimeInput = ({ value, onChange, placeholder }) => (
+  return (
     <div className="relative">
       <DateTime
-        value={value}
-        onChange={onChange}
+        value={formatDate(value)}
+        onChange={(date) => {
+          const dateString = typeof date === 'string' ? date : date?.format('YYYY-MM-DD') || '';
+          onChange(dateString);
+        }}
         inputProps={{
           placeholder: placeholder,
           className: "modal-input pr-10 cursor-pointer w-full",
@@ -114,22 +53,333 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
         }}
         timeFormat={false}
         closeOnSelect={true}
+        dateFormat="YYYY-MM-DD"
       />
-      <button
-        type="button"
-        onClick={() => document.querySelector(`input[placeholder="${placeholder}"]`)?.focus()}
-        className="absolute right-2 top-1/2 -translate-y-1/2 p-1"
-        aria-label="open-calendar"
-      >
-        <Calendar className="w-5 h-5 text-muted" />
-      </button>
+      <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
     </div>
   );
+});
 
-  const TabButton = ({ tab, label, icon: Icon }) => (
+const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }) => {
+  const [activeTab, setActiveTab] = useState('freight');
+  const [truckingCharges, setTruckingCharges] = useState([]);
+  const [portCharges, setPortCharges] = useState([]);
+  const [miscCharges, setMiscCharges] = useState([]);
+  
+  // Refs for auto-scrolling to newly added charges
+  const truckingChargesEndRef = useRef(null);
+  const portChargesEndRef = useRef(null);
+  const miscChargesEndRef = useRef(null);
+  
+  const { apByBookingQuery } = useAP();
+  
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    trigger,
+    reset,
+    formState: { errors, isValid },
+  } = useForm({
+    resolver: zodResolver(apSchema),
+    mode: 'onChange',
+    defaultValues: defaultAPValues,
+  });
+
+  const watchedBookingId = watch('booking_id');
+  const { data: existingCharges, isLoading: isLoadingExisting } = apByBookingQuery(watchedBookingId);
+
+  // Memoized booking options
+  const bookingOptions = useMemo(() => 
+    bookings.map(booking => ({
+      value: booking.id,
+      label: `${booking.booking_number} - ${booking.first_name} ${booking.last_name}`,
+    })),
+    [bookings]
+  );
+
+  const selectedBooking = useMemo(() => 
+    bookingOptions.find(option => option.value === watchedBookingId),
+    [bookingOptions, watchedBookingId]
+  );
+
+  // Reset everything when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      // Completely reset the form
+      reset(defaultAPValues);
+      setTruckingCharges([]);
+      setPortCharges([]);
+      setMiscCharges([]);
+      setActiveTab('freight');
+    }
+  }, [isOpen, reset]);
+
+  // Auto-scroll to newly added charges
+  useEffect(() => {
+    if (truckingCharges.length > 0 && truckingChargesEndRef.current) {
+      truckingChargesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [truckingCharges.length]);
+
+  useEffect(() => {
+    if (portCharges.length > 0 && portChargesEndRef.current) {
+      portChargesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [portCharges.length]);
+
+  useEffect(() => {
+    if (miscCharges.length > 0 && miscChargesEndRef.current) {
+      miscChargesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [miscCharges.length]);
+
+  // Simple population of existing charges - FIXED: Prevent duplicates
+  useEffect(() => {
+    if (existingCharges && isOpen) {
+      // Reset all charges first
+      setTruckingCharges([]);
+      setPortCharges([]);
+      setMiscCharges([]);
+      
+      // Populate freight charge
+      if (existingCharges.freight_charge) {
+        setValue('freight_charge.amount', existingCharges.freight_charge.amount);
+        setValue('freight_charge.check_date', existingCharges.freight_charge.check_date || '');
+      }
+
+      // Populate other charges - use unique types only
+      if (existingCharges.trucking_charges) {
+        const uniqueTruckingCharges = [];
+        const seenTypes = new Set();
+        
+        existingCharges.trucking_charges.forEach(charge => {
+          if (!seenTypes.has(charge.type)) {
+            seenTypes.add(charge.type);
+            uniqueTruckingCharges.push({
+              ...charge,
+              id: Math.random().toString(36).substr(2, 9)
+            });
+          }
+        });
+        setTruckingCharges(uniqueTruckingCharges);
+      }
+
+      if (existingCharges.port_charges) {
+        const uniquePortCharges = [];
+        const seenTypes = new Set();
+        
+        existingCharges.port_charges.forEach(charge => {
+          if (!seenTypes.has(charge.charge_type)) {
+            seenTypes.add(charge.charge_type);
+            uniquePortCharges.push({
+              ...charge,
+              id: Math.random().toString(36).substr(2, 9)
+            });
+          }
+        });
+        setPortCharges(uniquePortCharges);
+      }
+
+      if (existingCharges.misc_charges) {
+        const uniqueMiscCharges = [];
+        const seenTypes = new Set();
+        
+        existingCharges.misc_charges.forEach(charge => {
+          if (!seenTypes.has(charge.charge_type)) {
+            seenTypes.add(charge.charge_type);
+            uniqueMiscCharges.push({
+              ...charge,
+              id: Math.random().toString(36).substr(2, 9)
+            });
+          }
+        });
+        setMiscCharges(uniqueMiscCharges);
+      }
+
+      setTimeout(() => trigger(), 100);
+    }
+  }, [existingCharges, isOpen, setValue, trigger]);
+
+  // Format date to remove time part
+  const formatDateForDisplay = (dateString) => {
+    if (!dateString) return '';
+    if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return dateString;
+    }
+    try {
+      const date = new Date(dateString);
+      return date.toISOString().split('T')[0];
+    } catch {
+      return dateString;
+    }
+  };
+
+  // Simple charge management functions
+  const addTruckingCharge = useCallback(() => {
+    const usedTypes = truckingCharges.map(c => c.type);
+    const availableType = truckingTypes.find(t => !usedTypes.includes(t.value));
+    if (availableType) {
+      setTruckingCharges(prev => [...prev, {
+        id: Math.random().toString(36).substr(2, 9),
+        type: availableType.value,
+        amount: '',
+        check_date: '',
+        voucher: ''
+      }]);
+    }
+  }, [truckingCharges]);
+
+  const removeTruckingCharge = useCallback((index) => {
+    setTruckingCharges(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const updateTruckingCharge = useCallback((index, field, value) => {
+    setTruckingCharges(prev => prev.map((charge, i) => 
+      i === index ? { ...charge, [field]: value } : charge
+    ));
+  }, []);
+
+  const addPortCharge = useCallback(() => {
+    const usedTypes = portCharges.map(c => c.charge_type);
+    const availableType = portChargeTypes.find(t => !usedTypes.includes(t.value));
+    if (availableType) {
+      setPortCharges(prev => [...prev, {
+        id: Math.random().toString(36).substr(2, 9),
+        charge_type: availableType.value,
+        payee: '',
+        amount: '',
+        check_date: '',
+        voucher: ''
+      }]);
+    }
+  }, [portCharges]);
+
+  const removePortCharge = useCallback((index) => {
+    setPortCharges(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const updatePortCharge = useCallback((index, field, value) => {
+    setPortCharges(prev => prev.map((charge, i) => 
+      i === index ? { ...charge, [field]: value } : charge
+    ));
+  }, []);
+
+  const addMiscCharge = useCallback(() => {
+    const usedTypes = miscCharges.map(c => c.charge_type);
+    const availableType = miscChargeTypes.find(t => !usedTypes.includes(t.value));
+    if (availableType) {
+      setMiscCharges(prev => [...prev, {
+        id: Math.random().toString(36).substr(2, 9),
+        charge_type: availableType.value,
+        payee: '',
+        amount: '',
+        check_date: '',
+        voucher: ''
+      }]);
+    }
+  }, [miscCharges]);
+
+  const removeMiscCharge = useCallback((index) => {
+    setMiscCharges(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const updateMiscCharge = useCallback((index, field, value) => {
+    setMiscCharges(prev => prev.map((charge, i) => 
+      i === index ? { ...charge, [field]: value } : charge
+    ));
+  }, []);
+
+  // Handle amount input change - allow empty and proper number parsing
+  const handleAmountChange = useCallback((index, value, updateFunction) => {
+    // Allow empty string for better UX
+    if (value === '') {
+      updateFunction(index, 'amount', '');
+      return;
+    }
+    
+    // Remove any non-numeric characters except decimal point
+    const cleanValue = value.replace(/[^\d.]/g, '');
+    
+    // Ensure only one decimal point
+    const parts = cleanValue.split('.');
+    if (parts.length > 2) {
+      return; // Invalid input, don't update
+    }
+    
+    // Parse as float, but keep as string if it ends with decimal point
+    if (cleanValue.endsWith('.')) {
+      updateFunction(index, 'amount', cleanValue);
+    } else {
+      const numValue = parseFloat(cleanValue);
+      if (!isNaN(numValue)) {
+        updateFunction(index, 'amount', numValue);
+      }
+    }
+  }, []);
+
+  const onSubmit = useCallback((data) => {
+    const formattedData = {
+      booking_id: data.booking_id,
+      freight_charge: data.freight_charge?.amount > 0 ? {
+        ...data.freight_charge,
+        amount: parseFloat(data.freight_charge.amount) || 0
+      } : null,
+      trucking_charges: truckingCharges
+        .filter(charge => charge.amount && charge.amount !== '')
+        .map(charge => ({
+          ...charge,
+          amount: parseFloat(charge.amount) || 0
+        })),
+      port_charges: portCharges
+        .filter(charge => charge.amount && charge.amount !== '')
+        .map(charge => ({
+          ...charge,
+          amount: parseFloat(charge.amount) || 0
+        })),
+      misc_charges: miscCharges
+        .filter(charge => charge.amount && charge.amount !== '')
+        .map(charge => ({
+          ...charge,
+          amount: parseFloat(charge.amount) || 0
+        })),
+    };
+    
+    onSave(formattedData);
+  }, [truckingCharges, portCharges, miscCharges, onSave]);
+
+  const handleBookingChange = useCallback((selected) => {
+    const bookingId = selected?.value ? Number(selected.value) : undefined;
+    setValue('booking_id', bookingId, { shouldValidate: true });
+    trigger('booking_id');
+  }, [setValue, trigger]);
+
+  const handleTabChange = useCallback((tab) => {
+    setActiveTab(tab);
+  }, []);
+
+  // Memoized can add checks
+  const canAddTruckingCharge = useMemo(() => {
+    const usedTypes = truckingCharges.map(c => c.type);
+    return truckingTypes.some(t => !usedTypes.includes(t.value));
+  }, [truckingCharges]);
+
+  const canAddPortCharge = useMemo(() => {
+    const usedTypes = portCharges.map(c => c.charge_type);
+    return portChargeTypes.some(t => !usedTypes.includes(t.value));
+  }, [portCharges]);
+
+  const canAddMiscCharge = useMemo(() => {
+    const usedTypes = miscCharges.map(c => c.charge_type);
+    return miscChargeTypes.some(t => !usedTypes.includes(t.value));
+  }, [miscCharges]);
+
+  // Simple tab button component
+  const TabButton = useCallback(({ tab, label, icon: Icon }) => (
     <button
       type="button"
-      onClick={() => setActiveTab(tab)}
+      onClick={() => handleTabChange(tab)}
       className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${
         activeTab === tab
           ? 'bg-primary text-white border border-primary'
@@ -139,7 +389,9 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
       <Icon className="w-4 h-4" />
       {label}
     </button>
-  );
+  ), [activeTab, handleTabChange]);
+
+  if (!isOpen) return null;
 
   return (
     <SharedModal 
@@ -147,28 +399,18 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
       onClose={onClose} 
       title="Add Charges" 
       size="lg"
-      className="h-[90vh]" // Add fixed height to parent
+      className="h-[90vh]"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full">
-        {/* Scrollable Content - Fixed height with overflow */}
         <div className="flex-1 overflow-y-auto max-h-[calc(90vh-120px)] pr-2 -mr-2">
           <div className="space-y-6">
             {/* Booking Selection */}
             <div>
               <label className="modal-label text-heading">Select Booking</label>
               <Select
-                options={bookings.map(booking => ({
-                  value: booking.id,
-                  label: `${booking.booking_number} - ${booking.first_name} ${booking.last_name}`,
-                }))}
-                value={bookings.find(b => b.id === watch('booking_id')) ? 
-                  { value: watch('booking_id'), label: `${bookings.find(b => b.id === watch('booking_id'))?.booking_number} - ${bookings.find(b => b.id === watch('booking_id'))?.first_name} ${bookings.find(b => b.id === watch('booking_id'))?.last_name}` } 
-                  : null
-                }
-                onChange={(selected) => {
-                  console.log('Selected booking:', selected?.value);
-                  setValue('booking_id', selected?.value ? Number(selected.value) : undefined, { shouldValidate: true });
-                }}
+                options={bookingOptions}
+                value={selectedBooking}
+                onChange={handleBookingChange}
                 className={`react-select-container ${errors.booking_id ? 'border-red-500' : ''}`}
                 classNamePrefix="react-select"
                 placeholder="Select a booking"
@@ -177,9 +419,23 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
               {errors.booking_id && (
                 <span className="modal-error">{errors.booking_id.message}</span>
               )}
+              {isLoadingExisting && (
+                <div className="text-sm text-blue-600 mt-1">Loading existing charges...</div>
+              )}
             </div>
 
-            {/* Tab Navigation with Scroll */}
+            {existingCharges && (
+              <div className="email-notice border border-blue-700 bg-blue-900">
+                <div className="flex items-start gap-4 pl-4">
+                  <AlertCircle className="email-notice-icon text-blue-100" />
+                  <p className="email-notice-text text-blue-200">
+                    This booking already has existing charges. Adding new charges will accumulate with existing ones.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Tab Navigation */}
             <div className="relative">
               <div className="flex overflow-x-auto pb-2 space-x-2 scrollbar-hide bg-main rounded-lg p-2">
                 <TabButton tab="freight" label="Freight" icon={DollarSign} />
@@ -187,26 +443,14 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
                 <TabButton tab="port" label="Port Charges" icon={Anchor} />
                 <TabButton tab="misc" label="Miscellaneous" icon={FileText} />
               </div>
-              {/* Fade effect for scroll indication */}
               <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-main to-transparent pointer-events-none"></div>
               <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-main to-transparent pointer-events-none"></div>
             </div>
 
-            {/* Freight Charges Tab */}
+            {/* Freight Charges */}
             {activeTab === 'freight' && (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-heading">Freight Charges</h3>
-                <div className="email-notice border border-blue-700 bg-blue-900">
-                  <div className="flex items-start gap-4 pl-4">
-                    <AlertCircle className="email-notice-icon text-blue-100" />
-                    <p className="email-notice-text text-blue-200">
-                      <strong className="email-notice-heading text-blue-100">
-                        Note:
-                      </strong>{' '}
-                      Add freight charges for the selected booking. Amount should be greater than 0.
-                    </p>
-                  </div>
-                </div>
                 <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="modal-label text-heading">Amount</label>
@@ -215,10 +459,7 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
                       step="0.01"
                       placeholder="0.00"
                       className="modal-input"
-                      {...register('freight_charge.amount', { 
-                        valueAsNumber: true,
-                        onChange: () => console.log('Freight amount changed')
-                      })}
+                      {...register('freight_charge.amount', { valueAsNumber: true })}
                     />
                     {errors.freight_charge?.amount && (
                       <span className="modal-error">{errors.freight_charge.amount.message}</span>
@@ -227,8 +468,8 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
                   <div>
                     <label className="modal-label text-heading">Check Date</label>
                     <DateTimeInput
-                      value={watch('freight_charge.check_date')}
-                      onChange={(date) => setValue('freight_charge.check_date', date, { shouldValidate: true })}
+                      value={watch('freight_charge.check_date') || ''}
+                      onChange={(date) => setValue('freight_charge.check_date', date)}
                       placeholder="Select check date"
                     />
                   </div>
@@ -236,7 +477,7 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
               </div>
             )}
 
-            {/* Trucking Charges Tab */}
+            {/* Trucking Charges */}
             {activeTab === 'trucking' && (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
@@ -244,22 +485,23 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
                   <button
                     type="button"
                     onClick={addTruckingCharge}
-                    className="flex items-center gap-2 text-sm text-primary hover:text-primary-dark"
+                    disabled={!canAddTruckingCharge}
+                    className={`flex items-center gap-2 text-sm ${
+                      canAddTruckingCharge ? 'text-primary hover:text-primary-dark' : 'text-muted cursor-not-allowed'
+                    }`}
                   >
                     <Plus className="w-4 h-4" />
                     Add Trucking Charge
                   </button>
                 </div>
 
-                {truckingFields.map((field, index) => (
-                  <div key={field.id} className="bg-main border border-main rounded-lg p-4 space-y-4">
+                {truckingCharges.map((charge, index) => (
+                  <div key={charge.id} className="bg-main border border-main rounded-lg p-4 space-y-4">
                     <div className="flex justify-between items-center">
-                      <h4 className="font-medium text-heading">
-                        Trucking Charge {index + 1}
-                      </h4>
+                      <h4 className="font-medium text-heading">Trucking Charge {index + 1}</h4>
                       <button
                         type="button"
-                        onClick={() => removeTrucking(index)}
+                        onClick={() => removeTruckingCharge(index)}
                         className="text-red-600 hover:text-red-700"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -270,29 +512,30 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
                       <div>
                         <label className="modal-label text-heading">Type</label>
                         <Select
-                          options={truckingTypes}
-                          value={truckingTypes.find(opt => opt.value === watch(`trucking_charges.${index}.type`))}
-                          onChange={(selected) => setValue(`trucking_charges.${index}.type`, selected?.value || '', { shouldValidate: true })}
+                          options={truckingTypes.filter(t => 
+                            !truckingCharges.some((c, i) => i !== index && c.type === t.value)
+                          )}
+                          value={truckingTypes.find(t => t.value === charge.type)}
+                          onChange={(selected) => updateTruckingCharge(index, 'type', selected?.value)}
                           className="react-select-container"
                           classNamePrefix="react-select"
-                          placeholder="Select type"
                         />
                       </div>
                       <div>
                         <label className="modal-label text-heading">Amount</label>
                         <input
-                          type="number"
-                          step="0.01"
+                          type="text"
                           placeholder="0.00"
+                          value={charge.amount}
+                          onChange={(e) => handleAmountChange(index, e.target.value, updateTruckingCharge)}
                           className="modal-input"
-                          {...register(`trucking_charges.${index}.amount`, { valueAsNumber: true })}
                         />
                       </div>
                       <div>
                         <label className="modal-label text-heading">Check Date</label>
                         <DateTimeInput
-                          value={watch(`trucking_charges.${index}.check_date`)}
-                          onChange={(date) => setValue(`trucking_charges.${index}.check_date`, date, { shouldValidate: true })}
+                          value={formatDateForDisplay(charge.check_date)}
+                          onChange={(date) => updateTruckingCharge(index, 'check_date', date)}
                           placeholder="Select check date"
                         />
                       </div>
@@ -300,15 +543,21 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
                   </div>
                 ))}
 
-                {truckingFields.length === 0 && (
+                {/* Auto-scroll anchor for trucking charges */}
+                <div ref={truckingChargesEndRef} />
+
+                {truckingCharges.length === 0 && (
                   <div className="text-center py-8 text-muted border-2 border-dashed border-main rounded-lg">
-                    No trucking charges added. Click "Add Trucking Charge" to get started.
+                    {canAddTruckingCharge 
+                      ? 'No trucking charges added. Click "Add Trucking Charge" to get started.'
+                      : 'All trucking charge types have been added.'
+                    }
                   </div>
                 )}
               </div>
             )}
 
-            {/* Port Charges Tab */}
+            {/* Port Charges */}
             {activeTab === 'port' && (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
@@ -316,22 +565,23 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
                   <button
                     type="button"
                     onClick={addPortCharge}
-                    className="flex items-center gap-2 text-sm text-primary hover:text-primary-dark"
+                    disabled={!canAddPortCharge}
+                    className={`flex items-center gap-2 text-sm ${
+                      canAddPortCharge ? 'text-primary hover:text-primary-dark' : 'text-muted cursor-not-allowed'
+                    }`}
                   >
                     <Plus className="w-4 h-4" />
                     Add Port Charge
                   </button>
                 </div>
 
-                {portFields.map((field, index) => (
-                  <div key={field.id} className="bg-main border border-main rounded-lg p-4 space-y-4">
+                {portCharges.map((charge, index) => (
+                  <div key={charge.id} className="bg-main border border-main rounded-lg p-4 space-y-4">
                     <div className="flex justify-between items-center">
-                      <h4 className="font-medium text-heading">
-                        Port Charge {index + 1}
-                      </h4>
+                      <h4 className="font-medium text-heading">Port Charge {index + 1}</h4>
                       <button
                         type="button"
-                        onClick={() => removePort(index)}
+                        onClick={() => removePortCharge(index)}
                         className="text-red-600 hover:text-red-700"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -342,12 +592,13 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
                       <div>
                         <label className="modal-label text-heading">Charge Type</label>
                         <Select
-                          options={portChargeTypes}
-                          value={portChargeTypes.find(opt => opt.value === watch(`port_charges.${index}.charge_type`))}
-                          onChange={(selected) => setValue(`port_charges.${index}.charge_type`, selected?.value || '', { shouldValidate: true })}
+                          options={portChargeTypes.filter(t => 
+                            !portCharges.some((c, i) => i !== index && c.charge_type === t.value)
+                          )}
+                          value={portChargeTypes.find(t => t.value === charge.charge_type)}
+                          onChange={(selected) => updatePortCharge(index, 'charge_type', selected?.value)}
                           className="react-select-container"
                           classNamePrefix="react-select"
-                          placeholder="Select charge type"
                         />
                       </div>
                       <div>
@@ -355,25 +606,26 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
                         <input
                           type="text"
                           placeholder="Payee name"
+                          value={charge.payee}
+                          onChange={(e) => updatePortCharge(index, 'payee', e.target.value)}
                           className="modal-input"
-                          {...register(`port_charges.${index}.payee`)}
                         />
                       </div>
                       <div>
                         <label className="modal-label text-heading">Amount</label>
                         <input
-                          type="number"
-                          step="0.01"
+                          type="text"
                           placeholder="0.00"
+                          value={charge.amount}
+                          onChange={(e) => handleAmountChange(index, e.target.value, updatePortCharge)}
                           className="modal-input"
-                          {...register(`port_charges.${index}.amount`, { valueAsNumber: true })}
                         />
                       </div>
                       <div>
                         <label className="modal-label text-heading">Check Date</label>
                         <DateTimeInput
-                          value={watch(`port_charges.${index}.check_date`)}
-                          onChange={(date) => setValue(`port_charges.${index}.check_date`, date, { shouldValidate: true })}
+                          value={formatDateForDisplay(charge.check_date)}
+                          onChange={(date) => updatePortCharge(index, 'check_date', date)}
                           placeholder="Select check date"
                         />
                       </div>
@@ -381,15 +633,21 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
                   </div>
                 ))}
 
-                {portFields.length === 0 && (
+                {/* Auto-scroll anchor for port charges */}
+                <div ref={portChargesEndRef} />
+
+                {portCharges.length === 0 && (
                   <div className="text-center py-8 text-muted border-2 border-dashed border-main rounded-lg">
-                    No port charges added. Click "Add Port Charge" to get started.
+                    {canAddPortCharge 
+                      ? 'No port charges added. Click "Add Port Charge" to get started.'
+                      : 'All port charge types have been added.'
+                    }
                   </div>
                 )}
               </div>
             )}
 
-            {/* Miscellaneous Charges Tab */}
+            {/* Miscellaneous Charges */}
             {activeTab === 'misc' && (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
@@ -397,22 +655,23 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
                   <button
                     type="button"
                     onClick={addMiscCharge}
-                    className="flex items-center gap-2 text-sm text-primary hover:text-primary-dark"
+                    disabled={!canAddMiscCharge}
+                    className={`flex items-center gap-2 text-sm ${
+                      canAddMiscCharge ? 'text-primary hover:text-primary-dark' : 'text-muted cursor-not-allowed'
+                    }`}
                   >
                     <Plus className="w-4 h-4" />
                     Add Misc Charge
                   </button>
                 </div>
 
-                {miscFields.map((field, index) => (
-                  <div key={field.id} className="bg-main border border-main rounded-lg p-4 space-y-4">
+                {miscCharges.map((charge, index) => (
+                  <div key={charge.id} className="bg-main border border-main rounded-lg p-4 space-y-4">
                     <div className="flex justify-between items-center">
-                      <h4 className="font-medium text-heading">
-                        Misc Charge {index + 1}
-                      </h4>
+                      <h4 className="font-medium text-heading">Misc Charge {index + 1}</h4>
                       <button
                         type="button"
-                        onClick={() => removeMisc(index)}
+                        onClick={() => removeMiscCharge(index)}
                         className="text-red-600 hover:text-red-700"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -423,12 +682,13 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
                       <div>
                         <label className="modal-label text-heading">Charge Type</label>
                         <Select
-                          options={miscChargeTypes}
-                          value={miscChargeTypes.find(opt => opt.value === watch(`misc_charges.${index}.charge_type`))}
-                          onChange={(selected) => setValue(`misc_charges.${index}.charge_type`, selected?.value || '', { shouldValidate: true })}
+                          options={miscChargeTypes.filter(t => 
+                            !miscCharges.some((c, i) => i !== index && c.charge_type === t.value)
+                          )}
+                          value={miscChargeTypes.find(t => t.value === charge.charge_type)}
+                          onChange={(selected) => updateMiscCharge(index, 'charge_type', selected?.value)}
                           className="react-select-container"
                           classNamePrefix="react-select"
-                          placeholder="Select charge type"
                         />
                       </div>
                       <div>
@@ -436,25 +696,26 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
                         <input
                           type="text"
                           placeholder="Payee name"
+                          value={charge.payee}
+                          onChange={(e) => updateMiscCharge(index, 'payee', e.target.value)}
                           className="modal-input"
-                          {...register(`misc_charges.${index}.payee`)}
                         />
                       </div>
                       <div>
                         <label className="modal-label text-heading">Amount</label>
                         <input
-                          type="number"
-                          step="0.01"
+                          type="text"
                           placeholder="0.00"
+                          value={charge.amount}
+                          onChange={(e) => handleAmountChange(index, e.target.value, updateMiscCharge)}
                           className="modal-input"
-                          {...register(`misc_charges.${index}.amount`, { valueAsNumber: true })}
                         />
                       </div>
                       <div>
                         <label className="modal-label text-heading">Check Date</label>
                         <DateTimeInput
-                          value={watch(`misc_charges.${index}.check_date`)}
-                          onChange={(date) => setValue(`misc_charges.${index}.check_date`, date, { shouldValidate: true })}
+                          value={formatDateForDisplay(charge.check_date)}
+                          onChange={(date) => updateMiscCharge(index, 'check_date', date)}
                           placeholder="Select check date"
                         />
                       </div>
@@ -462,9 +723,15 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
                   </div>
                 ))}
 
-                {miscFields.length === 0 && (
+                {/* Auto-scroll anchor for misc charges */}
+                <div ref={miscChargesEndRef} />
+
+                {miscCharges.length === 0 && (
                   <div className="text-center py-8 text-muted border-2 border-dashed border-main rounded-lg">
-                    No miscellaneous charges added. Click "Add Misc Charge" to get started.
+                    {canAddMiscCharge 
+                      ? 'No miscellaneous charges added. Click "Add Misc Charge" to get started.'
+                      : 'All miscellaneous charge types have been added.'
+                    }
                   </div>
                 )}
               </div>
@@ -472,20 +739,19 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
           </div>
         </div>
 
-        {/* Fixed Buttons at Bottom */}
-        <div className="flex justify-end gap-3 pt-6 border-t border-main mt-6 flex-shrink-0">
+        {/* Fixed Buttons */}
+        <div className="flex justify-end gap-3 pt-6 border-t border-main mt-6">
           <button
             type="button"
             onClick={onClose}
-            className={`modal-btn-cancel ${isLoading ? 'modal-btn-disabled' : ''}`}
+            className="modal-btn-cancel"
             disabled={isLoading}
           >
             Cancel
           </button>
-
           <button
             type="submit"
-            className={`modal-btn-primary ${(!isValid || isLoading) ? 'modal-btn-disabled' : ''}`}
+            className={`modal-btn-primary ${!isValid || isLoading ? 'modal-btn-disabled' : ''}`}
             disabled={!isValid || isLoading}
           >
             {isLoading ? (
@@ -503,4 +769,4 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
   );
 };
 
-export default AddCharge;
+export default React.memo(AddCharge);
