@@ -53,17 +53,18 @@ export const useAP = () => {
     enabled: !!bookingId,
   });
 
-  // Create AP record
-  const createAP = useMutation({
-    mutationFn: apApi.create,
-    onSuccess: () => {
-      queryClient.invalidateQueries(AP_KEY);
-      console.log('✅ AP record created successfully');
-    },
-    onError: (error) => {
-      console.error('❌ Create error:', error.response?.data || error.message);
-    },
-  });
+
+const createAP = useMutation({
+  mutationFn: apApi.create,
+  onSuccess: () => {
+    queryClient.invalidateQueries(AP_KEY);
+    console.log('✅ AP record created successfully');
+  },
+  onError: (error) => {
+    console.error('❌ Create error:', error.response?.data || error.message);
+  },
+});
+
 
   // Update AP record
   const updateAP = useMutation({

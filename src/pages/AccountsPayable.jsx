@@ -1,7 +1,7 @@
 // src/pages/AccountsPayable.jsx
 import React, { useState, useCallback, useMemo } from 'react';
 import { useDebounce } from 'use-debounce';
-import { Plus, Filter } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { useAP } from '../hooks/useAP';
@@ -19,6 +19,7 @@ const AccountsPayable = () => {
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState('id');
   const [direction, setDirection] = useState('desc');
+  const [selectedRecords, setSelectedRecords] = useState([]);
 
   // ✅ Hooks
   const { apQuery, createAP } = useAP();
@@ -35,12 +36,9 @@ const AccountsPayable = () => {
 
   // ✅ Fetch bookings for the dropdown
   const { data: bookingsData, isLoading: bookingsLoading } = bookingsQuery({
-  per_page: 100,
-  status: 'approved'
-});
-
-console.log('Bookings data:', bookingsData);
-console.log('Bookings loading:', bookingsLoading);
+    per_page: 100,
+    status: 'approved'
+  });
 
   const bookings = bookingsData?.data || [];
 
@@ -91,9 +89,30 @@ console.log('Bookings loading:', bookingsLoading);
   );
 
   const handleViewDetails = useCallback((apRecord) => {
-    // You can implement a detail view modal here
     console.log('View AP details:', apRecord);
     toast.success(`Viewing details for ${apRecord.voucher_number}`);
+  }, []);
+
+  const handlePrint = useCallback((apRecord) => {
+    console.log('Print AP record:', apRecord);
+    toast.success(`Printing ${apRecord.voucher_number}`);
+  }, []);
+
+  const handleBulkPrint = useCallback((recordIds) => {
+    console.log('Bulk print records:', recordIds);
+    toast.success(`Printing ${recordIds.length} records`);
+  }, []);
+
+  const handleSelectRecord = useCallback((recordId, isSelected) => {
+    setSelectedRecords(prev => 
+      isSelected 
+        ? [...prev, recordId]
+        : prev.filter(id => id !== recordId)
+    );
+  }, []);
+
+  const handleSelectAllRecords = useCallback((recordIds) => {
+    setSelectedRecords(recordIds);
   }, []);
 
   /* =========================
@@ -148,19 +167,17 @@ console.log('Bookings loading:', bookingsLoading);
                 <Plus className="page-btn-icon" />
                 Add Charges
               </button>
-              <button className="page-btn-secondary">
-                <Filter className="page-btn-icon" />
-                Filter
-              </button>
             </div>
           }
         >
           <AccountsPayableTable
             data={apRecords}
             onView={handleViewDetails}
-            onSortChange={handleSortChange}
-            sortField={sort}
-            sortDirection={direction}
+            onPrint={handlePrint}
+            onBulkPrint={handleBulkPrint}
+            selectedRecords={selectedRecords}
+            onSelectRecord={handleSelectRecord}
+            onSelectAllRecords={handleSelectAllRecords}
             isLoading={isLoading}
           />
         </TableLayout>
