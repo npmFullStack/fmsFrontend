@@ -285,49 +285,6 @@ const BookingTable = ({
 
               {isExpanded && (
                 <div className="mt-3 text-xs space-y-3 border-t pt-3">
-                  {/* NEW: Cargo Monitoring Status Timeline */}
-                  {item.cargo_monitoring && (
-                    <div>
-                      <div className="font-bold text-muted mb-2 uppercase">CARGO STATUS TIMELINE:</div>
-                      <div className="flex flex-wrap gap-2">
-                        {['Pending', 'Picked Up', 'Origin Port', 'In Transit', 'Destination Port', 'Out for Delivery', 'Delivered'].map(status => {
-                          const dateField = `${status.toLowerCase().replace(' ', '_')}_at`;
-                          const date = item.cargo_monitoring[dateField];
-                          const isCurrent = item.cargo_monitoring.current_status === status;
-                          const isCompleted = date !== null;
-                          
-                          return (
-                            <div 
-                              key={status} 
-                              className={`
-                                inline-flex items-center gap-2 px-3 py-2 rounded-full border text-sm font-medium transition-all
-                                ${isCurrent 
-                                  ? 'border-blue-900 bg-blue-600 text-white shadow-sm' 
-                                  : isCompleted 
-                                    ? 'border-green-200 bg-green-50 text-green-800' 
-                                    : 'border-gray-200 bg-gray-50 text-gray-500'
-                                }
-                              `}
-                            >
-                              <div className="flex items-center gap-1.5">
-                                {getBookingStatusIcon(status)}
-                                <span className="font-semibold whitespace-nowrap">{status}</span>
-                              </div>
-                              
-                              {date && (
-                                <div className="flex items-center gap-1 ml-1 pl-2 border-l border-current border-opacity-30">
-                                  <Clock className="w-3 h-3" />
-                                  <span className="text-xs font-mono whitespace-nowrap">
-                                    {formatDate(date, true)}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
 
                   {/* Payment Terms */}
                   {item.terms !== undefined && (

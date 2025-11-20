@@ -250,8 +250,8 @@ const CargoMonitoringTable = ({
             {date && (
               <div className="flex items-center gap-1 ml-1 pl-2 border-l border-current border-opacity-30">
                 <Clock className="w-3 h-3" />
-                <span className="text-xs font-mono whitespace-nowrap">
-                  {new Date(date).toLocaleString()} {/* Fallback display */}
+                <span className="text-md font-medium whitespace-nowrap">
+                  {new Date(date).toLocaleString()}
                 </span>
               </div>
             )}

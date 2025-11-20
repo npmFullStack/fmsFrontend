@@ -15,7 +15,11 @@ import {
   ChevronsRight,
   User,
   LogOut,
-  ChevronDown
+  ChevronDown,
+  Users,
+  Monitor,
+  BarChart3,
+  FileText
 } from 'lucide-react';
 import logo from '../assets/images/logo.png';
 import { useAuth } from '../hooks/useAuth';
@@ -26,34 +30,75 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const { userQuery, logoutMutation } = useAuth();
 
-  const menuSections = [
-    {
-      label: 'MAIN',
-      items: [
-        { icon: Home, label: 'Dashboard', path: '/dashboard' },
-      ]
-    },
-    {
-      label: 'MANAGE',
-      items: [
-        { icon: User, label: 'User Management', path: '/users' },
-        { icon: List, label: 'Category', path: '/categories' },
-        { icon: Container, label: 'Container', path: '/container-types' },
-        { icon: MapPin, label: 'Ports', path: '/ports' },
-        { icon: Truck, label: 'Trucking', path: '/truck-comp' },
-        { icon: Ship, label: 'Shipping', path: '/shipping-line' },
-        { icon: Clipboard, label: 'Booking', path: '/booking' },
-        { icon: ClipboardCheck, label: 'Booking Request', path: '/booking-request' },
-        { icon: Container, label: 'Cargo Monitoring', path: '/cargo-monitoring' },
-      ]
-    },
-    {
-      label: 'ACCOUNT',
-      items: [
-        { icon: User, label: 'Profile', path: '/profile' },
-      ]
-    }
-  ];
+  const user = userQuery.data?.user;
+  const userRole = user?.role;
+
+ // Professional menu labels with icons
+const menuItems = {
+  dashboard: { icon: BarChart3, label: 'Dashboard', path: '/dashboard' },
+  userManagement: { icon: Users, label: 'User Management', path: '/users' },
+  category: { icon: List, label: 'Category Management', path: '/categories' },
+  container: { icon: Container, label: 'Container Types', path: '/container-types' },
+  ports: { icon: MapPin, label: 'Port Management', path: '/ports' },
+  trucking: { icon: Truck, label: 'Trucking Partners', path: '/truck-comp' },
+  shipping: { icon: Ship, label: 'Shipping Partners', path: '/shipping-line' },
+  booking: { icon: FileText, label: 'Booking Management', path: '/booking' },
+  bookingRequest: { icon: ClipboardCheck, label: 'Booking Requests', path: '/booking-request' },
+  cargoMonitoring: { icon: Monitor, label: 'Cargo Monitoring', path: '/cargo-monitoring' },
+  profile: { icon: User, label: 'User Profile', path: '/profile' }
+};
+
+  // Role-based menu configuration
+  const getMenuSections = () => {
+    const generalManagerSections = [
+      {
+        label: 'MAIN',
+        items: [
+          menuItems.dashboard,
+          menuItems.bookingRequest,
+          menuItems.userManagement,
+        ]
+      },
+      {
+        label: 'ACCOUNT',
+        items: [
+          menuItems.profile,
+        ]
+      }
+    ];
+
+    const adminSections = [
+      {
+        label: 'MAIN',
+        items: [
+          menuItems.dashboard,
+        ]
+      },
+      {
+        label: 'MANAGEMENT',
+        items: [
+          menuItems.category,
+          menuItems.container,
+          menuItems.ports,
+          menuItems.trucking,
+          menuItems.shipping,
+          menuItems.booking,
+          menuItems.cargoMonitoring,
+        ]
+      },
+      {
+        label: 'ACCOUNT',
+        items: [
+          menuItems.profile,
+        ]
+      }
+    ];
+
+    // Default to admin sections if no role or unknown role
+    return userRole === 'general_manager' ? generalManagerSections : adminSections;
+  };
+
+  const menuSections = getMenuSections();
 
   const isActive = (path) => location.pathname === path;
 
@@ -69,8 +114,6 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
     setIsUserMenuOpen(false);
     if (isMobileOpen) setIsMobileOpen(false);
   };
-
-  const user = userQuery.data?.user;
 
   return (
     <>
@@ -122,7 +165,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
                 </div>
               )}
               {isCollapsed && sectionIndex > 0 && (
-                <div className="my-3 border-t border-gray-700"></div>
+                <div className="my-3 border-t border-main"></div>
               )}
               <ul className="space-y-1">
                 {section.items.map((item, index) => (
@@ -130,7 +173,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
                     <Link to={item.path} className={linkClass(item.path)}>
                       <item.icon className="w-5 h-5 flex-shrink-0" />
                       {!isCollapsed && (
-                        <span className="text-sm font-medium truncate">
+                        <span className="text-sm font-medium truncate" title={item.label}>
                           {item.label}
                         </span>
                       )}
@@ -148,17 +191,22 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
             <div className="relative">
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-3 w-full p-2 rounded-lg bg-surface border border-surface hover:border-gray-700 transition-colors text-left"
+                className="flex items-center gap-3 w-full p-2 rounded-lg
+                bg-surface border border-main hover:border-primary
+                transition-colors text-left"
               >
                 <div className="w-9 h-9 bg-blue-600 flex items-center justify-center rounded-full text-white">
                   <User className="w-4 h-4" />
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-heading truncate leading-4">
+                  <p className="text-sm font-semibold text-heading truncate leading-4" title={`${user.first_name} ${user.last_name}`}>
                     {user.first_name} {user.last_name}
                   </p>
-                  <p className="text-xs text-muted truncate leading-4">{user.email}</p>
+                  <p className="text-xs text-muted truncate leading-4" title={user.email}>
+                    {user.email}
+                  </p>
+
                 </div>
 
                 <ChevronDown className={`w-4 h-4 text-muted transition-transform flex-shrink-0 ml-2 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
@@ -197,10 +245,12 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
               {isUserMenuOpen && (
                 <div className="absolute bottom-full left-2 right-2 mb-2 bg-surface border border-main rounded-lg shadow-lg z-20 p-2 w-48">
                   <div className="mb-2 pb-2 border-b border-main">
-                    <p className="text-sm font-semibold text-heading truncate">
+                    <p className="text-sm font-semibold text-heading truncate" title={`${user.first_name} ${user.last_name}`}>
                       {user.first_name} {user.last_name}
                     </p>
-                    <p className="text-xs text-muted truncate mt-0.5">{user.email}</p>
+                    <p className="text-xs text-muted truncate mt-0.5" title={user.email}>
+                      {user.email}
+                    </p>
                   </div>
                   <button 
                     onClick={handleLogout}
@@ -216,7 +266,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
         )}
       </aside>
 
-      {/* Mobile Sidebar (unchanged except role removed) */}
+      {/* Mobile Sidebar */}
       {isMobileOpen && (
         <div
           className="fixed inset-0 z-50 bg-black/50 lg:hidden"
@@ -258,7 +308,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
                           className={linkClass(item.path)}
                         >
                           <item.icon className="w-5 h-5 flex-shrink-0" />
-                          <span className="text-sm font-medium truncate">
+                          <span className="text-sm font-medium truncate" title={item.label}>
                             {item.label}
                           </span>
                         </Link>
@@ -275,17 +325,21 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
                 <div className="relative">
                   <button
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                    className="flex items-center justify-between w-full p-2.5 rounded-lg bg-surface border border-surface hover:border-gray-700 transition-colors text-left"
+                    className="flex items-center justify-between w-full p-2.5
+                    rounded-lg bg-surface border border-main
+                    hover:border-primary transition-colors text-left"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 bg-blue-600 flex items-center justify-center rounded-full text-white">
                         <User className="w-4 h-4" />
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold text-heading truncate">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-heading truncate" title={`${user.first_name} ${user.last_name}`}>
                           {user.first_name} {user.last_name}
                         </p>
-                        <p className="text-xs text-muted truncate mt-0.5">{user.email}</p>
+                        <p className="text-xs text-muted truncate mt-0.5" title={user.email}>
+                          {user.email}
+                        </p>
                       </div>
                     </div>
                     <ChevronDown className={`w-4 h-4 text-muted transition-transform flex-shrink-0 ml-2 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
