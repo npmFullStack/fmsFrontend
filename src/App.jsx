@@ -6,21 +6,33 @@ import PublicLayout from './components/PublicLayout';
 import LoadingSkeleton from './components/ui/LoadingSkeleton';
 import { useAuth } from './hooks/useAuth';
 
-// Lazy-loaded pages
-const Home = lazy(() => import('./pages/Home'));
-const Login = lazy(() => import('./pages/Login'));
-const Quote = lazy(() => import('./pages/Quote'));
+// Lazy-loaded pages with error handling
+const lazyWithRetry = (componentImport) =>
+  lazy(async () => {
+    try {
+      return await componentImport();
+    } catch (error) {
+      console.error('Failed to load component:', error);
+      // You can add retry logic here if needed
+      throw error;
+    }
+  });
 
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Category = lazy(() => import('./pages/Category'));
-const ContainerType = lazy(() => import('./pages/ContainerType'));
-const Port = lazy(() => import('./pages/Port'));
-const TruckComp = lazy(() => import('./pages/TruckComp'));
-const ShippingLine = lazy(() => import('./pages/ShippingLine'));
-const BookingRequest = lazy(() => import('./pages/BookingRequest'));
-const Booking = lazy(() => import('./pages/Booking'));
-const User = lazy(() => import('./pages/User'));
-const CargoMonitoring = lazy(() => import('./pages/CargoMonitoring'));
+// Lazy-loaded pages
+const Home = lazyWithRetry(() => import('./pages/Home'));
+const Login = lazyWithRetry(() => import('./pages/Login'));
+const Quote = lazyWithRetry(() => import('./pages/Quote'));
+
+const Dashboard = lazyWithRetry(() => import('./pages/Dashboard'));
+const Category = lazyWithRetry(() => import('./pages/Category'));
+const ContainerType = lazyWithRetry(() => import('./pages/ContainerType'));
+const Port = lazyWithRetry(() => import('./pages/Port'));
+const TruckComp = lazyWithRetry(() => import('./pages/TruckComp'));
+const ShippingLine = lazyWithRetry(() => import('./pages/ShippingLine'));
+const BookingRequest = lazyWithRetry(() => import('./pages/BookingRequest'));
+const Booking = lazyWithRetry(() => import('./pages/Booking'));
+const User = lazyWithRetry(() => import('./pages/User'));
+const CargoMonitoring = lazyWithRetry(() => import('./pages/CargoMonitoring'));
 
 function App() {
   const { initializeAuth } = useAuth();

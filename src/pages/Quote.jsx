@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Select from "react-select";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
+import DateTime from "react-datetime";
+import "react-datetime/css/react-datetime.css";
 import { Calendar, X, CheckCircle, AlertCircle, ChevronUp, ChevronDown } from "lucide-react";
 import LocationFields from "../components/LocationFields";
 import api from "../api";
@@ -263,8 +263,8 @@ const Quote = () => {
     }
   };
 
-  // Custom DatePicker input
-  const DateInput = React.forwardRef(({ value, onClick, placeholder }, ref) => (
+  // Custom DateTime input
+  const DateTimeInput = React.forwardRef(({ value, onClick, placeholder }, ref) => (
     <div className="relative">
       <input
         ref={ref}
@@ -284,7 +284,7 @@ const Quote = () => {
       </button>
     </div>
   ));
-  DateInput.displayName = "DateInput";
+  DateTimeInput.displayName = "DateTimeInput";
 
   // Custom Container Quantity Input
   const ContainerQuantityInput = () => (
@@ -320,6 +320,15 @@ const Quote = () => {
       </div>
     </div>
   );
+
+  // Handle DateTime change
+  const handleDepartureDateChange = (momentDate) => {
+    setDepartureDate(momentDate ? momentDate.toDate() : null);
+  };
+
+  const handleDeliveryDateChange = (momentDate) => {
+    setDeliveryDate(momentDate ? momentDate.toDate() : null);
+  };
 
   // ✅ UPDATED: Form submission handler with quote schema
   const handleFormSubmit = async (e) => {
@@ -854,37 +863,52 @@ const Quote = () => {
                 </div>
               </div>
 
-              {/* Schedule Information with Preferred labels */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-heading">Schedule</h3>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="modal-label">Preferred Departure Date (Optional)</label>
-                    <DatePicker
-                      selected={departureDate}
-                      onChange={setDepartureDate}
-                      customInput={<DateInput placeholder="Select preferred departure date" />}
-                      minDate={new Date()}
-                    />
-                    {formErrors.departureDate && (
-                      <p className="text-red-500 text-sm mt-1">{formErrors.departureDate}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="modal-label">Preferred Delivery Date (Optional)</label>
-                    <DatePicker
-                      selected={deliveryDate}
-                      onChange={setDeliveryDate}
-                      customInput={<DateInput placeholder="Select preferred delivery date" />}
-                      minDate={departureDate}
-                    />
-                    {formErrors.deliveryDate && (
-                      <p className="text-red-500 text-sm mt-1">{formErrors.deliveryDate}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
+{/* Schedule Information with Preferred labels */}
+<div className="space-y-4">
+  <h3 className="text-lg font-semibold text-heading">Schedule</h3>
+  <div className="grid md:grid-cols-2 gap-4">
+    <div>
+      <label className="modal-label">Preferred Departure Date (Optional)</label>
+      <DateTime
+        value={departureDate}
+        onChange={handleDepartureDateChange}
+        inputProps={{
+          placeholder: "Select preferred departure date",
+          className: "modal-input pr-10 cursor-pointer",
+        }}
+        timeFormat={false}
+        dateFormat="YYYY-MM-DD"
+        closeOnSelect={true}
+        isValidDate={(current) => {
+          return current.isAfter(new Date(), 'day');
+        }}
+      />
+      {formErrors.departureDate && (
+        <p className="text-red-500 text-sm mt-1">{formErrors.departureDate}</p>
+      )}
+    </div>
+    <div>
+      <label className="modal-label">Preferred Delivery Date (Optional)</label>
+      <DateTime
+        value={deliveryDate}
+        onChange={handleDeliveryDateChange}
+        inputProps={{
+          placeholder: "Select preferred delivery date",
+          className: "modal-input pr-10 cursor-pointer",
+        }}
+        timeFormat={false}
+        dateFormat="YYYY-MM-DD"
+        closeOnSelect={true}
+        isValidDate={(current) => {
+          return departureDate ? current.isAfter(departureDate, 'day') : current.isAfter(new Date(), 'day');
+        }}
+      />
+      {formErrors.deliveryDate && (
+        <p className="text-red-500 text-sm mt-1">{formErrors.deliveryDate}</p>
+      )}
+    </div>
+  </div>
+</div>
               {/* Service Providers (Optional) */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-heading">Service Providers (Optional)</h3>

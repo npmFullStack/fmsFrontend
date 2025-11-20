@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, TrendingDown, Ship, Truck, Package, MapPin } from 'lucide-react';
+import { TrendingUp, TrendingDown, Ship, Truck } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const Dashboard = () => {
@@ -108,22 +108,24 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="page-container">
+    <div className="page-container p-4 sm:p-6">
       {/* Page Header */}
-      <div className="page-header">
-        <h1 className="page-title">Logistics Dashboard</h1>
-        <p className="page-subtitle">Overview of your sea and land logistics operations</p>
+      <div className="page-header mb-6 sm:mb-8">
+        <h1 className="page-title text-2xl sm:text-3xl font-bold text-heading">Logistics Dashboard</h1>
+        <p className="page-subtitle text-sm sm:text-base text-muted mt-2">
+          Overview of your sea and land logistics operations
+        </p>
       </div>
 
       {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Revenue Chart - Takes 2 columns */}
-        <div className="lg:col-span-2 bg-surface rounded-xl border border-main p-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+        {/* Revenue Chart - Responsive spanning */}
+        <div className="md:col-span-2 bg-surface rounded-xl border border-main p-4 sm:p-6">
           {/* Header */}
-          <div className="flex items-start justify-between mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-4 sm:mb-6 gap-4">
             <div>
               <div className="flex items-baseline gap-2">
-                <h2 className="text-3xl font-bold text-heading">
+                <h2 className="text-2xl sm:text-3xl font-bold text-heading">
                   ${avgRevenue.toLocaleString()}
                 </h2>
                 <span className="text-green-500 text-sm font-medium flex items-center gap-1">
@@ -133,13 +135,13 @@ const Dashboard = () => {
               </div>
               <p className="text-muted text-sm mt-1">Average revenue this week</p>
             </div>
-            <button className="text-sm text-muted hover:text-content transition-colors">
+            <button className="text-sm text-muted hover:text-content transition-colors self-start sm:self-auto">
               Last 7 days ▼
             </button>
           </div>
 
           {/* Chart */}
-          <div className="h-64">
+          <div className="h-48 sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={revenueData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--color-border))" opacity={0.3} />
@@ -162,8 +164,8 @@ const Dashboard = () => {
                 />
                 <Legend 
                   wrapperStyle={{
-                    paddingTop: '20px',
-                    fontSize: '14px',
+                    paddingTop: '10px',
+                    fontSize: '12px',
                     color: 'rgb(var(--color-muted))'
                   }}
                 />
@@ -171,64 +173,64 @@ const Dashboard = () => {
                   type="monotone" 
                   dataKey="sea" 
                   stroke="#3b82f6" 
-                  strokeWidth={3}
+                  strokeWidth={2}
                   name="Sea Freight"
-                  dot={{ fill: '#3b82f6', r: 4 }}
+                  dot={{ fill: '#3b82f6', r: 3 }}
                 />
                 <Line 
                   type="monotone" 
                   dataKey="land" 
                   stroke="#f97316" 
-                  strokeWidth={3}
+                  strokeWidth={2}
                   name="Land Transport"
-                  dot={{ fill: '#f97316', r: 4 }}
+                  dot={{ fill: '#f97316', r: 3 }}
                 />
               </LineChart>
             </ResponsiveContainer>
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between mt-6 pt-4 border-t border-main">
-            <button className="text-sm text-muted hover:text-content transition-colors">
+          <div className="flex flex-col sm:flex-row items-center justify-between mt-4 sm:mt-6 pt-4 border-t border-main gap-2">
+            <button className="text-sm text-muted hover:text-content transition-colors order-2 sm:order-1">
               Last 7 days ▼
             </button>
-            <button className="text-sm text-primary hover:text-blue-700 font-medium transition-colors">
+            <button className="text-sm text-primary hover:text-blue-700 font-medium transition-colors order-1 sm:order-2">
               SALES REPORT →
             </button>
           </div>
         </div>
 
         {/* Statistics This Month */}
-        <div className="bg-surface rounded-xl border border-main p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-heading">Statistics this month</h3>
+        <div className="bg-surface rounded-xl border border-main p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <h3 className="text-base sm:text-lg font-semibold text-heading">Statistics this month</h3>
             <span className="text-xs text-muted">ⓘ</span>
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-2 mb-6">
-            <button className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium">
+          <div className="flex gap-2 mb-4 sm:mb-6">
+            <button className="px-3 sm:px-4 py-2 bg-primary text-white rounded-lg text-xs sm:text-sm font-medium">
               Top Routes
             </button>
-            <button className="px-4 py-2 bg-surface text-muted rounded-lg text-sm font-medium hover:text-content transition-colors">
+            <button className="px-3 sm:px-4 py-2 bg-surface text-muted rounded-lg text-xs sm:text-sm font-medium hover:text-content transition-colors">
               Top Customers
             </button>
           </div>
 
           {/* Top Routes List */}
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {topRoutes.map((route) => (
               <div key={route.id} className="flex items-center justify-between">
-                <div className="flex items-center gap-3 flex-1">
-                  <div className="w-10 h-10 bg-surface rounded-lg flex items-center justify-center border border-main">
+                <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-surface rounded-lg flex items-center justify-center border border-main flex-shrink-0">
                     {route.type === 'sea' ? (
-                      <Ship className="w-5 h-5 text-blue-500" />
+                      <Ship className="w-3 h-3 sm:w-5 sm:h-5 text-blue-500" />
                     ) : (
-                      <Truck className="w-5 h-5 text-orange-500" />
+                      <Truck className="w-3 h-3 sm:w-5 sm:h-5 text-orange-500" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-heading truncate">{route.name}</p>
+                    <p className="text-xs sm:text-sm font-medium text-heading truncate">{route.name}</p>
                     <div className="flex items-center gap-1 mt-0.5">
                       {route.trend === 'up' ? (
                         <TrendingUp className="w-3 h-3 text-green-500" />
@@ -236,24 +238,24 @@ const Dashboard = () => {
                         <TrendingDown className="w-3 h-3 text-red-500" />
                       )}
                       <span className={`text-xs ${route.trend === 'up' ? 'text-green-500' : 'text-red-500'}`}>
-                        {route.growth}% vs last month
+                        {route.growth}%
                       </span>
                     </div>
                   </div>
                 </div>
-                <span className="text-sm font-semibold text-heading ml-4">
-                  ${route.revenue.toLocaleString()}
+                <span className="text-xs sm:text-sm font-semibold text-heading ml-2 sm:ml-4 whitespace-nowrap">
+                  ${(route.revenue / 1000).toFixed(0)}k
                 </span>
               </div>
             ))}
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between mt-6 pt-4 border-t border-main">
-            <button className="text-sm text-muted hover:text-content transition-colors">
+          <div className="flex flex-col sm:flex-row items-center justify-between mt-4 sm:mt-6 pt-4 border-t border-main gap-2">
+            <button className="text-sm text-muted hover:text-content transition-colors order-2 sm:order-1">
               Last 7 days ▼
             </button>
-            <button className="text-sm text-primary hover:text-blue-700 font-medium transition-colors">
+            <button className="text-sm text-primary hover:text-blue-700 font-medium transition-colors order-1 sm:order-2">
               FULL REPORT →
             </button>
           </div>
@@ -261,18 +263,18 @@ const Dashboard = () => {
 
         {/* Shipment Statistics */}
         {shipmentStats.map((stat, index) => (
-          <div key={index} className="bg-surface rounded-xl border border-main p-6">
+          <div key={index} className="bg-surface rounded-xl border border-main p-4 sm:p-6">
             <div className="mb-4">
               <p className="text-sm text-muted mb-1">{stat.label}</p>
               <div className="flex items-baseline gap-2">
-                <h3 className="text-3xl font-bold text-heading">{stat.value.toLocaleString()}</h3>
+                <h3 className="text-2xl sm:text-3xl font-bold text-heading">{stat.value.toLocaleString()}</h3>
                 <span className="text-green-500 text-sm font-medium">{stat.change}</span>
               </div>
               <p className="text-xs text-muted mt-1">Processed last month</p>
             </div>
 
             {/* Bar Chart */}
-            <div className="h-24">
+            <div className="h-20 sm:h-24">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={stat.data}>
                   <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
@@ -283,15 +285,15 @@ const Dashboard = () => {
         ))}
 
         {/* Service Distribution */}
-        <div className="bg-surface rounded-xl border border-main p-6">
-          <h3 className="text-lg font-semibold text-heading mb-6">Service Distribution</h3>
+        <div className="bg-surface rounded-xl border border-main p-4 sm:p-6 md:col-span-2 xl:col-span-1">
+          <h3 className="text-base sm:text-lg font-semibold text-heading mb-4 sm:mb-6">Service Distribution</h3>
 
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {serviceDistribution.map((item, index) => (
               <div key={index}>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-content">{item.service}</span>
-                  <span className="text-sm font-medium text-heading">{item.percentage}%</span>
+                  <span className="text-xs sm:text-sm text-content truncate mr-2">{item.service}</span>
+                  <span className="text-xs sm:text-sm font-medium text-heading whitespace-nowrap">{item.percentage}%</span>
                 </div>
                 <div className="w-full bg-surface rounded-full h-2 border border-main">
                   <div

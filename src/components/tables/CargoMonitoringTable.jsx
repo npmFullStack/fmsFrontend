@@ -12,7 +12,9 @@ import {
   Truck,
   Ship,
   CheckCircle,
-  ArrowRight
+  ArrowRight,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { formatDate } from '../../utils/formatters';
 
@@ -70,7 +72,7 @@ const CargoMonitoringTable = ({
     };
     
     const date = dateMap[status];
-    return date ? formatDate(date) : 'Not Set';
+    return date ? formatDate(date, true) : 'Not Set';
   };
 
   const calculateTotalWeight = (items) => items?.reduce((sum, i) => sum + i.weight * i.quantity, 0) || 0;
@@ -146,11 +148,6 @@ const CargoMonitoringTable = ({
                 </div>
               </div>
 
-              <div className="text-xs text-muted flex items-center gap-1 mb-3">
-                <Calendar className="w-3 h-3"/>
-                Monitoring created: {formatDate(monitoring.created_at)}
-              </div>
-
               {/* Compact Grid */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm mb-3 border-t border-b border-main py-3">
                 {/* Route */}
@@ -200,106 +197,80 @@ const CargoMonitoringTable = ({
                 <div>
                   <div className="text-xs font-bold text-muted mb-1 uppercase">LAST UPDATE:</div>
                   <div className="text-content text-sm">
-                    {monitoring.updated_at ? formatDate(monitoring.updated_at) : 'Not Updated'}
+                    {monitoring.updated_at ? formatDate(monitoring.updated_at, true) : 'Not Updated'}
                   </div>
                 </div>
               </div>
 
-              {/* Status Timeline Preview */}
-              <div className="mb-3">
-                <div className="text-xs font-bold text-muted mb-2 uppercase">STATUS TIMELINE:</div>
-                <div className="flex flex-wrap gap-2">
-                  {['Pending', 'Picked Up', 'Origin Port', 'In Transit', 'Destination Port', 'Out for Delivery', 'Delivered'].map(status => (
-                    <div key={status} className="flex items-center gap-1">
-                      <div className={`w-2 h-2 rounded-full ${
-                        monitoring.current_status === status ? 'bg-green-500' : 
-                        monitoring[`${status.toLowerCase().replace(' ', '_')}_at`] ? 'bg-blue-500' : 'bg-gray-300'
-                      }`} />
-                      <span className="text-xs text-muted">{status}:</span>
-                      <span className="text-xs font-medium">
-                        {formatStatusDate(status, monitoring)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Expand Button */}
-              <button
+<button
                 onClick={() => toggleCard(monitoring.id || index)}
-                className="w-full text-left mt-2 pt-2 border-t border-main text-sm flex items-center gap-1 font-semibold text-heading"
+                className="w-full text-left mt-2 pt-2 border-t border-main text-sm flex items-center gap-2 font-semibold text-heading hover:text-heading transition-colors"
               >
-                {isExpanded ? 'Hide Details' : 'View All Details'}
+                {isExpanded ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+                {isExpanded ? 'Hide Status Timeline' : 'View Status Timeline'}
               </button>
+{/* Debug version to see what formatDate returns */}
+{isExpanded && (
+  <div className="mt-3 text-xs space-y-2 border-t pt-3">
+    <div className="font-bold text-content mb-2 text-sm uppercase">STATUS TIMELINE:</div>
+    <div className="flex flex-wrap gap-2">
+      {['Pending', 'Picked Up', 'Origin Port', 'In Transit', 'Destination Port', 'Out for Delivery', 'Delivered'].map(status => {
+        const dateField = `${status.toLowerCase().replace(' ', '_')}_at`;
+        const date = monitoring[dateField];
+        const isCurrent = monitoring.current_status === status;
+        const isCompleted = date !== null;
+        
+        // Debug: log what formatDate returns
+        const formattedDate = date ? formatDate(date, true) : 'No Date';
+        console.log(`Status: ${status}, Date: ${date}, Formatted: ${formattedDate}`);
+        
+        return (
+          <div 
+            key={status} 
+            className={`
+              inline-flex items-center gap-2 px-3 py-2 rounded-full border text-sm font-medium transition-all
+              ${isCurrent 
+                ? 'border-blue-900 bg-blue-600 text-content shadow-sm' 
+                : isCompleted 
+                  ? 'border-surface bg-surface text-content' 
+                  : 'border-main bg-surface text-muted'
+              }
+            `}
+          >
+            <div className="flex items-center gap-1.5">
+              {getStatusIcon(status)}
+              <span className="font-semibold whitespace-nowrap">{status}</span>
+            </div>
+            
+            {/* Direct date display for testing */}
+            {date && (
+              <div className="flex items-center gap-1 ml-1 pl-2 border-l border-current border-opacity-30">
+                <Clock className="w-3 h-3" />
+                <span className="text-xs font-mono whitespace-nowrap">
+                  {new Date(date).toLocaleString()} {/* Fallback display */}
+                </span>
+              </div>
+            )}
+            
+            {!date && (
+              <div className="flex items-center gap-1 ml-1 pl-2 border-l border-current border-opacity-30">
+                <Clock className="w-3 h-3" />
+                <span className="text-xs italic whitespace-nowrap">
+                  Not Set
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
 
-              {isExpanded && (
-                <div className="mt-3 text-xs space-y-3 border-t pt-3">
-                  {/* Detailed Status Timeline */}
-                  <div>
-                    <div className="font-bold text-muted mb-2 uppercase">DETAILED STATUS HISTORY:</div>
-                    <div className="space-y-2 pl-3 border-l-2 border-main">
-                      {['Pending', 'Picked Up', 'Origin Port', 'In Transit', 'Destination Port', 'Out for Delivery', 'Delivered'].map(status => {
-                        const dateField = `${status.toLowerCase().replace(' ', '_')}_at`;
-                        const date = monitoring[dateField];
-                        const isCurrent = monitoring.current_status === status;
-                        
-                        return (
-                          <div key={status} className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full ${
-                                isCurrent ? 'bg-green-500' : date ? 'bg-blue-500' : 'bg-gray-300'
-                              }`} />
-                              <span className={`font-medium ${isCurrent ? 'text-green-600' : 'text-content'}`}>
-                                {status}
-                              </span>
-                            </div>
-                            <span className="text-muted">
-                              {date ? formatDate(date) : 'Not Set'}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Booking Details */}
-                  <div>
-                    <div className="font-bold text-muted mb-2 uppercase">BOOKING DETAILS:</div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <span className="font-semibold">Shipper:</span> {booking.shipper_first_name} {booking.shipper_last_name}
-                      </div>
-                      <div>
-                        <span className="font-semibold">Consignee:</span> {booking.consignee_first_name} {booking.consignee_last_name}
-                      </div>
-                      <div>
-                        <span className="font-semibold">Mode:</span> {booking.mode_of_service}
-                      </div>
-                      <div>
-                        <span className="font-semibold">Terms:</span> {booking.terms} days
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Items List */}
-                  <div>
-                    <div className="font-bold text-muted mb-2 uppercase">ITEMS ({booking.items?.length || 0}):</div>
-                    <div className="space-y-2 pl-3 border-l-2 border-main">
-                      {booking.items?.map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <Package className="w-3 h-3 text-muted" />
-                          <div>
-                            <div className="font-medium">{item.name}</div>
-                            <div className="text-muted">
-                              {item.category} | {item.quantity} units | {item.weight} kg each
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         );

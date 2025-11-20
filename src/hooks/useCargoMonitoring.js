@@ -16,10 +16,13 @@ const cargoMonitoringApi = {
     return data;
   },
   
-  updateStatus: async ({ id, status }) => {
-    const { data } = await api.put(`/cargo-monitoring/${id}/status`, { status });
-    return data;
-  },
+  updateStatus: async ({ id, status, timestamp }) => {
+  const { data } = await api.put(`/cargo-monitoring/${id}/status`, { 
+    status, 
+    timestamp 
+  });
+  return data;
+},
   
   getOne: async (id) => {
     const { data } = await api.get(`/cargo-monitoring/${id}`);

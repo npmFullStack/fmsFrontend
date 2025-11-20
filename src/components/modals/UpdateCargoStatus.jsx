@@ -1,194 +1,151 @@
 // src/components/modals/UpdateCargoStatus.jsx
-import React, { useState, useEffect } from 'react';
-import { Calendar, Loader2 } from 'lucide-react';
-import SharedModal from '../ui/SharedModal';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+import React, { useState, useEffect } from "react";
+import { Calendar, Clock, Loader2 } from "lucide-react";
+import Select from "react-select";
+import Datetime from "react-datetime";
+import "react-datetime/css/react-datetime.css";
+import SharedModal from "../ui/SharedModal";
 
-const UpdateCargoStatus = ({ 
-  isOpen, 
-  onClose, 
-  onUpdate, 
-  cargoMonitoring, 
-  isLoading = false 
-}) => {
-  const [selectedStatus, setSelectedStatus] = useState('');
-  const [statusDate, setStatusDate] = useState(new Date());
-  const [formTouched, setFormTouched] = useState(false);
+const UpdateCargoStatus = ({ isOpen, onClose, onUpdate, cargoMonitoring, isLoading = false }) => {
+  const [selectedStatus, setSelectedStatus] = useState(null);
+  const [selectedDateTime, setSelectedDateTime] = useState("");
 
   const statusOptions = [
-    { value: 'Picked Up', label: 'Picked Up' },
-    { value: 'Origin Port', label: 'Origin Port' },
-    { value: 'In Transit', label: 'In Transit' },
-    { value: 'Destination Port', label: 'Destination Port' },
-    { value: 'Out for Delivery', label: 'Out for Delivery' },
-    { value: 'Delivered', label: 'Delivered' }
+    { value: "Picked Up", label: "Picked Up" },
+    { value: "Origin Port", label: "Origin Port" },
+    { value: "In Transit", label: "In Transit" },
+    { value: "Destination Port", label: "Destination Port" },
+    { value: "Out for Delivery", label: "Out for Delivery" },
+    { value: "Delivered", label: "Delivered" },
   ];
 
   useEffect(() => {
     if (isOpen && cargoMonitoring) {
-      setSelectedStatus('');
-      setStatusDate(new Date());
-      setFormTouched(false);
+      setSelectedStatus(null);
+      setSelectedDateTime(new Date());
     }
   }, [isOpen, cargoMonitoring]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!selectedStatus) {
-      alert('Please select a status');
-      return;
-    }
+    if (!selectedStatus) return alert("Please select a status");
+    if (!selectedDateTime) return alert("Please select date and time");
 
     try {
-      await onUpdate(cargoMonitoring.id, selectedStatus);
+      await onUpdate(
+        cargoMonitoring.id,
+        selectedStatus.value,
+        new Date(selectedDateTime).toISOString()
+      );
       onClose();
-    } catch (error) {
-      console.error('Failed to update status:', error);
+    } catch (err) {
+      console.error("Failed to update status", err);
     }
   };
 
   const handleClose = () => {
-    setSelectedStatus('');
-    setStatusDate(new Date());
-    setFormTouched(false);
+    setSelectedStatus(null);
+    setSelectedDateTime(new Date());
     onClose();
   };
 
-  // Custom DatePicker input
-  const DateInput = React.forwardRef(({ value, onClick, placeholder }, ref) => (
-    <div className="relative">
-      <input
-        ref={ref}
-        onClick={onClick}
-        value={value || ""}
-        readOnly
-        placeholder={placeholder}
-        className="modal-input pr-10 cursor-pointer"
-      />
-      <button
-        type="button"
-        onClick={onClick}
-        className="absolute right-2 top-1/2 -translate-y-1/2 p-1"
-        aria-label="open-calendar"
-      >
-        <Calendar className="w-5 h-5 text-gray-500" />
-      </button>
-    </div>
-  ));
-  DateInput.displayName = "DateInput";
+  // Custom input component for react-datetime
+  const CustomDateTimeInput = (props) => (
+    <input
+      {...props}
+      className="modal-input pr-10 cursor-text w-full"
+      readOnly={false}
+    />
+  );
 
   if (!cargoMonitoring) return null;
-
   const booking = cargoMonitoring.booking;
 
   return (
-    <SharedModal 
-      isOpen={isOpen} 
-      onClose={handleClose} 
-      title="Update Cargo Status" 
-      size="md"
-    >
-      <div className="space-y-6">
-        {/* Cargo Information */}
-        <div className="bg-main border border-main rounded-lg p-4">
-          <h3 className="font-semibold text-heading mb-2">Cargo Information</h3>
-          <div className="grid grid-cols-2 gap-3 text-sm">
+    <SharedModal isOpen={isOpen} onClose={handleClose} title="Update Cargo Status" size="sm">
+      <form onSubmit={handleSubmit} className="space-y-5">
+
+        {/* Cargo Info */}
+        <div className="bg-main border border-main rounded-lg p-3">
+          <h3 className="text-heading font-semibold mb-2 text-sm">Cargo Information</h3>
+          <div className="grid grid-cols-3 gap-2 text-xs">
             <div>
-              <span className="font-semibold text-muted">Booking #:</span>
-              <div className="text-content">{booking.booking_number}</div>
+              <div className="text-muted font-medium">Booking #</div>
+              <div className="text-content font-medium truncate">{booking.booking_number}</div>
             </div>
             <div>
-              <span className="font-semibold text-muted">HWB #:</span>
-              <div className="text-content">{booking.hwb_number}</div>
+              <div className="text-muted font-medium">HWB #</div>
+              <div className="text-content font-medium truncate">{booking.hwb_number}</div>
             </div>
             <div>
-              <span className="font-semibold text-muted">VAN #:</span>
-              <div className="text-content">{booking.van_number}</div>
+              <div className="text-muted font-medium">VAN #</div>
+              <div className="text-content font-medium truncate">{booking.van_number}</div>
             </div>
-            <div>
-              <span className="font-semibold text-muted">Container:</span>
-              <div className="text-content">
-                {booking.container_quantity} x {booking.container_size?.size || booking.container_size?.name}
+            <div className="col-span-3">
+              <div className="text-muted font-medium">Current Status</div>
+              <div className="text-content font-semibold">
+                {cargoMonitoring.current_status || "Not Set"}
               </div>
-            </div>
-            <div className="col-span-2">
-              <span className="font-semibold text-muted">Current Status:</span>
-              <div className="text-content font-medium">{cargoMonitoring.current_status || 'Not Set'}</div>
             </div>
           </div>
         </div>
 
-        {/* Status Update Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="modal-label">Select New Status</label>
-            <select
-              value={selectedStatus}
-              onChange={(e) => {
-                setSelectedStatus(e.target.value);
-                setFormTouched(true);
+        {/* Date & Time Picker */}
+        <div>
+          <label className="modal-label">Status Date & Time</label>
+          <div className="relative">
+            <Datetime
+              value={selectedDateTime}
+              onChange={setSelectedDateTime}
+              inputProps={{
+                placeholder: "Select date and time...",
+                className: "modal-input pr-10 cursor-text w-full",
+                readOnly: false
               }}
-              className="modal-input"
-              required
-            >
-              <option value="">Select status...</option>
-              {statusOptions.map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="modal-label">Status Date & Time</label>
-            <DatePicker
-              selected={statusDate}
-              onChange={(date) => {
-                setStatusDate(date);
-                setFormTouched(true);
-              }}
-              showTimeSelect
+              dateFormat="YYYY-MM-DD"
               timeFormat="HH:mm"
-              timeIntervals={15}
-              dateFormat="MMMM d, yyyy h:mm aa"
-              customInput={<DateInput placeholder="Select date and time" />}
+              closeOnSelect={true}
+              utc={false}
             />
-            <p className="text-xs text-muted mt-1">
-              This will mark the status with the selected date and time
-            </p>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-muted pointer-events-none">
+              <Calendar className="w-4 h-4" />
+              <Clock className="w-4 h-4" />
+            </div>
           </div>
+        </div>
 
-          {/* Buttons */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-main">
-            <button
-              type="button"
-              onClick={handleClose}
-              className={`modal-btn-cancel ${isLoading ? 'modal-btn-disabled' : ''}`}
-              disabled={isLoading}
-            >
-              Cancel
-            </button>
+        {/* Status Select */}
+        <div>
+          <label className="modal-label">Select New Status</label>
+          <Select
+            value={selectedStatus}
+            onChange={setSelectedStatus}
+            options={statusOptions}
+            className="react-select-container"
+            classNamePrefix="react-select"
+            placeholder="Select status..."
+          />
+        </div>
 
-            <button
-              type="submit"
-              className={`modal-btn-primary ${(!selectedStatus || isLoading) ? 'modal-btn-disabled' : ''}`}
-              disabled={!selectedStatus || isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                'Update Status'
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
+        {/* Buttons */}
+        <div className="flex justify-end gap-3 pt-4 border-t border-main">
+          <button type="button" onClick={handleClose} className="modal-btn-cancel" disabled={isLoading}>
+            Cancel
+          </button>
+
+          <button type="submit" className="modal-btn-primary" disabled={!selectedStatus || isLoading}>
+{isLoading ? (
+  <>
+    <Loader2 className="w-4 h-4 animate-spin" />
+    Updating...
+  </>
+) : (
+  "Update Status"
+)}
+          </button>
+        </div>
+
+      </form>
     </SharedModal>
   );
 };

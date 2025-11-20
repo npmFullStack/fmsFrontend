@@ -44,21 +44,21 @@ const CargoMonitoring = () => {
     setIsUpdateModalOpen(true);
   }, []);
 
-  const handleStatusUpdate = useCallback(
-    async (id, status) => {
-      try {
-        await updateCargoStatus.mutateAsync({ id, status });
-        toast.success('Cargo status updated successfully');
-        setIsUpdateModalOpen(false);
-        setUpdatingCargo(null);
-      } catch (error) {
-        console.error('Update cargo status error:', error);
-        toast.error(error.response?.data?.message || 'Failed to update cargo status');
-        throw error;
-      }
-    },
-    [updateCargoStatus]
-  );
+const handleStatusUpdate = useCallback(
+  async (id, status, timestamp) => { 
+    try {
+      await updateCargoStatus.mutateAsync({ id, status, timestamp });
+      toast.success('Cargo status updated successfully');
+      setIsUpdateModalOpen(false);
+      setUpdatingCargo(null);
+    } catch (error) {
+      console.error('Update cargo status error:', error);
+      toast.error(error.response?.data?.message || 'Failed to update cargo status');
+      throw error;
+    }
+  },
+  [updateCargoStatus]
+);
 
   if (isLoading && !data) {
     return (
