@@ -51,7 +51,9 @@ const menuItems = {
   accountsPayable: { icon: Receipt, label: 'Accounts Payable', path:
   '/accounts-payable' },
   payCharges: { icon: CreditCard, label: 'Pay Charges', path:
-  '/pay-charges' }
+  '/pay-charges' },
+  accountsReceivable: { icon: Receipt, label: 'Accounts Receivable', path:
+  '/accounts-receivable' },
 };
 
   // Role-based menu configuration
@@ -91,7 +93,8 @@ const menuItems = {
           menuItems.booking,
           menuItems.cargoMonitoring,
           menuItems.accountsPayable,
-          menuItems.payCharges
+          menuItems.payCharges,
+          menuItems.accountsReceivable
         ]
       },
       {
