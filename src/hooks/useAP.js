@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api';
 
 const AP_KEY = ['accounts-payables'];
+const PAY_CHARGES_KEY = ['pay-charges'];
 
 // ✅ API functions
 const apApi = {
@@ -34,6 +35,23 @@ const apApi = {
     const { data } = await api.put(`/accounts-payables/${apId}/${chargeType}/${chargeId}`, payload);
     return data;
   },
+  // Pay Charges specific APIs
+  getPayableCharges: async (params = {}) => {
+    const { data } = await api.get('/pay-charges', { params });
+    return data;
+  },
+  getPayableChargesByBooking: async (bookingId) => {
+    const { data } = await api.get(`/pay-charges/booking/${bookingId}`);
+    return data;
+  },
+  markChargeAsPaid: async (payload) => {
+    const { data } = await api.post('/pay-charges/mark-paid', payload);
+    return data;
+  },
+  markMultipleChargesAsPaid: async (payload) => {
+    const { data } = await api.post('/pay-charges/mark-multiple-paid', payload);
+    return data;
+  },
 };
 
 // ✅ Hook
@@ -53,24 +71,37 @@ export const useAP = () => {
     enabled: !!bookingId,
   });
 
+  // Fetch payable charges for PayCharges page
+  const payableChargesQuery = (params = {}) => useQuery({
+    queryKey: [...PAY_CHARGES_KEY, params],
+    queryFn: () => apApi.getPayableCharges(params),
+  });
 
-const createAP = useMutation({
-  mutationFn: apApi.create,
-  onSuccess: () => {
-    queryClient.invalidateQueries(AP_KEY);
-    console.log('✅ AP record created successfully');
-  },
-  onError: (error) => {
-    console.error('❌ Create error:', error.response?.data || error.message);
-  },
-});
+  // Fetch payable charges by booking
+  const payableChargesByBookingQuery = (bookingId) => useQuery({
+    queryKey: [...PAY_CHARGES_KEY, 'booking', bookingId],
+    queryFn: () => apApi.getPayableChargesByBooking(bookingId),
+    enabled: !!bookingId,
+  });
 
+  const createAP = useMutation({
+    mutationFn: apApi.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries(AP_KEY);
+      queryClient.invalidateQueries(PAY_CHARGES_KEY);
+      console.log('✅ AP record created successfully');
+    },
+    onError: (error) => {
+      console.error('❌ Create error:', error.response?.data || error.message);
+    },
+  });
 
   // Update AP record
   const updateAP = useMutation({
     mutationFn: apApi.update,
     onSuccess: () => {
       queryClient.invalidateQueries(AP_KEY);
+      queryClient.invalidateQueries(PAY_CHARGES_KEY);
       console.log('✅ AP record updated');
     },
     onError: (error) => {
@@ -83,6 +114,7 @@ const createAP = useMutation({
     mutationFn: apApi.delete,
     onSuccess: () => {
       queryClient.invalidateQueries(AP_KEY);
+      queryClient.invalidateQueries(PAY_CHARGES_KEY);
       console.log('✅ AP record deleted');
     },
     onError: (error) => {
@@ -96,6 +128,7 @@ const createAP = useMutation({
       apApi.updateChargeStatus(apId, chargeType, chargeId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries(AP_KEY);
+      queryClient.invalidateQueries(PAY_CHARGES_KEY);
       console.log('✅ Charge status updated');
     },
     onError: (error) => {
@@ -103,12 +136,45 @@ const createAP = useMutation({
     },
   });
 
+  // Mark charge as paid (PayCharges specific)
+  const markChargeAsPaid = useMutation({
+    mutationFn: apApi.markChargeAsPaid,
+    onSuccess: () => {
+      queryClient.invalidateQueries(AP_KEY);
+      queryClient.invalidateQueries(PAY_CHARGES_KEY);
+      console.log('✅ Charge marked as paid');
+    },
+    onError: (error) => {
+      console.error('❌ Mark as paid error:', error.response?.data || error.message);
+    },
+  });
+
+  // Mark multiple charges as paid
+  const markMultipleChargesAsPaid = useMutation({
+    mutationFn: apApi.markMultipleChargesAsPaid,
+    onSuccess: () => {
+      queryClient.invalidateQueries(AP_KEY);
+      queryClient.invalidateQueries(PAY_CHARGES_KEY);
+      console.log('✅ Multiple charges marked as paid');
+    },
+    onError: (error) => {
+      console.error('❌ Multiple mark as paid error:', error.response?.data || error.message);
+    },
+  });
+
   return {
+    // Queries
     apQuery,
     apByBookingQuery,
+    payableChargesQuery,
+    payableChargesByBookingQuery,
+    
+    // Mutations
     createAP,
     updateAP,
     deleteAP,
     updateChargeStatus,
+    markChargeAsPaid,
+    markMultipleChargesAsPaid,
   };
 };

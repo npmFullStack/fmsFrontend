@@ -20,7 +20,8 @@ import {
   Monitor,
   BarChart3,
   FileText,
-  Receipt
+  Receipt,
+  CreditCard
 } from 'lucide-react';
 import logo from '../assets/images/logo.png';
 import { useAuth } from '../hooks/useAuth';
@@ -48,7 +49,9 @@ const menuItems = {
   cargoMonitoring: { icon: Monitor, label: 'Cargo Monitoring', path: '/cargo-monitoring' },
   profile: { icon: User, label: 'User Profile', path: '/profile' },
   accountsPayable: { icon: Receipt, label: 'Accounts Payable', path:
-  '/accounts-payable' }
+  '/accounts-payable' },
+  payCharges: { icon: CreditCard, label: 'Pay Charges', path:
+  '/pay-charges' }
 };
 
   // Role-based menu configuration
@@ -87,7 +90,8 @@ const menuItems = {
           menuItems.shipping,
           menuItems.booking,
           menuItems.cargoMonitoring,
-          menuItems.accountsPayable
+          menuItems.accountsPayable,
+          menuItems.payCharges
         ]
       },
       {
