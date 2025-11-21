@@ -3,7 +3,6 @@ import React, { useState, useCallback } from 'react';
 import { useDebounce } from 'use-debounce';
 import { Package, DollarSign } from 'lucide-react';
 import toast from 'react-hot-toast';
-
 import { usePayment } from '../hooks/usePayment';
 import TableLayout from '../components/layout/TableLayout';
 import CustomerBookingsTable from '../components/tables/CustomerBookingsTable';
@@ -20,13 +19,16 @@ const CustomerBookings = () => {
 
   const { customerBookingsQuery } = usePayment();
 
-  // Fetch customer bookings
+  // ✅ FIXED: Use the hook properly with params
   const { data, isLoading, isError } = customerBookingsQuery({
     search: debouncedSearch,
     page,
-    per_page: 10
+    per_page: 10,
+    with_ar: true, // Tell backend to include AR data
+    with_accounts_receivable: true
   });
 
+  // ✅ FIXED: Use data from the hook response
   const bookings = data?.data || [];
   const pagination = {
     current_page: data?.current_page || 1,

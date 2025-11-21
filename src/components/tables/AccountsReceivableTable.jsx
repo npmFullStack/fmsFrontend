@@ -10,7 +10,10 @@ import {
   ChevronDown,
   CheckCircle,
   XCircle,
-  AlertTriangle
+  AlertTriangle,
+  Send,
+  Clock,
+  FileText
 } from 'lucide-react';
 import Select from 'react-select';
 import { formatCurrency, formatDate } from '../../utils/formatters';
@@ -19,6 +22,7 @@ import { agingBuckets } from '../../schemas/arSchema';
 const AccountsReceivableTable = ({ 
   data = [],
   onMarkAsPaid,
+  onSendPayment,
   onView,
   isLoading = false
 }) => {
@@ -39,6 +43,12 @@ const AccountsReceivableTable = ({
       filtered = filtered.filter(ar => ar.is_paid);
     } else if (statusFilter === 'unpaid') {
       filtered = filtered.filter(ar => !ar.is_paid);
+    } else if (statusFilter === 'ready') {
+      filtered = filtered.filter(ar => 
+        !ar.is_paid && 
+        ar.total_expenses > 0 && 
+        (!ar.total_payment || ar.total_payment === 0)
+      );
     }
 
     // Filter by aging
@@ -55,11 +65,29 @@ const AccountsReceivableTable = ({
     return agingConfig?.color || 'gray';
   };
 
+  // Get status badge for AR record
+  const getStatusBadge = (ar) => {
+    if (ar.is_paid) {
+      return { label: 'Paid', color: 'green', icon: CheckCircle };
+    }
+    
+    if (ar.total_payment > 0) {
+      return { label: 'Payment Sent', color: 'blue', icon: Send };
+    }
+    
+    if (ar.total_expenses > 0) {
+      return { label: 'Ready for Payment', color: 'orange', icon: Clock };
+    }
+    
+    return { label: 'No Charges', color: 'gray', icon: FileText };
+  };
+
   // Status filter options
   const statusOptions = [
     { value: 'all', label: 'All Status' },
-    { value: 'paid', label: 'Paid' },
-    { value: 'unpaid', label: 'Unpaid' }
+    { value: 'ready', label: 'Ready for Payment' },
+    { value: 'unpaid', label: 'Payment Sent' },
+    { value: 'paid', label: 'Paid' }
   ];
 
   // Aging filter options
@@ -117,6 +145,8 @@ const AccountsReceivableTable = ({
         const booking = ar.booking;
         const isExpanded = expandedCards[ar.id || index];
         const agingColor = getAgingBadgeColor(ar.aging_bucket);
+        const statusBadge = getStatusBadge(ar);
+        const StatusIcon = statusBadge.icon;
 
         return (
           <div
@@ -132,11 +162,6 @@ const AccountsReceivableTable = ({
                     <span className="font-semibold text-heading">
                       {booking?.first_name} {booking?.last_name}
                     </span>
-                    {ar.is_paid ? (
-                      <CheckCircle className="w-4 h-4 text-green-600" />
-                    ) : (
-                      <XCircle className="w-4 h-4 text-red-600" />
-                    )}
                   </div>
                   <div className="flex items-center gap-4 ml-4">
                     {booking?.booking_number && (
@@ -150,12 +175,14 @@ const AccountsReceivableTable = ({
                 
                 {/* Status Badges */}
                 <div className="flex items-center gap-2">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    ar.is_paid 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-red-100 text-red-800'
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
+                    statusBadge.color === 'green' ? 'bg-green-100 text-green-800' :
+                    statusBadge.color === 'blue' ? 'bg-blue-100 text-blue-800' :
+                    statusBadge.color === 'orange' ? 'bg-orange-100 text-orange-800' :
+                    'bg-gray-100 text-gray-800'
                   }`}>
-                    {ar.is_paid ? 'Paid' : 'Unpaid'}
+                    <StatusIcon className="w-3 h-3" />
+                    {statusBadge.label}
                   </span>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium bg-${agingColor}-100 text-${agingColor}-800`}>
                     {agingBuckets.find(b => b.value === ar.aging_bucket)?.label || ar.aging_bucket}
@@ -174,19 +201,21 @@ const AccountsReceivableTable = ({
                     {formatCurrency(ar.collectible_amount)}
                   </div>
                 </div>
-{/* Due Date */}
-<div>
-  <div className="text-xs font-bold text-muted mb-1 uppercase">DUE DATE:</div>
-  <div className={`text-heading text-sm ${ar.is_overdue ? 'text-red-600 font-semibold' : ''}`}>
-    {ar.due_date ? formatDate(ar.due_date, false) : 'Not Set'}
-    {ar.is_overdue && <AlertTriangle className="w-3 h-3 text-red-600 inline ml-1" />}
-  </div>
-</div>
+
+                {/* Due Date */}
+                <div>
+                  <div className="text-xs font-bold text-muted mb-1 uppercase">DUE DATE:</div>
+                  <div className={`text-heading text-sm ${ar.is_overdue ? 'text-red-600 font-semibold' : ''}`}>
+                    {ar.due_date ? formatDate(ar.due_date, false) : 'Not Set'}
+                    {ar.is_overdue && <AlertTriangle className="w-3 h-3 text-red-600 inline ml-1" />}
+                  </div>
+                </div>
+
                 {/* Total Payment */}
                 <div>
                   <div className="text-xs font-bold text-muted mb-1 uppercase">TOTAL PAYMENT:</div>
                   <div className="text-heading font-semibold">
-                    {formatCurrency(ar.total_payment)}
+                    {formatCurrency(ar.total_payment || 0)}
                   </div>
                 </div>
 
@@ -194,7 +223,7 @@ const AccountsReceivableTable = ({
                 <div>
                   <div className="text-xs font-bold text-muted mb-1 uppercase">EXPENSES:</div>
                   <div className="text-heading">
-                    {formatCurrency(ar.total_expenses)}
+                    {formatCurrency(ar.total_expenses || 0)}
                   </div>
                 </div>
 
@@ -204,16 +233,7 @@ const AccountsReceivableTable = ({
                   <div className={`font-semibold ${
                     ar.profit >= 0 ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    {formatCurrency(ar.profit)}
-                  </div>
-                </div>
-
-                {/* Aging */}
-                <div>
-                  <div className="text-xs font-bold text-muted mb-1 uppercase">AGING:</div>
-                  <div className="text-heading text-sm flex items-center gap-1">
-                    <Calendar className="w-3 h-3 text-muted" />
-                    {ar.aging_days} days
+                    {formatCurrency(ar.profit || 0)}
                   </div>
                 </div>
               </div>
@@ -234,29 +254,52 @@ const AccountsReceivableTable = ({
                 </div>
               </div>
 
-              {/* Actions and Expand */}
-              <div className="flex justify-between items-center mt-2 pt-2 border-t border-main">
-                <button
-                  onClick={() => toggleCard(ar.id || index)}
-                  className="text-sm flex items-center gap-2 font-semibold text-heading hover:text-heading transition-colors"
-                >
-                  {isExpanded ? (
-                    <ChevronUp className="w-4 h-4" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4" />
-                  )}
-                  {isExpanded ? 'Hide Details' : 'View Details'}
-                </button>
+{/* Actions and Expand */}
+<div className="flex justify-between items-center mt-2 pt-2 border-t border-main">
+  <button
+    onClick={() => toggleCard(ar.id || index)}
+    className="text-sm flex items-center gap-2 font-semibold text-heading hover:text-heading transition-colors"
+  >
+    {isExpanded ? (
+      <ChevronUp className="w-4 h-4" />
+    ) : (
+      <ChevronDown className="w-4 h-4" />
+    )}
+    {isExpanded ? 'Hide Details' : 'View Details'}
+  </button>
 
-                {!ar.is_paid && (
-                  <button
-                    onClick={() => onMarkAsPaid && onMarkAsPaid(ar.id)}
-                    className="px-3 py-1 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 transition-colors"
-                  >
-                    Mark as Paid
-                  </button>
-                )}
-              </div>
+  <div className="flex gap-2">
+    {/* DEBUG: Check why button isn't showing */}
+    {/* Send Payment Button - Show when expenses exist and not paid */}
+    {!ar.is_paid && ar.total_expenses > 0 && (
+      <button
+        onClick={() => onSendPayment && onSendPayment(ar)}
+        className="px-3 py-1 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors flex items-center gap-2"
+      >
+        <Send className="w-4 h-4" />
+        Send Payment
+      </button>
+    )}
+
+    {/* Mark as Paid Button - Show when payment is set but not paid */}
+    {!ar.is_paid && ar.total_payment > 0 && (
+      <button
+        onClick={() => onMarkAsPaid && onMarkAsPaid(ar.id)}
+        className="px-3 py-1 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 transition-colors"
+      >
+        Mark as Paid
+      </button>
+    )}
+
+    {/* No Charges Warning */}
+    {!ar.is_paid && (!ar.total_expenses || ar.total_expenses === 0) && (
+      <span className="text-xs text-orange-600 flex items-center gap-1 px-2 py-1 bg-orange-100 rounded">
+        <AlertTriangle className="w-3 h-3" />
+        Add AP Charges First
+      </span>
+    )}
+  </div>
+</div>
 
               {/* Expanded Details */}
               {isExpanded && (
@@ -268,53 +311,40 @@ const AccountsReceivableTable = ({
                       <div className="space-y-1">
                         <div className="flex justify-between">
                           <span className="text-muted">Gross Income:</span>
-                          <span className="font-medium text-heading">{formatCurrency(ar.gross_income)}</span>
+                          <span className="font-medium text-heading">{formatCurrency(ar.gross_income || 0)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted">Total Expenses:</span>
-                          <span className="font-medium text-heading">{formatCurrency(ar.total_expenses)}</span>
+                          <span className="font-medium text-heading">{formatCurrency(ar.total_expenses || 0)}</span>
                         </div>
                         <div className="flex justify-between border-t border-main pt-1">
                           <span className="text-muted font-medium">Net Revenue:</span>
                           <span className={`font-semibold ${
                             ar.net_revenue >= 0 ? 'text-green-600' : 'text-red-600'
                           }`}>
-                            {formatCurrency(ar.net_revenue)}
+                            {formatCurrency(ar.net_revenue || 0)}
                           </span>
                         </div>
                       </div>
                     </div>
-{/* Invoice Dates */}
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-  <div>
-    <span className="text-muted">Invoice Date:</span>
-    <span className="text-heading ml-2">{ar.invoice_date ? formatDate(ar.invoice_date, false) : 'Not Set'}</span>
-  </div>
-  <div>
-    <span className="text-muted">Due Date:</span>
-    <span className={`ml-2 ${ar.is_overdue ? 'text-red-600 font-semibold' : 'text-heading'}`}>
-      {ar.due_date ? formatDate(ar.due_date, false) : 'Not Set'}
-      {ar.is_overdue && ' (Overdue)'}
-    </span>
-  </div>
-</div>
+
                     <div>
                       <h4 className="font-medium text-heading mb-2">Payment Status</h4>
                       <div className="space-y-1">
                         <div className="flex justify-between">
                           <span className="text-muted">Total Payment:</span>
-                          <span className="font-medium text-heading">{formatCurrency(ar.total_payment)}</span>
+                          <span className="font-medium text-heading">{formatCurrency(ar.total_payment || 0)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted">Amount Collected:</span>
-                          <span className="font-medium text-heading">{formatCurrency(ar.total_payment - ar.collectible_amount)}</span>
+                          <span className="font-medium text-heading">{formatCurrency((ar.total_payment || 0) - (ar.collectible_amount || 0))}</span>
                         </div>
                         <div className="flex justify-between border-t border-main pt-1">
                           <span className="text-muted font-medium">Balance Due:</span>
                           <span className={`font-semibold ${
                             ar.collectible_amount > 0 ? 'text-red-600' : 'text-green-600'
                           }`}>
-                            {formatCurrency(ar.collectible_amount)}
+                            {formatCurrency(ar.collectible_amount || 0)}
                           </span>
                         </div>
                       </div>
@@ -323,6 +353,17 @@ const AccountsReceivableTable = ({
 
                   {/* Dates */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted">Invoice Date:</span>
+                      <span className="text-heading ml-2">{ar.invoice_date ? formatDate(ar.invoice_date, false) : 'Not Set'}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted">Due Date:</span>
+                      <span className={`ml-2 ${ar.is_overdue ? 'text-red-600 font-semibold' : 'text-heading'}`}>
+                        {ar.due_date ? formatDate(ar.due_date, false) : 'Not Set'}
+                        {ar.is_overdue && ' (Overdue)'}
+                      </span>
+                    </div>
                     <div>
                       <span className="text-muted">Created:</span>
                       <span className="text-heading ml-2">{formatDate(ar.created_at, true)}</span>

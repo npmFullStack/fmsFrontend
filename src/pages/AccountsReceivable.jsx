@@ -1,7 +1,7 @@
 // src/pages/AccountsReceivable.jsx
 import React, { useState, useCallback, useMemo } from 'react';
 import { useDebounce } from 'use-debounce';
-import { Plus, DollarSign, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertTriangle, CheckCircle, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { useAR } from '../hooks/useAR';
@@ -14,9 +14,9 @@ import Pagination from '../components/ui/Pagination';
 import { formatCurrency } from '../utils/formatters';
 import { agingBuckets } from '../schemas/arSchema';
 
-
 const AccountsReceivable = () => {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [selectedAR, setSelectedAR] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch] = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
@@ -24,11 +24,11 @@ const AccountsReceivable = () => {
   const [direction, setDirection] = useState('desc');
 
   // Hooks
-  const { arQuery, arSummaryQuery, createAR, markAsPaid } = useAR();
+  const { arQuery, arSummaryQuery, updateAR, markAsPaid } = useAR();
   const { bookingsQuery } = useBooking();
 
   // Fetch AR records
-  const { data, isLoading, isError } = arQuery({
+  const { data, isLoading, isError, refetch } = arQuery({
     search: debouncedSearch,
     page,
     per_page: 10,
@@ -39,13 +39,6 @@ const AccountsReceivable = () => {
   // Fetch financial summary
   const { data: summaryData, isLoading: summaryLoading } = arSummaryQuery();
 
-  // Fetch bookings for the dropdown
-  const { data: bookingsData, isLoading: bookingsLoading } = bookingsQuery({
-    per_page: 100,
-    status: 'approved'
-  });
-
-  const bookings = bookingsData?.data || [];
   const arRecords = data?.data || [];
   const summary = summaryData?.summary || {};
   const agingBreakdown = summaryData?.aging_breakdown || [];
@@ -65,34 +58,75 @@ const AccountsReceivable = () => {
 
   // CRUD Actions
   const handleSendPayment = useCallback(
-    async (arData) => {
-      try {
-        await createAR.mutateAsync(arData);
-        toast.success('Payment sent to customer successfully');
-        setIsPaymentModalOpen(false);
-      } catch (error) {
-        toast.error(error.response?.data?.message || 'Failed to send payment');
+  async (arData) => {
+    try {
+      if (selectedAR && selectedAR.id) {
+        // First update the AR record with payment amount
+        await updateAR.mutateAsync({
+          id: selectedAR.id,
+          total_payment: arData.total_payment
+        });
+        
+        // Then send the payment request email
+        try {
+          await api.post(`/accounts-receivables/${selectedAR.id}/send-payment-email`);
+          toast.success('Payment request sent to customer successfully');
+        } catch (emailError) {
+          console.error('Email sending failed:', emailError);
+          toast.success('Payment amount set successfully, but email failed to send');
+        }
+      } else {
+        toast.error('No AR record found. Please add charges in Accounts Payable first.');
       }
-    },
-    [createAR]
-  );
+      
+      setIsPaymentModalOpen(false);
+      setSelectedAR(null);
+      refetch();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to send payment request');
+    }
+  },
+  [updateAR, selectedAR, refetch]
+);
 
   const handleMarkAsPaid = useCallback(
     async (arId) => {
       try {
         await markAsPaid.mutateAsync(arId);
         toast.success('Record marked as paid successfully');
+        refetch(); // Refresh the data
       } catch (error) {
         toast.error(error.response?.data?.message || 'Failed to mark as paid');
       }
     },
-    [markAsPaid]
+    [markAsPaid, refetch]
   );
 
-  const handleViewDetails = useCallback((arRecord) => {
-    console.log('View AR details:', arRecord);
-    toast.success(`Viewing details for booking ${arRecord.booking?.booking_number}`);
+  // Handle opening payment modal for specific AR record
+  const handleOpenPaymentModal = useCallback((arRecord) => {
+    // Only allow sending payment if expenses are set (AP charges exist)
+    if (!arRecord.total_expenses || arRecord.total_expenses === 0) {
+      toast.error('Please add charges in Accounts Payable first');
+      return;
+    }
+    
+    setSelectedAR(arRecord);
+    setIsPaymentModalOpen(true);
   }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setIsPaymentModalOpen(false);
+    setSelectedAR(null);
+  }, []);
+
+  // Filter records that are ready for payment (have expenses but no payment set)
+  const recordsReadyForPayment = useMemo(() => {
+    return arRecords.filter(ar => 
+      ar.total_expenses > 0 && 
+      (!ar.total_payment || ar.total_payment === 0) &&
+      !ar.is_paid
+    );
+  }, [arRecords]);
 
   // Summary cards data
   const summaryCards = useMemo(() => [
@@ -101,30 +135,34 @@ const AccountsReceivable = () => {
       value: summary.total_collectible || 0,
       icon: DollarSign,
       color: 'red',
-      format: 'currency'
+      format: 'currency',
+      description: 'Amount pending from customers'
     },
     {
       title: 'Total Gross Income',
       value: summary.total_gross_income || 0,
       icon: TrendingUp,
       color: 'green',
-      format: 'currency'
+      format: 'currency',
+      description: 'Total revenue from all bookings'
     },
     {
       title: 'Total Profit',
       value: summary.total_profit || 0,
       icon: CheckCircle,
       color: summary.total_profit >= 0 ? 'green' : 'red',
-      format: 'currency'
+      format: 'currency',
+      description: 'Net profit after expenses'
     },
     {
-      title: 'Total Records',
-      value: summary.total_records || 0,
+      title: 'Pending Payments',
+      value: recordsReadyForPayment.length || 0,
       icon: AlertTriangle,
       color: 'blue',
-      format: 'number'
+      format: 'number',
+      description: 'Ready to send to customers'
     }
-  ], [summary]);
+  ], [summary, recordsReadyForPayment]);
 
   if (isLoading && !data) {
     return (
@@ -148,8 +186,22 @@ const AccountsReceivable = () => {
     <div className="page-container">
       {/* Page Header */}
       <div className="page-header">
-        <h1 className="page-title">Accounts Receivable</h1>
-        <p className="page-subtitle">Manage customer payments, aging, and financial tracking</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="page-title">Accounts Receivable</h1>
+            <p className="page-subtitle">Manage customer payments, aging, and financial tracking</p>
+          </div>
+          {recordsReadyForPayment.length > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-blue-800">
+                <AlertTriangle className="w-4 h-4" />
+                <span className="font-medium">
+                  {recordsReadyForPayment.length} booking(s) ready for payment
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Financial Summary */}
@@ -158,8 +210,8 @@ const AccountsReceivable = () => {
           {summaryCards.map((card, index) => {
             const Icon = card.icon;
             return (
-              <div key={index} className="bg-surface rounded-lg border border-main p-4">
-                <div className="flex items-center justify-between">
+              <div key={index} className="bg-surface rounded-lg border border-main p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between mb-2">
                   <div>
                     <p className="text-sm font-medium text-muted">{card.title}</p>
                     <p className={`text-2xl font-bold mt-1 ${
@@ -176,6 +228,7 @@ const AccountsReceivable = () => {
                     <Icon className="w-5 h-5" />
                   </div>
                 </div>
+                <p className="text-xs text-muted mt-2">{card.description}</p>
               </div>
             );
           })}
@@ -222,20 +275,21 @@ const AccountsReceivable = () => {
           }
           actions={
             <div className="page-actions">
-              <button
-                onClick={() => setIsPaymentModalOpen(true)}
-                className="page-btn-primary"
-              >
-                <Plus className="page-btn-icon" />
-                Send Payment
-              </button>
+              <span className="text-sm text-muted">
+                Showing {arRecords.length} of {pagination.total} records
+                {recordsReadyForPayment.length > 0 && (
+                  <span className="ml-2 text-blue-600 font-medium">
+                    • {recordsReadyForPayment.length} ready for payment
+                  </span>
+                )}
+              </span>
             </div>
           }
         >
           <AccountsReceivableTable
             data={arRecords}
             onMarkAsPaid={handleMarkAsPaid}
-            onView={handleViewDetails}
+            onSendPayment={handleOpenPaymentModal}
             isLoading={isLoading}
           />
         </TableLayout>
@@ -254,10 +308,10 @@ const AccountsReceivable = () => {
       {/* Send Payment Modal */}
       <SendTotalPayment
         isOpen={isPaymentModalOpen}
-        onClose={() => setIsPaymentModalOpen(false)}
+        onClose={handleCloseModal}
         onSave={handleSendPayment}
-        isLoading={createAR.isPending}
-        bookings={bookings}
+        isLoading={updateAR.isPending}
+        selectedAR={selectedAR}
       />
     </div>
   );

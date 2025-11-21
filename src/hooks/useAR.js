@@ -38,6 +38,16 @@ const arApi = {
     const { data } = await api.post(`/accounts-receivables/${id}/mark-paid`);
     return data;
   },
+  processPayment: async ({ id, ...payload }) => {
+    const { data } = await api.post(`/accounts-receivables/${id}/process-payment`, payload);
+    return data;
+  },
+  
+  // NEW: Get payment breakdown
+  getPaymentBreakdown: async (id) => {
+    const { data } = await api.get(`/accounts-receivables/${id}/payment-breakdown`);
+    return data;
+  },
 };
 
 // Hook
@@ -109,7 +119,23 @@ export const useAR = () => {
       console.error('❌ Mark as paid error:', error.response?.data || error.message);
     },
   });
-
+  
+const processPayment = useMutation({
+    mutationFn: arApi.processPayment,
+    onSuccess: () => {
+      queryClient.invalidateQueries(AR_KEY);
+      console.log('✅ Payment processed successfully');
+    },
+    onError: (error) => {
+      console.error('❌ Process payment error:', error.response?.data || error.message);
+    },
+  });
+  
+  const paymentBreakdownQuery = (id) => useQuery({
+    queryKey: [...AR_KEY, 'payment-breakdown', id],
+    queryFn: () => arApi.getPaymentBreakdown(id),
+    enabled: !!id,
+  });
   return {
     // Queries
     arQuery,
@@ -121,5 +147,7 @@ export const useAR = () => {
     updateAR,
     deleteAR,
     markAsPaid,
+    paymentBreakdownQuery,
+    processPayment,
   };
 };
