@@ -16,9 +16,10 @@ const truckCompApi = {
 export const useTruckComp = () => {
   const queryClient = useQueryClient();
 
-  const truckCompsQuery = useQuery({
-    queryKey: TRUCK_COMP_KEY,
-    queryFn: () => truckCompApi.getAll(),
+  // ✅ Accept parameters and pass them to the API
+  const truckCompsQuery = (params = {}) => useQuery({
+    queryKey: [...TRUCK_COMP_KEY, params], // Include params in query key for proper caching
+    queryFn: () => truckCompApi.getAll(params),
   });
 
   const createTruckComp = useMutation({

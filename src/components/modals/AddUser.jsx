@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { userSchema, defaultUserValues } from '../../schemas/userSchema';
 import SharedModal from '../ui/SharedModal';
-import { Loader2, Info } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 
 const AddUser = ({ isOpen, onClose, onSave, isLoading = false }) => {
     const {
@@ -33,9 +33,14 @@ const AddUser = ({ isOpen, onClose, onSave, isLoading = false }) => {
         onSave(formattedData);
     };
 
+    const handleClose = () => {
+        reset(defaultUserValues);
+        onClose();
+    };
+
     return (
-        <SharedModal isOpen={isOpen} onClose={onClose} title="Add User" size="md">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        <SharedModal isOpen={isOpen} onClose={handleClose} title="Add User" size="sm">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 {/* First Name & Last Name - One Row */}
                 <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -46,7 +51,7 @@ const AddUser = ({ isOpen, onClose, onSave, isLoading = false }) => {
                             className="modal-input"
                             {...register('first_name')}
                         />
-                        {errors.first_name && <span className="modal-error">{errors.first_name.message}</span>}
+                        {errors.first_name && <span className="modal-error text-sm">{errors.first_name.message}</span>}
                     </div>
                     <div>
                         <label className="modal-label">Last Name</label>
@@ -56,7 +61,7 @@ const AddUser = ({ isOpen, onClose, onSave, isLoading = false }) => {
                             className="modal-input"
                             {...register('last_name')}
                         />
-                        {errors.last_name && <span className="modal-error">{errors.last_name.message}</span>}
+                        {errors.last_name && <span className="modal-error text-sm">{errors.last_name.message}</span>}
                     </div>
                 </div>
 
@@ -69,7 +74,7 @@ const AddUser = ({ isOpen, onClose, onSave, isLoading = false }) => {
                         className="modal-input"
                         {...register('email')}
                     />
-                    {errors.email && <span className="modal-error">{errors.email.message}</span>}
+                    {errors.email && <span className="modal-error text-sm">{errors.email.message}</span>}
                 </div>
 
                 {/* Contact Number - Numbers Only */}
@@ -90,24 +95,25 @@ const AddUser = ({ isOpen, onClose, onSave, isLoading = false }) => {
                             e.target.value = e.target.value.replace(/[^0-9+-\s()]/g, '');
                         }}
                     />
-                    {errors.contact_number && <span className="modal-error">{errors.contact_number.message}</span>}
+                    {errors.contact_number && <span className="modal-error text-sm">{errors.contact_number.message}</span>}
                 </div>
 
-                {/* Info Message */}
-                <div className="bg-blue-700 border border-main rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                        <Info className="w-5 h-5 text-white mt-0.5 flex-shrink-0" />
-                        <p className="text-md text-blue-100">
-                            <strong className="text-white">Note:</strong> A random 8-character password will be automatically generated and sent to the user's email address.
-                        </p>
+                {/* Info Box - Updated to match AddPort design */}
+                <div className="email-notice border border-blue-700 bg-blue-900 py-2">
+                    <div className="flex items-start gap-3 pl-3">
+                        <AlertCircle className="email-notice-icon text-blue-100 w-4 h-4 mt-0.5" />
+                        <div className="email-notice-text text-blue-200 text-sm">
+                            <p className="font-medium">Note:</p>
+                            <p>A random 8-character password will be automatically generated and sent to the user's email address.</p>
+                        </div>
                     </div>
                 </div>
 
                 {/* Buttons */}
-                <div className="flex justify-end gap-3 pt-4">
+                <div className="flex justify-end gap-3 pt-3">
                     <button
                         type="button"
-                        onClick={onClose}
+                        onClick={handleClose}
                         className={`modal-btn-cancel ${isLoading ? 'modal-btn-disabled' : ''}`}
                         disabled={isLoading}
                     >

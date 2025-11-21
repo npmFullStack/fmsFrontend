@@ -33,7 +33,13 @@ const TruckComp = () => {
     bulkDeleteTruckComps,
   } = useTruckComp();
 
-  const { data, isLoading, isError } = truckCompsQuery;
+  const { data, isLoading, isError } = truckCompsQuery({
+    search: debouncedSearch,
+    page,
+    per_page: 10, 
+    sort,
+    direction
+  });
 
   const sortedTruckComps = useMemo(() => {
     if (!data?.data) return [];

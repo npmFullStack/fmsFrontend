@@ -1,18 +1,19 @@
-// src/pages/Login.jsx
+// src/pages/Register.jsx
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
-import { loginSchema, defaultLoginValues } from '../schemas/authSchema';
+import { registerSchema, defaultRegisterValues } from '../schemas/authSchema';
 import { useAuth } from '../hooks/useAuth';
-// Import the image
+// Import the same image
 import loginImage from '../assets/images/loginImage.png';
 
-const Login = () => {
+const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
-  const { loginMutation, isAuthenticated, userQuery } = useAuth();
+  const { registerMutation, isAuthenticated, userQuery } = useAuth();
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -27,20 +28,22 @@ const Login = () => {
     formState: { errors, isValid },
     setError,
   } = useForm({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver(registerSchema),
     mode: 'onChange',
-    defaultValues: defaultLoginValues,
+    defaultValues: defaultRegisterValues,
   });
 
   const onSubmit = async (data) => {
     try {
-      await loginMutation.mutateAsync(data);
+      await registerMutation.mutateAsync(data);
       navigate('/dashboard');
     } catch (error) {
-      // Set form errors based on API response
-      const errorMessage = error.response?.data?.message || 'Login failed. Please try again.';
-      if (error.response?.data?.errors?.email) {
-        setError('email', { message: error.response.data.errors.email[0] });
+      const errorMessage = error.response?.data?.message || 'Registration failed. Please try again.';
+      if (error.response?.data?.errors) {
+        // Set specific field errors
+        Object.keys(error.response.data.errors).forEach((field) => {
+          setError(field, { message: error.response.data.errors[field][0] });
+        });
       } else {
         setError('root', { message: errorMessage });
       }
@@ -56,21 +59,53 @@ const Login = () => {
       {/* Main container with padding */}
       <div className="container mx-auto px-4 py-8">
         <div className="flex min-h-[85vh] bg-gray-100 rounded-2xl overflow-hidden shadow-lg">
-          {/* Left side - Login form */}
+          {/* Left side - Register form */}
           <div className="flex-1 flex items-center justify-center p-8">
             <div className="max-w-md w-full space-y-8">
               {/* Header */}
               <div className="text-center">
                 <h2 className="text-3xl font-bold text-gray-900">
-                  Welcome Back
+                  Create Account
                 </h2>
                 <p className="mt-2 text-gray-600">
-                  Sign in to access your account
+                  Sign up to get started with our platform
                 </p>
               </div>
 
               <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
                 <div className="space-y-5">
+                  {/* First Name Field */}
+                  <div>
+                    <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 mb-2">
+                      First Name
+                    </label>
+                    <input
+                      {...register('first_name')}
+                      type="text"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                      placeholder="Enter your first name"
+                    />
+                    {errors.first_name && (
+                      <p className="text-red-500 text-sm mt-1">{errors.first_name.message}</p>
+                    )}
+                  </div>
+
+                  {/* Last Name Field */}
+                  <div>
+                    <label htmlFor="last_name" className="block text-sm font-medium text-gray-700 mb-2">
+                      Last Name
+                    </label>
+                    <input
+                      {...register('last_name')}
+                      type="text"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                      placeholder="Enter your last name"
+                    />
+                    {errors.last_name && (
+                      <p className="text-red-500 text-sm mt-1">{errors.last_name.message}</p>
+                    )}
+                  </div>
+
                   {/* Email Field */}
                   <div>
                     <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
@@ -87,6 +122,22 @@ const Login = () => {
                     )}
                   </div>
 
+                  {/* Contact Number Field */}
+                  <div>
+                    <label htmlFor="contact_number" className="block text-sm font-medium text-gray-700 mb-2">
+                      Contact Number (Optional)
+                    </label>
+                    <input
+                      {...register('contact_number')}
+                      type="tel"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                      placeholder="Enter your contact number"
+                    />
+                    {errors.contact_number && (
+                      <p className="text-red-500 text-sm mt-1">{errors.contact_number.message}</p>
+                    )}
+                  </div>
+
                   {/* Password Field */}
                   <div>
                     <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
@@ -97,7 +148,7 @@ const Login = () => {
                         {...register('password')}
                         type={showPassword ? 'text' : 'password'}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 pr-10"
-                        placeholder="Enter your password"
+                        placeholder="Enter your password (min. 8 characters)"
                       />
                       <button
                         type="button"
@@ -115,6 +166,35 @@ const Login = () => {
                       <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
                     )}
                   </div>
+
+                  {/* Confirm Password Field */}
+                  <div>
+                    <label htmlFor="password_confirmation" className="block text-sm font-medium text-gray-700 mb-2">
+                      Confirm Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        {...register('password_confirmation')}
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 pr-10"
+                        placeholder="Confirm your password"
+                      />
+                      <button
+                        type="button"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-5 w-5" />
+                        ) : (
+                          <Eye className="h-5 w-5" />
+                        )}
+                      </button>
+                    </div>
+                    {errors.password_confirmation && (
+                      <p className="text-red-500 text-sm mt-1">{errors.password_confirmation.message}</p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Error Message */}
@@ -128,29 +208,29 @@ const Login = () => {
                 <div>
                   <button
                     type="submit"
-                    disabled={loginMutation.isPending || !isValid}
-                    className={`w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${(!isValid || loginMutation.isPending) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={registerMutation.isPending || !isValid}
+                    className={`w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${(!isValid || registerMutation.isPending) ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
-                    {loginMutation.isPending ? (
+                    {registerMutation.isPending ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                        Signing in...
+                        Creating Account...
                       </>
                     ) : (
-                      'Sign in'
+                      'Create Account'
                     )}
                   </button>
                 </div>
 
-                {/* Sign up link */}
+                {/* Sign in link */}
                 <div className="text-center">
                   <p className="text-sm text-gray-600">
-                    Doesn't have an account?{' '}
+                    Already have an account?{' '}
                     <Link
-                      to="/register"
+                      to="/login"
                       className="text-blue-600 hover:text-blue-700 transition-colors font-medium"
                     >
-                      Sign up
+                      Sign in
                     </Link>
                   </p>
                 </div>
@@ -186,4 +266,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Register;

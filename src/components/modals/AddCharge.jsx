@@ -398,8 +398,8 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
       isOpen={isOpen} 
       onClose={onClose} 
       title="Add Charges" 
-      size="lg"
-      className="h-[90vh]"
+      size="sm"
+      className="h-[85vh]"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full">
         <div className="flex-1 overflow-y-auto max-h-[calc(90vh-120px)] pr-2 -mr-2">

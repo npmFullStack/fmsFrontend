@@ -30,10 +30,10 @@ const shippingLineApi = {
     return data;
   },
 
-  bulkDelete: async (ids) => {
-    const { data } = await api.post('/shipping-lines/bulk-destroy', { ids });
-    return data;
-  },
+bulkDelete: async (ids) => {
+  const { data } = await api.post('/shipping-lines/bulk-delete', { ids });
+  return data;
+},
 
   restore: async (id) => {
     const { data } = await api.put(`/shipping-lines/${id}/restore`);
@@ -45,10 +45,10 @@ const shippingLineApi = {
 export const useShippingLine = () => {
   const queryClient = useQueryClient();
 
-  // Fetch all
-  const shippingLinesQuery = useQuery({
-    queryKey: SHIPPING_LINE_KEY,
-    queryFn: () => shippingLineApi.getAll(),
+  // ✅ Accept parameters for pagination, search, and sorting
+  const shippingLinesQuery = (params = {}) => useQuery({
+    queryKey: [...SHIPPING_LINE_KEY, params], // Include params in query key
+    queryFn: () => shippingLineApi.getAll(params),
   });
 
   // Create

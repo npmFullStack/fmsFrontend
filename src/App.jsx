@@ -21,8 +21,8 @@ const lazyWithRetry = (componentImport) =>
 // Lazy-loaded pages
 const Home = lazyWithRetry(() => import('./pages/Home'));
 const Login = lazyWithRetry(() => import('./pages/Login'));
+const Register = lazyWithRetry(() => import('./pages/Register'));
 const Quote = lazyWithRetry(() => import('./pages/Quote'));
-
 const Dashboard = lazyWithRetry(() => import('./pages/Dashboard'));
 const Category = lazyWithRetry(() => import('./pages/Category'));
 const ContainerType = lazyWithRetry(() => import('./pages/ContainerType'));
@@ -35,8 +35,6 @@ const User = lazyWithRetry(() => import('./pages/User'));
 const CargoMonitoring = lazyWithRetry(() => import('./pages/CargoMonitoring'));
 const AccountsPayable = lazyWithRetry(() => import('./pages/AccountsPayable'));
 const PayCharges = lazyWithRetry(() => import('./pages/PayCharges'));
-
-
 
 function App() {
   const { initializeAuth } = useAuth();
@@ -53,6 +51,7 @@ function App() {
           <Route element={<PublicLayout />}>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
             <Route path="/quote" element={<Quote />} />
           </Route>
           
@@ -68,10 +67,8 @@ function App() {
             <Route path="/booking" element={<Booking />} />
             <Route path="/users" element={<User />} />
             <Route path="/cargo-monitoring" element={<CargoMonitoring />} />
-            
             <Route path="/accounts-payable" element={<AccountsPayable />} />
             <Route path="/pay-charges" element={<PayCharges />} />
-            
           </Route>
         </Routes>
       </Suspense>

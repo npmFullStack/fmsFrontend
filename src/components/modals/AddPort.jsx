@@ -2,9 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { portSchema, defaultPortValues } from '../../schemas/portSchema';
-import { Loader2, MapPin, Eye, X } from 'lucide-react';
+import { Loader2, MapPin, AlertCircle } from 'lucide-react';
 import SharedModal from '../ui/SharedModal';
-import LocationMap from '../ui/LocationMap';
 
 const AddPort = ({ isOpen, onClose, onSave, isLoading = false }) => {
   const { 
@@ -24,7 +23,6 @@ const AddPort = ({ isOpen, onClose, onSave, isLoading = false }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState({ lat: null, lng: null });
-  const [showMap, setShowMap] = useState(false);
 
   const latitude = watch('latitude');
   const longitude = watch('longitude');
@@ -35,7 +33,6 @@ const AddPort = ({ isOpen, onClose, onSave, isLoading = false }) => {
   useEffect(() => {
     if (isOpen) {
       reset(defaultPortValues);
-      setShowMap(false);
       setAddressSuggestions([]);
       setShowSuggestions(false);
       setSelectedLocation({ lat: null, lng: null });
@@ -142,63 +139,6 @@ const AddPort = ({ isOpen, onClose, onSave, isLoading = false }) => {
     setAddressSuggestions([]);
   };
 
-  const handleMapLocationChange = (lat, lng) => {
-    setValue('latitude', lat, { shouldValidate: true });
-    setValue('longitude', lng, { shouldValidate: true });
-    setSelectedLocation({ lat, lng });
-  };
-
-  // Handle when location is set from the map
-  const handleLocationSet = (lat, lng, cityName) => {
-    // Close the map modal
-    setShowMap(false);
-    
-    // Set the coordinates
-    setValue('latitude', lat, { shouldValidate: true });
-    setValue('longitude', lng, { shouldValidate: true });
-    
-    // Use the city name from map search for route name
-    if (cityName && !routeName) {
-      setValue('route_name', cityName, { shouldValidate: true });
-    }
-    
-    // Reverse geocode to get full address
-    reverseGeocode(lat, lng);
-  };
-
-  const reverseGeocode = async (lat, lng) => {
-    setIsGeocoding(true);
-    try {
-      const response = await fetch(
-        `https://us1.locationiq.com/v1/reverse?` +
-        `key=${import.meta.env.VITE_LOCATIONIQ_ACCESS_TOKEN}&` +
-        `lat=${lat}&` +
-        `lon=${lng}&` +
-        `format=json`
-      );
-      
-      const data = await response.json();
-      if (data.display_name) {
-        setValue('address', data.display_name, { shouldValidate: true });
-        
-        // Extract and set route name and port name
-        const extractedRouteName = extractRouteName(data.display_name);
-        const extractedPortName = extractPortName(data.display_name);
-        
-        if (!routeName) {
-          setValue('route_name', extractedRouteName, { shouldValidate: true });
-        }
-        if (!name) {
-          setValue('name', extractedPortName, { shouldValidate: true });
-        }
-      }
-    } catch (error) {
-      console.error('Error reverse geocoding:', error);
-    } finally {
-      setIsGeocoding(false);
-    }
-  };
-
   const onSubmit = (data) => {
     // Format the data properly
     const formattedData = {
@@ -217,170 +157,121 @@ const AddPort = ({ isOpen, onClose, onSave, isLoading = false }) => {
   };
 
   return (
-    <>
-      <SharedModal isOpen={isOpen} onClose={handleClose} title="Add Port" size="sm">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          {/* Address Field - First with View Map button at top right */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="modal-label">
-                Address
-              </label>
-              <button
-                type="button"
-                onClick={() => setShowMap(true)}
-                className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors font-medium"
-              >
-                <Eye className="w-4 h-4" />
-                View Map
-              </button>
-            </div>
-            
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Type to search for address..."
-                className="modal-input pr-10"
-                value={address || ''}
-                onChange={handleAddressChange}
-                onFocus={() => addressSuggestions.length > 0 && setShowSuggestions(true)}
-              />
-              {isGeocoding && (
-                <Loader2 className="absolute right-3 top-3 w-4 h-4 animate-spin text-muted" />
-              )}
-              <MapPin className="absolute right-3 top-3 w-4 h-4 text-muted" />
-            </div>
-            
-            {/* Address Suggestions */}
-            {showSuggestions && addressSuggestions.length > 0 && (
-              <div className="absolute z-20 w-full mt-1 bg-surface border border-main rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {addressSuggestions.map((suggestion, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-main last:border-b-0 transition-colors"
-                    onClick={() => handleAddressSelect(suggestion)}
-                  >
-                    <div className="font-medium text-content">{suggestion.display_name}</div>
-                  </button>
-                ))}
-              </div>
-            )}
-            {errors.address && <span className="modal-error">{errors.address.message}</span>}
-          </div>
-
-          {/* Route Name Field */}
-          <div>
-            <label className="modal-label">
-              Route Name
-            </label>
-            <input
-              type="text"
-              placeholder="Route name (e.g., Manila)"
-              className="modal-input"
-              {...register('route_name')}
-            />
-            {errors.route_name && <span className="modal-error">{errors.route_name.message}</span>}
-            <p className="text-xs text-muted mt-1">
-              This will be used when selecting origin/destination for routes
-            </p>
-          </div>
-
-          {/* Port Name Field */}
-          <div>
-            <label className="modal-label">
-              Port Name
-            </label>
-            <input
-              type="text"
-              placeholder="Full port name"
-              className="modal-input"
-              {...register('name')}
-            />
-            {errors.name && <span className="modal-error">{errors.name.message}</span>}
-          </div>
-
-          {/* Hidden Coordinates (automatically filled) */}
-          <div className="hidden">
-            <input type="hidden" {...register('latitude', { valueAsNumber: true })} />
-            <input type="hidden" {...register('longitude', { valueAsNumber: true })} />
-          </div>
-
-          {/* Info Box */}
-          <div className="modal-info-box">
-            <div className="modal-info-title">
-              <span>How to add a port</span>
-            </div>
-            <p className="modal-info-text">
-              Type an address and select from suggestions, or click "View Map" to select location directly on the map. 
-              Route name and port name will be automatically extracted from the address.
-            </p>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
-              onClick={handleClose}
-              className={`modal-btn-cancel ${isLoading ? 'modal-btn-disabled' : ''}`}
-              disabled={isLoading}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className={`modal-btn-primary ${(!isValid || isLoading) ? 'modal-btn-disabled' : ''}`}
-              disabled={isLoading || !isValid}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                'Add Port'
-              )}
-            </button>
-          </div>
-        </form>
-      </SharedModal>
-
-      {/* Overlay Map Modal */}
-      {showMap && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <div 
-            className="absolute inset-0 bg-black bg-opacity-50"
-            onClick={() => setShowMap(false)}
-          />
+    <SharedModal isOpen={isOpen} onClose={handleClose} title="Add Port" size="sm">
+<form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {/* Address Field */}
+        <div>
+          <label className="modal-label">
+            Address
+          </label>
           
-          {/* Map Container */}
-          <div className="relative bg-surface rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden border border-main">
-            {/* Map Header */}
-            <div className="flex items-center justify-between p-4 border-b border-main">
-              <h3 className="text-lg font-semibold text-content">Select Port Location</h3>
-              <button 
-                onClick={() => setShowMap(false)}
-                className="p-1 hover:bg-gray-100 rounded transition-colors"
-              >
-                <X className="w-5 h-5 text-content" />
-              </button>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Type to search for address..."
+              className="modal-input pr-10"
+              value={address || ''}
+              onChange={handleAddressChange}
+              onFocus={() => addressSuggestions.length > 0 && setShowSuggestions(true)}
+            />
+            {isGeocoding && (
+              <Loader2 className="absolute right-3 top-3 w-4 h-4 animate-spin text-muted" />
+            )}
+            <MapPin className="absolute right-3 top-3 w-4 h-4 text-muted" />
+          </div>
+          
+          {/* Address Suggestions */}
+          {showSuggestions && addressSuggestions.length > 0 && (
+            <div className="absolute z-20 w-full mt-1 bg-surface border border-main rounded-lg shadow-lg max-h-48 overflow-y-auto">
+              {addressSuggestions.map((suggestion, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  className="w-full px-3 py-2 text-left hover:bg-gray-50 border-b border-main last:border-b-0 transition-colors text-sm"
+                  onClick={() => handleAddressSelect(suggestion)}
+                >
+                  <div className="font-medium text-content">{suggestion.display_name}</div>
+                </button>
+              ))}
             </div>
-            
-            {/* Map Content */}
-            <div className="p-4">
-              <LocationMap
-                latitude={latitude || null}
-                longitude={longitude || null}
-                onLocationChange={handleMapLocationChange}
-                onLocationSet={handleLocationSet}
-                height="500px"
-                interactive={true}
-              />
+          )}
+          {errors.address && <span className="modal-error text-sm">{errors.address.message}</span>}
+        </div>
+
+        {/* Route Name Field */}
+        <div>
+          <label className="modal-label">
+            Route Name
+          </label>
+          <input
+            type="text"
+            placeholder="Route name (e.g., MNL)"
+            className="modal-input"
+            {...register('route_name')}
+          />
+          {errors.route_name && <span className="modal-error text-sm">{errors.route_name.message}</span>}
+          <p className="text-xs text-muted mt-1">
+            This will be used when selecting origin/destination for routes
+          </p>
+        </div>
+
+        {/* Port Name Field */}
+        <div>
+          <label className="modal-label">
+            Port Name
+          </label>
+          <input
+            type="text"
+            placeholder="Full port name"
+            className="modal-input"
+            {...register('name')}
+          />
+          {errors.name && <span className="modal-error text-sm">{errors.name.message}</span>}
+        </div>
+
+        {/* Hidden Coordinates (automatically filled) */}
+        <div className="hidden">
+          <input type="hidden" {...register('latitude', { valueAsNumber: true })} />
+          <input type="hidden" {...register('longitude', { valueAsNumber: true })} />
+        </div>
+
+        {/* Info Box - Updated to match AddBooking design */}
+        <div className="email-notice border border-blue-700 bg-blue-900 py-2">
+          <div className="flex items-start gap-3 pl-3">
+            <AlertCircle className="email-notice-icon text-blue-100 w-4 h-4 mt-0.5" />
+            <div className="email-notice-text text-blue-200 text-sm">
+              <p className="font-medium">How to add a port:</p>
+              <p>Type an address and select from suggestions. Route name and port name will be automatically extracted.</p>
             </div>
           </div>
         </div>
-      )}
-    </>
+
+        <div className="flex justify-end gap-3 pt-3">
+          <button
+            type="button"
+            onClick={handleClose}
+            className={`modal-btn-cancel ${isLoading ? 'modal-btn-disabled' : ''}`}
+            disabled={isLoading}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className={`modal-btn-primary ${(!isValid || isLoading) ? 'modal-btn-disabled' : ''}`}
+            disabled={isLoading || !isValid}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Add Port'
+            )}
+          </button>
+        </div>
+      </form>
+    </SharedModal>
   );
 };
 

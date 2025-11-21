@@ -10,6 +10,10 @@ const authApi = {
     const { data } = await api.post('/auth/login', credentials);
     return data;
   },
+  register: async (userData) => {
+    const { data } = await api.post('/auth/register', userData);
+    return data;
+  },
   logout: async () => {
     const { data } = await api.post('/auth/logout');
     return data;
@@ -47,6 +51,21 @@ export const useAuth = () => {
     },
   });
 
+  // Register
+  const registerMutation = useMutation({
+    mutationFn: authApi.register,
+    onSuccess: (data) => {
+      // Store token in localStorage
+      localStorage.setItem('token', data.token);
+      // Update auth query data
+      queryClient.setQueryData(AUTH_KEY, data);
+      console.log('✅ Registration successful');
+    },
+    onError: (error) => {
+      console.error('❌ Registration error:', error.response?.data || error.message);
+    },
+  });
+
   // Logout
   const logoutMutation = useMutation({
     mutationFn: authApi.logout,
@@ -76,13 +95,14 @@ export const useAuth = () => {
   const initializeAuth = () => {
     const token = localStorage.getItem('token');
     if (token) {
-
+      // You might want to validate the token or fetch user data here
     }
   };
 
   return {
     userQuery,
     loginMutation,
+    registerMutation, // Add this to the return object
     logoutMutation,
     isAuthenticated,
     initializeAuth,

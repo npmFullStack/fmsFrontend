@@ -1,6 +1,6 @@
 // src/components/tables/PayChargesTable.jsx
-import React from 'react';
-import { DollarSign, Truck, Anchor, FileText, Calendar, User, CreditCard } from 'lucide-react';
+import React, { useState } from 'react';
+import { DollarSign, Truck, Anchor, FileText, Calendar, User, CreditCard, ChevronUp, ChevronDown } from 'lucide-react';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 
 const PayChargesTable = ({ 
@@ -8,6 +8,12 @@ const PayChargesTable = ({
   onPayCharges,
   isLoading = false
 }) => {
+  const [expandedCards, setExpandedCards] = useState([]);
+
+  const toggleCard = (id) => {
+    setExpandedCards(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
   // Calculate total amount for each AP record
   const calculateTotalAmount = (ap) => {
     let total = 0;
@@ -69,6 +75,7 @@ const PayChargesTable = ({
         const booking = ap.booking;
         const totalAmount = calculateTotalAmount(ap);
         const unpaidCount = countUnpaidCharges(ap);
+        const isExpanded = expandedCards[ap.id || index];
 
         return (
           <div
@@ -95,20 +102,16 @@ const PayChargesTable = ({
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <div className="text-xs font-bold text-muted mb-1">UNPAID CHARGES</div>
-                    <div className="text-lg font-bold text-orange-600">{unpaidCount}</div>
-                  </div>
-                  <button
-                    onClick={() => onPayCharges(ap)}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-                    disabled={unpaidCount === 0}
-                  >
-                    <CreditCard className="w-4 h-4" />
-                    Pay Charges
-                  </button>
-                </div>
+                <button
+                  onClick={() => onPayCharges(ap)}
+                  className="flex items-center gap-2 px-4 py-2 bg-primary
+                  text-white rounded-lg hover:bg-blue-800 transition-colors
+                  font-medium"
+                  disabled={unpaidCount === 0}
+                >
+                  <CreditCard className="w-4 h-4" />
+                  Mark Paid
+                </button>
               </div>
 
               {/* Compact Grid */}
@@ -116,7 +119,7 @@ const PayChargesTable = ({
                 {/* Total Unpaid Amount */}
                 <div>
                   <div className="text-xs font-bold text-muted mb-1 uppercase">TOTAL UNPAID:</div>
-                  <div className="text-heading font-semibold text-lg text-orange-600">
+                  <div className="text-heading font-semibold text-lg">
                     {formatCurrency(totalAmount)}
                   </div>
                 </div>
@@ -150,44 +153,238 @@ const PayChargesTable = ({
                 </div>
               </div>
 
-              {/* Charge Type Summary */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+              {/* Charge Type Summary with Modern Badges */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs mb-3">
                 {/* Freight Charges */}
                 <div className="flex items-center gap-2">
-                  <DollarSign className="w-3 h-3 text-blue-600" />
+                  <DollarSign className="w-3 h-3 text-muted" />
                   <span className="text-muted">Freight:</span>
-                  <span className={`font-medium ${ap.freight_charge && !ap.freight_charge.is_paid ? 'text-orange-600' : 'text-green-600'}`}>
+                  <span className={`inline-flex items-center justify-center min-w-[60px] px-2 py-1 rounded-full text-xs font-medium border ${
+                    ap.freight_charge && !ap.freight_charge.is_paid 
+                      ? 'bg-red-500 text-white border-red-600' 
+                      : 'bg-green-500 text-white border-green-600'
+                  }`}>
                     {ap.freight_charge ? (ap.freight_charge.is_paid ? 'Paid' : 'Unpaid') : 'None'}
                   </span>
                 </div>
 
                 {/* Trucking Charges */}
                 <div className="flex items-center gap-2">
-                  <Truck className="w-3 h-3 text-purple-600" />
+                  <Truck className="w-3 h-3 text-muted" />
                   <span className="text-muted">Trucking:</span>
-                  <span className="font-medium text-orange-600">
+                  <span className={`inline-flex items-center justify-center min-w-[60px] px-2 py-1 rounded-full text-xs font-medium border ${
+                    ap.trucking_charges?.filter(c => !c.is_paid).length > 0 
+                      ? 'bg-red-500 text-white border-red-600' 
+                      : 'bg-green-500 text-white border-green-600'
+                  }`}>
                     {ap.trucking_charges?.filter(c => !c.is_paid).length || 0} unpaid
                   </span>
                 </div>
 
                 {/* Port Charges */}
                 <div className="flex items-center gap-2">
-                  <Anchor className="w-3 h-3 text-teal-600" />
+                  <Anchor className="w-3 h-3 text-muted" />
                   <span className="text-muted">Port:</span>
-                  <span className="font-medium text-orange-600">
+                  <span className={`inline-flex items-center justify-center min-w-[60px] px-2 py-1 rounded-full text-xs font-medium border ${
+                    ap.port_charges?.filter(c => !c.is_paid).length > 0 
+                      ? 'bg-red-500 text-white border-red-600' 
+                      : 'bg-green-500 text-white border-green-600'
+                  }`}>
                     {ap.port_charges?.filter(c => !c.is_paid).length || 0} unpaid
                   </span>
                 </div>
 
                 {/* Misc Charges */}
                 <div className="flex items-center gap-2">
-                  <FileText className="w-3 h-3 text-amber-600" />
+                  <FileText className="w-3 h-3 text-muted" />
                   <span className="text-muted">Misc:</span>
-                  <span className="font-medium text-orange-600">
+                  <span className={`inline-flex items-center justify-center min-w-[60px] px-2 py-1 rounded-full text-xs font-medium border ${
+                    ap.misc_charges?.filter(c => !c.is_paid).length > 0 
+                      ? 'bg-red-500 text-white border-red-600' 
+                      : 'bg-green-500 text-white border-green-600'
+                  }`}>
                     {ap.misc_charges?.filter(c => !c.is_paid).length || 0} unpaid
                   </span>
                 </div>
               </div>
+
+              {/* View Details Button */}
+              <button
+                onClick={() => toggleCard(ap.id || index)}
+                className="w-full text-left mt-2 pt-2 border-t border-main text-sm flex items-center gap-2 font-semibold text-heading hover:text-heading transition-colors"
+              >
+                {isExpanded ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+                {isExpanded ? 'Hide Charge Details' : 'View Charge Details'}
+              </button>
+
+              {/* Expanded Charges Details - Compact Layout */}
+              {isExpanded && (
+                <div className="mt-4 space-y-3 border-t pt-4">
+                  {/* Freight Charges */}
+                  {ap.freight_charge && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="w-3 h-3 text-muted" />
+                        <span className="font-medium text-heading text-sm">Freight Charge</span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-xs pl-5">
+                        <div className="flex flex-col">
+                          <span className="text-muted text-xs">Amount</span>
+                          <span className="font-medium text-heading">{formatCurrency(ap.freight_charge.amount)}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-muted text-xs">Check Date</span>
+                          <span className="text-heading">{ap.freight_charge.check_date ? formatDate(ap.freight_charge.check_date, false) : 'Not Set'}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-muted text-xs">Voucher</span>
+                          <span className="font-mono text-heading">{ap.freight_charge.voucher_number || 'N/A'}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-muted text-xs">Status</span>
+                          <span className={`inline-flex items-center justify-center min-w-[60px] px-2 py-1 rounded-full text-xs font-medium border ${
+                            ap.freight_charge.is_paid 
+                              ? 'bg-green-500 text-white border-green-600' 
+                              : 'bg-red-500 text-white border-red-600'
+                          }`}>
+                            {ap.freight_charge.is_paid ? 'Paid' : 'Unpaid'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Trucking Charges */}
+                  {ap.trucking_charges && ap.trucking_charges.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Truck className="w-3 h-3 text-muted" />
+                        <span className="font-medium text-heading text-sm">Trucking Charges</span>
+                      </div>
+                      <div className="space-y-2 pl-5">
+                        {ap.trucking_charges.map((charge, idx) => (
+                          <div key={idx} className="grid grid-cols-1 md:grid-cols-5 gap-2 text-xs border-b border-main pb-2 last:border-0">
+                            <div className="flex flex-col">
+                              <span className="text-muted text-xs">Type</span>
+                              <span className="font-normal text-heading">{charge.type}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-muted text-xs">Amount</span>
+                              <span className="font-medium text-heading">{formatCurrency(charge.amount)}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-muted text-xs">Voucher</span>
+                              <span className="font-mono text-heading">{charge.voucher_number || 'N/A'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-muted text-xs">Check Date</span>
+                              <span className="text-heading">{charge.check_date ? formatDate(charge.check_date, false) : 'Not Set'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-muted text-xs">Status</span>
+                              <span className={`inline-flex items-center justify-center min-w-[60px] px-2 py-1 rounded-full text-xs font-medium border ${
+                                charge.is_paid 
+                                  ? 'bg-green-500 text-white border-green-600' 
+                                  : 'bg-red-500 text-white border-red-600'
+                              }`}>
+                                {charge.is_paid ? 'Paid' : 'Unpaid'}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Port Charges */}
+                  {ap.port_charges && ap.port_charges.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Anchor className="w-3 h-3 text-muted" />
+                        <span className="font-medium text-heading text-sm">Port Charges</span>
+                      </div>
+                      <div className="space-y-2 pl-5">
+                        {ap.port_charges.map((charge, idx) => (
+                          <div key={idx} className="grid grid-cols-1 md:grid-cols-5 gap-2 text-xs border-b border-main pb-2 last:border-0">
+                            <div className="flex flex-col">
+                              <span className="text-muted text-xs">Type</span>
+                              <span className="font-normal text-heading">{charge.charge_type}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-muted text-xs">Payee</span>
+                              <span className="text-heading">{charge.payee || 'N/A'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-muted text-xs">Amount</span>
+                              <span className="font-medium text-heading">{formatCurrency(charge.amount)}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-muted text-xs">Voucher</span>
+                              <span className="font-mono text-heading">{charge.voucher_number || 'N/A'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-muted text-xs">Status</span>
+                              <span className={`inline-flex items-center justify-center min-w-[60px] px-2 py-1 rounded-full text-xs font-medium border ${
+                                charge.is_paid 
+                                  ? 'bg-green-500 text-white border-green-600' 
+                                  : 'bg-red-500 text-white border-red-600'
+                              }`}>
+                                {charge.is_paid ? 'Paid' : 'Unpaid'}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Miscellaneous Charges */}
+                  {ap.misc_charges && ap.misc_charges.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-3 h-3 text-muted" />
+                        <span className="font-medium text-heading text-sm">Miscellaneous Charges</span>
+                      </div>
+                      <div className="space-y-2 pl-5">
+                        {ap.misc_charges.map((charge, idx) => (
+                          <div key={idx} className="grid grid-cols-1 md:grid-cols-5 gap-2 text-xs border-b border-main pb-2 last:border-0">
+                            <div className="flex flex-col">
+                              <span className="text-muted text-xs">Type</span>
+                              <span className="font-normal text-heading">{charge.charge_type}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-muted text-xs">Payee</span>
+                              <span className="text-heading">{charge.payee || 'N/A'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-muted text-xs">Amount</span>
+                              <span className="font-medium text-heading">{formatCurrency(charge.amount)}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-muted text-xs">Voucher</span>
+                              <span className="font-mono text-heading">{charge.voucher_number || 'N/A'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-muted text-xs">Status</span>
+                              <span className={`inline-flex items-center justify-center min-w-[60px] px-2 py-1 rounded-full text-xs font-medium border ${
+                                charge.is_paid 
+                                  ? 'bg-green-500 text-white border-green-600' 
+                                  : 'bg-red-500 text-white border-red-600'
+                              }`}>
+                                {charge.is_paid ? 'Paid' : 'Unpaid'}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         );

@@ -36,7 +36,14 @@ const ShippingLine = () => {
   } = useShippingLine();
 
   // ✅ Fetch shipping lines (server-side pagination & search)
-  const { data, isLoading, isError } = shippingLinesQuery;
+  // ✅ Call the query with parameters
+const { data, isLoading, isError } = shippingLinesQuery({
+  search: debouncedSearch,
+  page,
+  per_page: 10,
+  sort,
+  direction
+});
 
   const sortedShippingLines = useMemo(() => {
     if (!data?.data) return [];

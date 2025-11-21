@@ -10,7 +10,6 @@ import {
   FileText, 
   Calendar, 
   CheckCircle, 
-  XCircle,
   User,
   CreditCard
 } from 'lucide-react';
@@ -65,8 +64,10 @@ const PaidCharges = ({
 }) => {
   const [selectedBookingId, setSelectedBookingId] = useState(null);
   const [selectedAP, setSelectedAP] = useState(null);
-  const [paymentData, setPaymentData] = useState({});
-  const [activeCharge, setActiveCharge] = useState(null);
+  const [paymentData, setPaymentData] = useState({
+    check_date: new Date().toISOString().split('T')[0]
+  });
+  const [selectedCharges, setSelectedCharges] = useState([]);
 
   const { apByBookingQuery } = useAP();
 
@@ -83,8 +84,10 @@ const PaidCharges = ({
         setSelectedBookingId(null);
         setSelectedAP(null);
       }
-      setPaymentData({});
-      setActiveCharge(null);
+      setPaymentData({
+        check_date: new Date().toISOString().split('T')[0]
+      });
+      setSelectedCharges([]);
     }
   }, [isOpen, apRecord]);
 
@@ -158,7 +161,7 @@ const PaidCharges = ({
         id: selectedAP.freight_charge.id,
         charge_type: 'FREIGHT',
         voucher_number: selectedAP.freight_charge.voucher_number,
-        payee: 'Freight Charge',
+        payee: selectedAP.booking?.shipping_line?.name || 'Freight Charge',
         amount: selectedAP.freight_charge.amount,
         check_date: selectedAP.freight_charge.check_date,
         is_paid: false
@@ -175,7 +178,7 @@ const PaidCharges = ({
             id: charge.id,
             charge_type: `TRUCKING_${charge.type}`,
             voucher_number: charge.voucher_number,
-            payee: `Trucking - ${charge.type}`,
+            payee: selectedAP.booking?.truck_comp?.name || `Trucking - ${charge.type}`,
             amount: charge.amount,
             check_date: charge.check_date,
             is_paid: false
@@ -226,30 +229,49 @@ const PaidCharges = ({
     const bookingId = selected?.value ? Number(selected.value) : null;
     setSelectedBookingId(bookingId);
     setSelectedAP(null);
-    setPaymentData({});
-    setActiveCharge(null);
-  };
-
-  const handleMarkAsPaidClick = (charge) => {
-    setActiveCharge(charge);
     setPaymentData({
-      voucher: `VOUCHER-${Date.now()}`,
       check_date: new Date().toISOString().split('T')[0]
     });
+    setSelectedCharges([]);
   };
 
-  const handlePaymentSubmit = async () => {
-    if (!activeCharge || !selectedAP) return;
+  const handleChargeSelect = (chargeId, isSelected) => {
+    if (isSelected) {
+      setSelectedCharges(prev => [...prev, chargeId]);
+    } else {
+      setSelectedCharges(prev => prev.filter(id => id !== chargeId));
+    }
+  };
+
+  const handleSelectAll = (isSelected) => {
+    if (isSelected) {
+      setSelectedCharges(unpaidCharges.map(charge => charge.id));
+    } else {
+      setSelectedCharges([]);
+    }
+  };
+
+  const handleMarkAsPaid = async () => {
+    if (!selectedAP || selectedCharges.length === 0) return;
 
     try {
-      await onMarkAsPaid(
-        selectedAP.id,
-        activeCharge.type,
-        activeCharge.id,
-        paymentData
+      const selectedChargeData = unpaidCharges.filter(charge => 
+        selectedCharges.includes(charge.id)
       );
-      setActiveCharge(null);
-      setPaymentData({});
+
+      for (const charge of selectedChargeData) {
+        await onMarkAsPaid(
+          selectedAP.id,
+          charge.type,
+          charge.id,
+          paymentData
+        );
+      }
+
+      setSelectedCharges([]);
+      setPaymentData({
+        check_date: new Date().toISOString().split('T')[0]
+      });
     } catch (error) {
       // Error handling is done in the parent component
     }
@@ -258,8 +280,10 @@ const PaidCharges = ({
   const handleClose = () => {
     setSelectedBookingId(null);
     setSelectedAP(null);
-    setPaymentData({});
-    setActiveCharge(null);
+    setPaymentData({
+      check_date: new Date().toISOString().split('T')[0]
+    });
+    setSelectedCharges([]);
     onClose();
   };
 
@@ -271,11 +295,11 @@ const PaidCharges = ({
   };
 
   const getChargeStatusColor = (isPaid) => {
-    return isPaid ? 'text-green-600' : 'text-orange-600';
+    return isPaid ? 'text-green-600' : 'text-heading';
   };
 
   const getChargeStatusIcon = (isPaid) => {
-    return isPaid ? CheckCircle : XCircle;
+    return CheckCircle;
   };
 
   if (!isOpen) return null;
@@ -285,12 +309,12 @@ const PaidCharges = ({
       isOpen={isOpen} 
       onClose={handleClose} 
       title="Pay Charges" 
-      size="xl"
-      className="h-[90vh]"
+      size="sm"
+      className="h-[70vh]"
     >
       <div className="flex flex-col h-full">
-        <div className="flex-1 overflow-y-auto max-h-[calc(90vh-120px)] pr-2 -mr-2">
-          <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto max-h-[calc(70vh-120px)] pr-2 -mr-2">
+          <div className="space-y-4">
             {/* Booking Selection */}
             {!apRecord && (
               <div>
@@ -309,207 +333,140 @@ const PaidCharges = ({
 
             {/* Loading State */}
             {isLoadingAP && (
-              <div className="flex justify-center items-center py-8">
-                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              <div className="flex justify-center items-center py-4">
+                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               </div>
             )}
 
             {/* Total Expenses Summary */}
             {selectedAP && (
-              <div className="bg-main rounded-lg p-4 border border-main">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-main rounded-lg p-3 border border-main">
+                <div className="grid grid-cols-3 gap-3 text-center">
                   <div>
-                    <div className="text-sm font-medium text-muted">Total Expenses</div>
-                    <div className="text-2xl font-bold text-heading">
+                    <div className="text-xs font-medium text-muted">Total Expenses</div>
+                    <div className="text-lg font-bold text-heading">
                       {formatCurrency(selectedAP.total_expenses || 0)}
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-muted">Total Unpaid</div>
-                    <div className="text-2xl font-bold text-orange-600">
+                    <div className="text-xs font-medium text-muted">Total Unpaid</div>
+                    <div className="text-lg font-bold text-heading">
                       {formatCurrency(totalUnpaidAmount)}
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-muted">Unpaid Charges</div>
-                    <div className="text-2xl font-bold text-heading">
+                    <div className="text-xs font-medium text-muted">Unpaid Charges</div>
+                    <div className="text-lg font-bold text-heading">
                       {unpaidCharges.length}
                     </div>
                   </div>
                 </div>
-                
-                {/* Customer Info */}
-                {selectedAP.booking && (
-                  <div className="mt-4 pt-4 border-t border-main">
-                    <div className="flex items-center gap-2 text-sm">
-                      <User className="w-4 h-4 text-muted" />
-                      <span className="text-muted">Customer:</span>
-                      <span className="font-medium text-heading">
-                        {selectedAP.booking.first_name} {selectedAP.booking.last_name}
-                      </span>
-                      <span className="text-muted ml-4">Booking #:</span>
-                      <span className="font-mono font-medium text-heading">
-                        {selectedAP.booking.booking_number}
-                      </span>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
+
             {/* Charges List */}
             {selectedAP && unpaidCharges.length > 0 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-heading">Unpaid Charges</h3>
-                {unpaidCharges.map((charge, index) => {
-                  const StatusIcon = getChargeStatusIcon(charge.is_paid);
-                  const ChargeIcon = getChargeIcon(charge.charge_type);
-                  
-                  return (
-                    <div
-                      key={`${charge.type}-${charge.id}-${index}`}
-                      className="bg-surface rounded-lg border border-main p-4"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-start gap-3 flex-1">
-                          <div className="p-2 bg-main rounded-lg">
-                            <ChargeIcon className="w-4 h-4 text-muted" />
-                          </div>
-                          <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div>
-                              <div className="text-xs font-bold text-muted">VOUCHER #</div>
-                              <div className="font-mono text-sm font-medium text-heading">
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-semibold text-heading">Unpaid Charges</h3>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedCharges.length === unpaidCharges.length && unpaidCharges.length > 0}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="w-4 h-4 text-primary border-main rounded focus:ring-primary"
+                    />
+                    <span className="text-xs text-muted">Select All</span>
+                  </div>
+                </div>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {unpaidCharges.map((charge, index) => {
+                    const StatusIcon = getChargeStatusIcon(charge.is_paid);
+                    const ChargeIcon = getChargeIcon(charge.charge_type);
+                    const isSelected = selectedCharges.includes(charge.id);
+                    
+                    return (
+                      <div
+                        key={`${charge.type}-${charge.id}-${index}`}
+                        className="bg-surface rounded border border-main p-3"
+                      >
+                        <div className="flex items-start gap-2">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => handleChargeSelect(charge.id, e.target.checked)}
+                            className="w-4 h-4 text-primary border-main rounded focus:ring-primary mt-0.5"
+                          />
+                          <div className="flex-1 grid grid-cols-1 gap-1">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <ChargeIcon className="w-3 h-3 text-muted" />
+                                <span className="text-xs font-medium text-heading">
+                                  {charge.charge_type.replace(/_/g, ' ')}
+                                </span>
+                              </div>
+                              <StatusIcon className={`w-3 h-3 ${getChargeStatusColor(charge.is_paid)}`} />
+                            </div>
+                            <div className="text-xs text-muted">{charge.payee}</div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs font-mono text-muted">
                                 {charge.voucher_number}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-xs font-bold text-muted">TYPE</div>
-                              <div className="text-sm text-heading">
-                                {charge.charge_type.replace(/_/g, ' ')}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-xs font-bold text-muted">PAYEE</div>
-                              <div className="text-sm text-heading">
-                                {charge.payee}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-xs font-bold text-muted">AMOUNT</div>
-                              <div className="text-lg font-bold text-heading">
+                              </span>
+                              <span className="text-sm font-bold text-heading">
                                 {formatCurrency(charge.amount)}
-                              </div>
+                              </span>
                             </div>
-                            {charge.check_date && (
-                              <div className="md:col-span-4">
-                                <div className="text-xs font-bold text-muted">CHECK DATE</div>
-                                <div className="text-sm text-heading flex items-center gap-1">
-                                  <Calendar className="w-3 h-3" />
-                                  {formatDate(charge.check_date, false)}
-                                </div>
-                              </div>
-                            )}
                           </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 ml-4">
-                          <StatusIcon className={`w-5 h-5 ${getChargeStatusColor(charge.is_paid)}`} />
-                          <button
-                            onClick={() => handleMarkAsPaidClick(charge)}
-                            disabled={charge.is_paid || isLoading}
-                            className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
-                          >
-                            <CreditCard className="w-4 h-4" />
-                            Mark Paid
-                          </button>
                         </div>
                       </div>
-
-                      {/* Payment Form */}
-                      {activeCharge?.id === charge.id && (
-                        <div className="mt-4 pt-4 border-t border-main">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="modal-label text-heading">Voucher Number</label>
-                              <input
-                                type="text"
-                                value={paymentData.voucher || ''}
-                                onChange={(e) => setPaymentData(prev => ({
-                                  ...prev,
-                                  voucher: e.target.value
-                                }))}
-                                className="modal-input"
-                                placeholder="Enter voucher number"
-                              />
-                            </div>
-                            <div>
-                              <label className="modal-label text-heading">Check Date</label>
-                              <DateTimeInput
-                                value={paymentData.check_date || ''}
-                                onChange={(date) => setPaymentData(prev => ({
-                                  ...prev,
-                                  check_date: date
-                                }))}
-                                placeholder="Select check date"
-                              />
-                            </div>
-                          </div>
-                          <div className="flex justify-end gap-2 mt-4">
-                            <button
-                              type="button"
-                              onClick={() => setActiveCharge(null)}
-                              className="modal-btn-cancel"
-                              disabled={isLoading}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handlePaymentSubmit}
-                              disabled={!paymentData.voucher || isLoading}
-                              className="modal-btn-primary disabled:modal-btn-disabled"
-                            >
-                              {isLoading ? 'Processing...' : 'Confirm Payment'}
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             )}
 
             {/* No Unpaid Charges */}
             {selectedAP && unpaidCharges.length === 0 && (
-              <div className="text-center py-12 text-muted">
-                <CheckCircle className="w-16 h-16 mx-auto mb-4 text-green-600" />
-                <p className="text-lg font-medium text-heading">All charges are paid!</p>
-                <p className="text-sm">There are no unpaid charges for this booking.</p>
+              <div className="text-center py-8 text-muted">
+                <CheckCircle className="w-12 h-12 mx-auto mb-3 text-green-600" />
+                <p className="text-sm font-medium text-heading">All charges are paid!</p>
+                <p className="text-xs">There are no unpaid charges for this booking.</p>
               </div>
             )}
 
             {/* No Booking Selected */}
             {!selectedBookingId && !apRecord && (
-              <div className="text-center py-12 text-muted">
-                <CreditCard className="w-16 h-16 mx-auto mb-4 text-muted" />
-                <p className="text-lg font-medium text-heading">Select a booking</p>
-                <p className="text-sm">Choose a booking to view and pay its charges.</p>
+              <div className="text-center py-8 text-muted">
+                <CreditCard className="w-12 h-12 mx-auto mb-3 text-muted" />
+                <p className="text-sm font-medium text-heading">Select a booking</p>
+                <p className="text-xs">Choose a booking to view and pay its charges.</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Fixed Buttons */}
-        <div className="flex justify-end gap-3 pt-6 border-t border-main mt-6">
+        <div className="flex justify-end gap-2 pt-4 border-t border-main mt-4">
           <button
             type="button"
             onClick={handleClose}
-            className="modal-btn-cancel"
+            className="modal-btn-cancel text-sm py-2 px-3"
             disabled={isLoading}
           >
             Close
           </button>
+          {selectedAP && unpaidCharges.length > 0 && (
+            <button
+              type="button"
+              onClick={handleMarkAsPaid}
+              disabled={selectedCharges.length === 0 || isLoading}
+              className="modal-btn-primary disabled:modal-btn-disabled flex items-center gap-2 text-sm py-2 px-3"
+            >
+              <CreditCard className="w-3 h-3" />
+              Mark as Paid ({selectedCharges.length})
+            </button>
+          )}
         </div>
       </div>
     </SharedModal>

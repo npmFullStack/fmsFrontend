@@ -113,43 +113,6 @@ const PayCharges = () => {
         <p className="page-subtitle">Mark freight, trucking, port, and miscellaneous charges as paid</p>
       </div>
 
-      {/* Stats Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-surface rounded-lg border border-main p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <DollarSign className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted">Total Payable Records</p>
-              <p className="text-2xl font-bold text-heading">{pagination.total}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-surface rounded-lg border border-main p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <DollarSign className="w-6 h-6 text-orange-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted">Current Page</p>
-              <p className="text-2xl font-bold text-heading">{apRecords.length}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-surface rounded-lg border border-main p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <DollarSign className="w-6 h-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted">Status</p>
-              <p className="text-lg font-bold text-green-600">Unpaid Charges</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Table Section */}
       <div className="page-table-section">
         <TableLayout
