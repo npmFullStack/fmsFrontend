@@ -43,6 +43,12 @@ const CustomerBookings = () => {
     setIsPayModalOpen(true);
   }, []);
 
+  const handleDownloadStatement = useCallback((statementData) => {
+    // Generate PDF billing statement
+    generateBillingStatementPDF(statementData);
+    toast.success('Billing statement downloaded successfully!');
+  }, []);
+
   const handlePaymentSuccess = useCallback(() => {
     toast.success('Payment initiated successfully! You will receive a confirmation soon.');
   }, []);
@@ -51,6 +57,139 @@ const CustomerBookings = () => {
     setIsPayModalOpen(false);
     setSelectedBooking(null);
   }, []);
+
+  // Function to generate PDF billing statement
+  const generateBillingStatementPDF = (statementData) => {
+    // You can use libraries like jsPDF, pdfmake, or generate a printable HTML page
+    // Here's a simple implementation using window.print() for a printable version
+    
+    const printWindow = window.open('', '_blank');
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Billing Statement - ${statementData.bookingNumber}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 40px; }
+          .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
+          .company-name { font-size: 24px; font-weight: bold; color: #333; }
+          .document-title { font-size: 20px; margin: 10px 0; }
+          .section { margin-bottom: 20px; }
+          .section-title { font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 10px; }
+          .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+          .grid-item { margin-bottom: 10px; }
+          .label { font-weight: bold; color: #666; }
+          .value { margin-left: 10px; }
+          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f5f5f5; }
+          .total-section { text-align: right; margin-top: 20px; }
+          .amount { font-size: 18px; font-weight: bold; }
+          @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="company-name">Your Shipping Company</div>
+          <div class="document-title">BILLING STATEMENT</div>
+          <div>Date: ${new Date().toLocaleDateString()}</div>
+        </div>
+
+        <div class="grid-2">
+          <div class="section">
+            <div class="section-title">Booking Information</div>
+            <div class="grid-item"><span class="label">Booking #:</span><span class="value">${statementData.bookingNumber}</span></div>
+            <div class="grid-item"><span class="label">HWB #:</span><span class="value">${statementData.hwbNumber}</span></div>
+            <div class="grid-item"><span class="label">Customer:</span><span class="value">${statementData.customerName}</span></div>
+            <div class="grid-item"><span class="label">Booking Date:</span><span class="value">${statementData.bookingDate}</span></div>
+            <div class="grid-item"><span class="label">Status:</span><span class="value">${statementData.status}</span></div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Shipping Details</div>
+            <div class="grid-item"><span class="label">Route:</span><span class="value">${statementData.route}</span></div>
+            <div class="grid-item"><span class="label">Container:</span><span class="value">${statementData.containerInfo}</span></div>
+            <div class="grid-item"><span class="label">VAN #:</span><span class="value">${statementData.vanNumber}</span></div>
+            <div class="grid-item"><span class="label">Shipping Line:</span><span class="value">${statementData.shippingLine}</span></div>
+            <div class="grid-item"><span class="label">Trucking:</span><span class="value">${statementData.truckingCompany}</span></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Items Summary</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Item Name</th>
+                <th>Category</th>
+                <th>Quantity</th>
+                <th>Weight (kg)</th>
+                <th>Total Weight (kg)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${statementData.items.map(item => `
+                <tr>
+                  <td>${item.name}</td>
+                  <td>${item.category}</td>
+                  <td>${item.quantity}</td>
+                  <td>${item.weight}</td>
+                  <td>${(item.weight * item.quantity).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2"><strong>Total</strong></td>
+                <td><strong>${statementData.totalItems}</strong></td>
+                <td></td>
+                <td><strong>${statementData.totalWeight.toFixed(2)} kg</strong></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Payment Summary</div>
+          <div class="total-section">
+            <div class="grid-item">
+              <span class="label">Total Amount:</span>
+              <span class="value amount">${formatCurrency(statementData.totalAmount)}</span>
+            </div>
+            <div class="grid-item">
+              <span class="label">Balance Due:</span>
+              <span class="value amount">${formatCurrency(statementData.balanceDue)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="no-print" style="margin-top: 30px; text-align: center;">
+          <button onclick="window.print()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            Print Statement
+          </button>
+          <button onclick="window.close()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
+            Close
+          </button>
+        </div>
+
+        <script>
+          function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: 'USD'
+            }).format(amount);
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+  };
 
   if (isLoading && !data) {
     return (
@@ -142,6 +281,7 @@ const CustomerBookings = () => {
           <CustomerBookingsTable
             data={bookings}
             onPay={handlePayBooking}
+            onDownloadStatement={handleDownloadStatement}
             isLoading={isLoading}
           />
         </TableLayout>
@@ -166,6 +306,14 @@ const CustomerBookings = () => {
       />
     </div>
   );
+};
+
+// Helper function for currency formatting in the PDF
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD'
+  }).format(amount);
 };
 
 export default CustomerBookings;

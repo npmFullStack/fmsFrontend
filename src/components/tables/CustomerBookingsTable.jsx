@@ -17,13 +17,18 @@ import {
   CreditCard,
   DollarSign,
   MapPin,
-  Container
+  Container,
+  UserCheck,
+  UserCog,
+  Download,
+  FileText
 } from 'lucide-react';
 import { formatDate, formatCurrency } from '../../utils/formatters';
 
 const CustomerBookingsTable = ({ 
   data = [],
   onPay,
+  onDownloadStatement,
   isLoading = false,
 }) => {
   const [expandedCards, setExpandedCards] = useState([]);
@@ -47,18 +52,18 @@ const CustomerBookingsTable = ({
     return statusMap[booking.booking_status] || 'Pending';
   };
 
-  // Status badge configuration
+  // Status badge configuration - using primary colors
   const getBookingStatusBadge = (status) => {
     const statusConfig = {
-      'Pending': 'bg-gray-500 text-white border-gray-600',
-      'Picked Up': 'bg-blue-500 text-white border-blue-600',
-      'Origin Port': 'bg-purple-500 text-white border-purple-600',
-      'In Transit': 'bg-orange-500 text-white border-orange-600',
-      'Destination Port': 'bg-indigo-500 text-white border-indigo-600',
-      'Out for Delivery': 'bg-yellow-500 text-black border-yellow-600',
-      'Delivered': 'bg-green-500 text-white border-green-600'
+      'Pending': 'bg-primary text-white border-primary',
+      'Picked Up': 'bg-primary text-white border-primary',
+      'Origin Port': 'bg-primary text-white border-primary',
+      'In Transit': 'bg-primary text-white border-primary',
+      'Destination Port': 'bg-primary text-white border-primary',
+      'Out for Delivery': 'bg-primary text-white border-primary',
+      'Delivered': 'bg-primary text-white border-primary'
     };
-    return statusConfig[status] || 'bg-gray-500 text-white border-gray-600';
+    return statusConfig[status] || 'bg-primary text-white border-primary';
   };
 
   const getBookingStatusIcon = (status) => {
@@ -78,19 +83,64 @@ const CustomerBookingsTable = ({
   const calculateTotalItems = (items) => items?.reduce((sum, i) => sum + i.quantity, 0) || 0;
   const formatWeight = (w) => `${parseFloat(w).toFixed(2)} kg`;
 
-  // Check if booking has outstanding payment
+  // Check if booking has outstanding payment using AR data
   const hasOutstandingPayment = (booking) => {
-    // You can implement logic to check AR records here
-    // For now, we'll assume all bookings require payment
+    if (booking.accounts_receivable) {
+      const ar = booking.accounts_receivable;
+      return ar.collectible_amount > 0 && !ar.is_paid;
+    }
+    
+    // Fallback: if no AR record, check booking status
     return booking.booking_status !== 'delivered';
   };
 
-  const getPaymentStatus = (booking) => {
-    // Simple payment status logic - you can enhance this with actual AR data
-    if (booking.booking_status === 'delivered') {
-      return { status: 'paid', label: 'Paid', color: 'text-green-600' };
+  // Get total payment due from AR record
+  const getTotalPaymentDue = (booking) => {
+    if (booking.accounts_receivable && booking.accounts_receivable.collectible_amount > 0) {
+      return booking.accounts_receivable.collectible_amount;
     }
-    return { status: 'pending', label: 'Payment Due', color: 'text-orange-600' };
+    return 0;
+  };
+
+  // Check if AR record exists and has data
+  const hasARData = (booking) => {
+    return booking.accounts_receivable && 
+           (booking.accounts_receivable.total_payment > 0 || 
+            booking.accounts_receivable.collectible_amount > 0);
+  };
+
+  // Generate billing statement data for download
+  const generateBillingStatement = (booking) => {
+    const statementData = {
+      bookingNumber: booking.booking_number,
+      hwbNumber: booking.hwb_number,
+      customerName: `${booking.first_name} ${booking.last_name}`,
+      bookingDate: formatDate(booking.created_at),
+      route: `${booking.origin?.route_name || booking.origin?.name || 'N/A'} → ${booking.destination?.route_name || booking.destination?.name || 'N/A'}`,
+      containerInfo: `${booking.container_quantity} x ${booking.container_size?.size || booking.container_size?.name}`,
+      vanNumber: booking.van_number,
+      items: booking.items || [],
+      totalWeight: calculateTotalWeight(booking.items),
+      totalItems: calculateTotalItems(booking.items),
+      totalAmount: booking.accounts_receivable?.total_payment || 0,
+      balanceDue: booking.accounts_receivable?.collectible_amount || 0,
+      status: getDisplayStatus(booking),
+      shippingLine: booking.shipping_line?.name || 'Not specified',
+      truckingCompany: booking.truck_comp?.name || 'Not specified',
+      shipper: `${booking.shipper_first_name} ${booking.shipper_last_name}`,
+      consignee: `${booking.consignee_first_name} ${booking.consignee_last_name}`,
+      departureDate: booking.departure_date ? formatDate(booking.departure_date) : 'Not specified',
+      deliveryDate: booking.delivery_date ? formatDate(booking.delivery_date) : 'Not specified'
+    };
+    
+    return statementData;
+  };
+
+  const handleDownloadStatement = (booking) => {
+    const statementData = generateBillingStatement(booking);
+    if (onDownloadStatement) {
+      onDownloadStatement(statementData);
+    }
   };
 
   if (isLoading) return (
@@ -114,8 +164,9 @@ const CustomerBookingsTable = ({
         const totalItems = calculateTotalItems(item.items);
         const isExpanded = expandedCards[item.id || index];
         const displayStatus = getDisplayStatus(item);
-        const paymentStatus = getPaymentStatus(item);
         const canPay = hasOutstandingPayment(item);
+        const totalPaymentDue = getTotalPaymentDue(item);
+        const hasAR = hasARData(item);
 
         return (
           <div
@@ -123,7 +174,7 @@ const CustomerBookingsTable = ({
             className="bg-surface rounded-lg border border-main overflow-hidden hover:shadow-md transition-shadow"
           >
             <div className="p-4">
-              {/* Header with Booking Status and Payment Status */}
+              {/* Header with Booking Status Only */}
               <div className="flex justify-between items-start mb-3">
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
@@ -146,14 +197,10 @@ const CustomerBookingsTable = ({
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  {/* Booking Status */}
+                  {/* Booking Status Only */}
                   <span className={`px-3 py-1 text-sm font-medium rounded-full border ${getBookingStatusBadge(displayStatus)} flex items-center gap-2`}>
                     {getBookingStatusIcon(displayStatus)}
                     {displayStatus}
-                  </span>
-                  {/* Payment Status */}
-                  <span className={`px-2 py-1 text-xs font-medium rounded ${paymentStatus.color} bg-opacity-10 border ${paymentStatus.color.replace('text', 'border')} border-opacity-30`}>
-                    {paymentStatus.label}
                   </span>
                 </div>
               </div>
@@ -186,7 +233,7 @@ const CustomerBookingsTable = ({
                       {item.container_quantity} x {item.container_size?.size || item.container_size?.name}
                     </div>
                     {item.van_number && (
-                      <div className="text-xs text-muted mt-1 flex items-center gap-1">
+                      <div className="text-base font-mono text-content mt-1 flex items-center gap-1">
                         <Box className="w-3 h-3" />
                         VAN #: {item.van_number}
                       </div>
@@ -211,34 +258,51 @@ const CustomerBookingsTable = ({
               </div>
 
               {/* Extra Info (Toggle) */}
-              <div className="flex justify-between items-center mt-2 pt-2 border-t border-main">
-                <button
-                  onClick={() => toggleCard(item.id || index)}
-                  className="text-left text-sm flex items-center gap-1 font-semibold text-heading"
-                >
-                  {isExpanded ? (
-                    <> <ChevronUp className="w-4 h-4" /> Hide Details </>
-                  ) : (
-                    <> <ChevronDown className="w-4 h-4" /> View All Details </>
-                  )}
-                </button>
-
-                {/* Pay Button */}
-                {canPay && (
-                  <button
-                    onClick={() => onPay(item)}
-                    className="bg-green-600 text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-                  >
-                    <DollarSign className="w-4 h-4" />
-                    Pay Now
-                  </button>
+              <button
+                onClick={() => toggleCard(item.id || index)}
+                className="w-full text-left mt-2 pt-2 border-t border-main text-sm flex items-center gap-1 font-semibold text-heading"
+              >
+                {isExpanded ? (
+                  <> <ChevronUp className="w-4 h-4" /> Hide Details </>
+                ) : (
+                  <> <ChevronDown className="w-4 h-4" /> View All Details </>
                 )}
-              </div>
+              </button>
 
               {isExpanded && (
                 <div className="mt-3 text-xs space-y-3 border-t pt-3">
-                  {/* Shipping Details */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Payment Summary at Top */}
+                  {hasAR && (
+                    <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <DollarSign className="w-4 h-4 text-primary" />
+                        <span className="font-semibold text-primary text-sm">Payment Summary</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <div className="text-primary">Total Amount:</div>
+                          <div className="font-semibold text-primary">
+                            {formatCurrency(item.accounts_receivable.total_payment || 0)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Payment Terms */}
+                  {item.terms !== undefined && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <div className="text-xs font-bold text-muted mb-1 uppercase">PAYMENT TERMS:</div>
+                        <div className="text-content flex items-center gap-1">
+                          <CreditCard className="w-3 h-3 text-muted" />
+                          {item.terms === 0 ? 'Immediate' : `${item.terms} days`}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {/* Shipping Line */}
                     <div>
                       <div className="text-xs font-bold text-muted mb-1 uppercase">SHIPPING LINE:</div>
@@ -253,6 +317,22 @@ const CustomerBookingsTable = ({
                       <div className="text-content flex items-center gap-1">
                         <Truck className="w-3 h-3 text-muted" />
                         {item.truck_comp?.name || 'Not specified'}
+                      </div>
+                    </div>
+                    {/* Parties */}
+                    <div>
+                      <div className="text-xs font-bold text-muted mb-1 uppercase">PARTIES:</div>
+                      <div className="text-content space-y-1">
+                        <div className="flex items-center gap-1">
+                          <UserCheck className="w-3 h-3 text-muted" />
+                          <span className="font-semibold">Shipper: </span>
+                          {item.shipper_first_name} {item.shipper_last_name}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <UserCog className="w-3 h-3 text-muted" />
+                          <span className="font-semibold">Consignee: </span>
+                          {item.consignee_first_name} {item.consignee_last_name}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -281,7 +361,6 @@ const CustomerBookingsTable = ({
                     </div>
                   )}
 
-                  {/* Items Details */}
                   <div>
                     <div className="font-bold text-muted mb-1 uppercase">ITEMS {item.items.length}:</div>
                     <div className="space-y-2 pl-3 border-l-2 border-main">
@@ -296,25 +375,29 @@ const CustomerBookingsTable = ({
                       ))}
                     </div>
                   </div>
-
-                  {/* Cargo Monitoring Status */}
-                  {item.cargo_monitoring && (
-                    <div>
-                      <div className="font-bold text-muted mb-1 uppercase">CARGO STATUS:</div>
-                      <div className="bg-main rounded p-2">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-3 h-3 text-muted" />
-                          <span className="font-medium">{item.cargo_monitoring.current_status}</span>
-                          <span className="text-muted text-xs">
-                            Last updated: {formatDate(item.cargo_monitoring.updated_at)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
+
+            {/* Pay Action with Download Statement */}
+            {canPay && (
+              <div className="bg-surface px-4 py-3 border-t border-main flex justify-between items-center gap-2">
+                <button
+                  onClick={() => handleDownloadStatement(item)}
+                  className="bg-gray-600 text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 shadow-sm"
+                >
+                  <Download className="w-4 h-4" />
+                  Download Billing Statement
+                </button>
+                <button
+                  onClick={() => onPay(item)}
+                  className="bg-primary text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 shadow-sm"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  Pay Full Amount {totalPaymentDue > 0 ? formatCurrency(totalPaymentDue) : ''}
+                </button>
+              </div>
+            )}
           </div>
         );
       })}
