@@ -154,7 +154,7 @@ const AccountsPayableTable = ({
               className="flex items-center gap-2 px-3 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors"
             >
               <Printer className="w-4 h-4" />
-              Print Selected ({selectedRecords.length})
+              Print Accounts Payable ({selectedRecords.length})
             </button>
           )}
         </div>
