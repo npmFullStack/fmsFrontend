@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Billing Statement</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f3f3f3;
+        }
+        .scale-wrapper {
+            width: 1024px;
+            margin: 0 auto;
+            transform-origin: top left;
+        }
+        @media screen {
+            .scale-wrapper {
+                transform: scale(calc(100vw / 1024));
+            }
+        }
+        .form {
+            background: #fff;
+            width: 800px;
+            margin: auto;
+            padding: 20px;
+            border: 2px solid #000;
+        }
+        .section-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 10px;
+            margin-bottom: 5px;
+        }
+        .row {
+            display: flex;
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        .cell {
+            border: 1px solid #000;
+            padding: 8px;
+            font-size: 13px;
+            flex: 1;
+        }
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .table th, .table td {
+            border: 1px solid #000;
+            padding: 8px;
+            font-size: 13px;
+        }
+        .total {
+            font-size: 18px;
+            font-weight: bold;
+            text-align: right;
+            margin-top: 20px;
+        }
+        .notes {
+            font-size: 12px;
+            margin-top: 15px;
+        }
+        .footer {
+            margin-top: 40px;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+<div class="scale-wrapper">
+<div class="form">
+
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid #000; padding-bottom:10px; margin-bottom:10px;">
+        <div>
+            <div style="font-size:32px; font-weight:bold;">XMFFI</div>
+            <div style="font-size:10px;">X-TRA MILE FREIGHT FORWARDING INC.<br>Poblacion Indahag 9000<br>Cagayan de Oro City, Misamis Oriental Phils.<br>NON VAT REG. TIN: 010-682-601-00000</div>
+        </div>
+        <div style="text-align:right; font-size:18px; font-weight:bold;">BILLING
+        STATEMENT<br><span style="font-size:14px; color:red;">No.
+        {{HWB_NUMBER}}</span><br><span style="font-size:12px;
+        font-weight:normal;">Date: {{DATE}}</span></div>
+    </div>
+
+    <div class="row">
+        <div class="cell">Customer: {{CUSTOMER}}</div>
+        <div class="cell">OSCA/PWD ID No.: {{OSCA_ID}}</div>
+        <div class="cell">Term: {{TERM}}</div>
+    </div>
+    <div class="row">
+        <div class="cell">Address: {{ADDRESS}}</div>
+    </div>
+
+    <table class="table">
+        <tr>
+            <th>Qty/Unit</th>
+            <th>Description</th>
+            <th>Unit Price</th>
+            <th>Amount</th>
+        </tr>
+        <tr>
+            <td>{{QTY}}</td>
+            <td>{{DESCRIPTION}}</td>
+            <td>{{UNIT_PRICE}}</td>
+            <td>{{AMOUNT}}</td>
+        </tr>
+    </table>
+
+    <div style="margin-top:10px; font-size:12px;">***NOTHING FOLLOWS***</div>
+
+<div class="notes">
+    <b>NOTE:</b><br>
+    1. PLEASE MAKE CHECK PAYABLE TO X-TRA MILE FREIGHT FORWARDING INC.<br>
+    2. YOU CAN ALSO DEPOSIT AT OUR ACCOUNT<br>
+    ACCOUNT NAME: X-TRA MILE FREIGHT FORWARDING INC<br>
+    ACCOUNT NO.: BDO-011788004144<br>
+    3. OR PAY ONLINE THROUGH OUR WEBSITE: <a href="https://xmffi-fms.vercel.app/" style="color: blue;">https://xmffi-fms.vercel.app/</a> USING YOUR XMFFI ACCOUNT (IF YOU HAVE)
+</div>
+
+    <div class="total">TOTAL: PHP {{TOTAL}}</div>
+
+    <div class="footer">
+        <div>Customer Signature Over Printed Name: _________________________</div>
+        <div>By: ____________________</div>
+    </div>
+
+</div>
+</div>
+</body>
+</html>
