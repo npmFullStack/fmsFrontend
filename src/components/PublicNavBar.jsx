@@ -91,12 +91,12 @@ const PublicNavBar = () => {
             <Moon className="w-4 h-4 text-content" />
           </div>
 
-          {/* Get Started Button */}
+          {/* Login Button */}
           <button
             onClick={handleGetStarted}
             className="hidden md:block px-4 py-2 bg-primary hover:bg-blue-700 text-white font-medium rounded-lg text-sm transition-colors"
           >
-            Get started
+            Login
           </button>
 
           {/* Mobile menu button */}
@@ -133,13 +133,13 @@ const PublicNavBar = () => {
                 </button>
               </li>
             ))}
-            {/* Mobile Get Started Button */}
+            {/* Mobile Login Button */}
             <li className="border-t border-main mt-2 pt-2">
               <button
                 onClick={handleGetStarted}
                 className="w-full text-left block py-2 px-3 bg-primary hover:bg-blue-700 text-white font-medium rounded-lg text-sm transition-colors mt-2"
               >
-                Get started
+                Login
               </button>
             </li>
           </ul>
