@@ -198,10 +198,7 @@ const Category = () => {
                 <Plus className="page-btn-icon" />
                 Add Category
               </button>
-              <button className="page-btn-secondary">
-                <Filter className="page-btn-icon" />
-                Filter
-              </button>
+
             </div>
           }
         >

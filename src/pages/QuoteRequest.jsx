@@ -1,37 +1,41 @@
-// src/pages/BookingRequest.jsx
+// src/pages/QuoteRequest.jsx
 import React, { useState, useCallback } from 'react';
 import { useDebounce } from 'use-debounce';
 import { Filter } from 'lucide-react';
-import { useBooking } from '../hooks/useBooking';
+import { useQuote } from '../hooks/useQuote';
 import TableLayout from '../components/layout/TableLayout';
-import BookingRequestTable from '../components/tables/BookingRequestTable';
+import QuoteRequestTable from '../components/tables/QuoteRequestTable';
 import SearchBar from '../components/ui/SearchBar';
 import Pagination from '../components/ui/Pagination';
+import SendQuoteCharge from '../components/modals/SendQuoteCharge';
 import toast from 'react-hot-toast';
 
-const BookingRequest = () => {
+const QuoteRequest = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch] = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
   const [sortField, setSortField] = useState('created_at');
   const [sortDirection, setSortDirection] = useState('desc');
+  const [selectedQuote, setSelectedQuote] = useState(null);
+  const [isSendQuoteModalOpen, setIsSendQuoteModalOpen] = useState(false);
 
   const { 
-    bookingsQuery, 
-    approveBooking, 
-    updateBookingStatus 
-  } = useBooking();
+    quotesQuery,
+    sendQuote,
+    deleteQuote 
+  } = useQuote();
 
-  // Fetch bookings
-  const { data, isLoading, isError } = bookingsQuery({
+  // Fetch quotes with filters
+  const { data, isLoading, isError, refetch } = quotesQuery({
     search: debouncedSearch,
     page,
     per_page: 10,
-    sort_by: sortField,
-    sort_order: sortDirection
+    sort: sortField,
+    direction: sortDirection,
+    status: 'pending' // Only show pending quotes by default
   });
 
-  const bookings = data?.data || [];
+  const quotes = data?.data || [];
   const pagination = {
     current_page: data?.current_page || 1,
     last_page: data?.last_page || 1,
@@ -45,33 +49,31 @@ const BookingRequest = () => {
     setSortDirection(direction);
   }, []);
 
-  // Handlers
-  const handleApprove = useCallback(
-    async (booking) => {
-      try {
-        await approveBooking.mutateAsync(booking.id);
-        toast.success('Booking approved! Password sent to customer.');
-      } catch (error) {
-        toast.error(error.response?.data?.message || 'Failed to approve booking');
-      }
-    },
-    [approveBooking],
-  );
+  // Handle Send Quote button click
+  const handleSendQuote = useCallback((quote) => {
+    setSelectedQuote(quote);
+    setIsSendQuoteModalOpen(true);
+  }, []);
 
-  const handleReject = useCallback(
-    async (booking) => {
-      try {
-        await updateBookingStatus.mutateAsync({ 
-          id: booking.id, 
-          status: 'rejected' 
-        });
-        toast.success('Booking rejected successfully');
-      } catch (error) {
-        toast.error(error.response?.data?.message || 'Failed to reject booking');
-      }
-    },
-    [updateBookingStatus],
-  );
+  // Handle quote submission from modal
+  const handleQuoteSubmit = useCallback(async (quoteData) => {
+    if (!selectedQuote) return;
+
+    try {
+      await sendQuote.mutateAsync({ 
+        id: selectedQuote.id,
+        charges: quoteData.charges,
+        total_amount: quoteData.totalAmount
+      });
+      
+      toast.success('Quote sent successfully! Email has been sent to the customer.');
+      setIsSendQuoteModalOpen(false);
+      setSelectedQuote(null);
+      refetch();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to send quote');
+    }
+  }, [selectedQuote, sendQuote, refetch]);
 
   // Loading & error states
   if (isLoading && !data) {
@@ -86,7 +88,7 @@ const BookingRequest = () => {
     return (
       <div className="page-error">
         <div className="page-error-content">
-          Failed to load booking requests. Please try again.
+          Failed to load quote requests. Please try again.
         </div>
       </div>
     );
@@ -96,8 +98,8 @@ const BookingRequest = () => {
     <div className="page-container">
       {/* Page Header */}
       <div className="page-header">
-        <h1 className="page-title">Booking Requests</h1>
-        <p className="page-subtitle">Manage and review shipping booking requests</p>
+        <h1 className="page-title">Quote Requests</h1>
+        <p className="page-subtitle">Manage and send quotes to customers</p>
       </div>
 
       {/* Table Section */}
@@ -108,17 +110,16 @@ const BookingRequest = () => {
               value={searchTerm}
               onChange={setSearchTerm}
               onClear={() => setSearchTerm('')}
-              placeholder="Search bookings by name, email, or route"
+              placeholder="Search quotes by name, email, or route"
             />
           }
           
         >
-          <BookingRequestTable
-            data={bookings}
-            onApprove={handleApprove}
-            onReject={handleReject}
+          <QuoteRequestTable
+            data={quotes}
+            onSendQuote={handleSendQuote}
             isLoading={isLoading}
-            isUpdating={approveBooking.isPending || updateBookingStatus.isPending}
+            isUpdating={sendQuote.isPending}
             sortField={sortField}
             sortDirection={sortDirection}
             onSortChange={handleSortChange}
@@ -135,8 +136,20 @@ const BookingRequest = () => {
           />
         </div>
       )}
+
+      {/* Send Quote Modal */}
+      <SendQuoteCharge
+        isOpen={isSendQuoteModalOpen}
+        onClose={() => {
+          setIsSendQuoteModalOpen(false);
+          setSelectedQuote(null);
+        }}
+        onSave={handleQuoteSubmit}
+        quote={selectedQuote}
+        isLoading={sendQuote.isPending}
+      />
     </div>
   );
 };
 
-export default BookingRequest;
+export default QuoteRequest;

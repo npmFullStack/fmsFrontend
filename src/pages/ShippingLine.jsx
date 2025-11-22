@@ -199,10 +199,7 @@ const { data, isLoading, isError } = shippingLinesQuery({
                 <Plus className="page-btn-icon" />
                 Add Shipping Line
               </button>
-              <button className="page-btn-secondary">
-                <Filter className="page-btn-icon" />
-                Filter
-              </button>
+
             </div>
           }
         >

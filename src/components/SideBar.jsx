@@ -45,6 +45,7 @@ const menuItems = {
   trucking: { icon: Truck, label: 'Trucking Partners', path: '/truck-comp' },
   shipping: { icon: Ship, label: 'Shipping Partners', path: '/shipping-line' },
   booking: { icon: FileText, label: 'Booking Management', path: '/booking' },
+  quoteRequest: { icon: ClipboardCheck, label: 'Quote Requests', path: '/quote-request' },
   bookingRequest: { icon: ClipboardCheck, label: 'Booking Requests', path: '/booking-request' },
   cargoMonitoring: { icon: Monitor, label: 'Cargo Monitoring', path: '/cargo-monitoring' },
   profile: { icon: User, label: 'User Profile', path: '/profile' },
@@ -65,6 +66,7 @@ const menuItems = {
         label: 'MAIN',
         items: [
           menuItems.dashboard,
+          menuItems.quoteRequest,
           menuItems.bookingRequest,
           menuItems.userManagement,
         ]

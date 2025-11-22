@@ -96,12 +96,12 @@ const UserTable = ({
     );
 
     const getRoleBadge = useCallback((role) => {
-        const baseClass = "px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2";
+        const baseClass = "px-2 py-1 rounded-full text-xs font-medium flex items-center gap-2";
         switch (role) {
             case 'admin':
-                return `${baseClass} bg-blue-100 text-blue-800 border border-blue-200`;
+                return `${baseClass} bg-blue-600 text-content border border-blue-200`;
             case 'customer':
-                return `${baseClass} bg-gray-100 text-gray-800 border border-gray-200`;
+                return `${baseClass} bg-gray-800 text-content border border-gray-200`;
             default:
                 return `${baseClass} bg-gray-100 text-gray-800 border border-gray-200`;
         }
@@ -110,11 +110,11 @@ const UserTable = ({
     const getRoleIcon = useCallback((role) => {
         switch (role) {
             case 'admin':
-                return <Shield className="w-3.5 h-3.5" />;
+                return <Shield className="w-3.5 h-3" />;
             case 'customer':
-                return <User className="w-3.5 h-3.5" />;
+                return <User className="w-3 h-3" />;
             default:
-                return <User className="w-3.5 h-3.5" />;
+                return <User className="w-3 h-3" />;
         }
     }, []);
 
@@ -217,7 +217,10 @@ const UserTable = ({
                         {row.original.role === 'customer' && (
                             <button
                                 onClick={() => onPromote?.(row.original)}
-                                className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2 group"
+                                className="px-2 py-1 bg-blue-500 text-white
+                                rounded-lg text-xs font-medium hover:bg-blue-600
+                                transition-all duration-200 shadow-sm
+                                hover:shadow-md flex items-center gap-2 group"
                                 title="Promote to Admin"
                             >
                                 <ArrowUp className="w-4 h-4 group-hover:scale-110 transition-transform" />
@@ -226,7 +229,10 @@ const UserTable = ({
                         )}
                         <button
                             onClick={() => onDelete?.(row.original)}
-                            className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2 group"
+                            className="px-2 py-1 bg-red-500 text-white
+                            rounded-lg text-xs font-medium hover:bg-red-600
+                            transition-all duration-200 shadow-sm
+                            hover:shadow-md flex items-center gap-2 group"
                         >
                             <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
                             Delete

@@ -215,10 +215,7 @@ const User = () => {
                                 <Plus className="page-btn-icon" />
                                 Add User
                             </button>
-                            <button className="page-btn-secondary">
-                                <Filter className="page-btn-icon" />
-                                Filter
-                            </button>
+
                         </div>
                     }
                 >

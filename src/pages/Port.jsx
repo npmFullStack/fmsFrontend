@@ -197,10 +197,7 @@ const Port = () => {
                 <Plus className="page-btn-icon" />
                 Add Port
               </button>
-              <button className="page-btn-secondary">
-                <Filter className="page-btn-icon" />
-                Filter
-              </button>
+
             </div>
           }
         >

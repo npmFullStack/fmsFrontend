@@ -1,12 +1,11 @@
+// src/pages/Quote.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Select from "react-select";
-import DateTime from "react-datetime";
-import "react-datetime/css/react-datetime.css";
 import { Calendar, X, CheckCircle, AlertCircle, ChevronUp, ChevronDown } from "lucide-react";
 import LocationFields from "../components/LocationFields";
 import api from "../api";
-import { useCreateQuote } from "../hooks/useBooking"; // ✅ UPDATED: Use quote hook
+import { useQuote } from "../hooks/useQuote";
 import { quoteSchema, transformQuoteToApi } from "../schemas/quoteSchema";
 import quoteSuccessImg from "../assets/images/quoteSuccess.png";
 
@@ -14,14 +13,11 @@ const Quote = () => {
   const [items, setItems] = useState([
     { id: 1, name: "", weight: "", quantity: "", category: "", customCategory: "" },
   ]);
-  const [departureDate, setDepartureDate] = useState(null);
-  const [deliveryDate, setDeliveryDate] = useState(null);
   const [quoteSubmitted, setQuoteSubmitted] = useState(false);
   const [containerQuantity, setContainerQuantity] = useState(1);
   const [weightValidation, setWeightValidation] = useState({ isValid: true, message: "" });
   const [formErrors, setFormErrors] = useState({});
   const [formData, setFormData] = useState({
-    // ✅ REMOVED: userId field
     firstName: "",
     lastName: "",
     email: "",
@@ -53,8 +49,6 @@ const Quote = () => {
   };
 
   const [currentSection, setCurrentSection] = useState(1);
-
-  // ✅ REMOVED: Users query (not needed for quotes)
 
   // Fetch categories
   const { data: categoriesData, isLoading: categoriesLoading } = useQuery({
@@ -101,8 +95,8 @@ const Quote = () => {
     },
   });
 
-  // ✅ UPDATED: Use quote mutation instead of booking mutation
-  const createQuoteMutation = useCreateQuote();
+  const { createQuote } = useQuote();
+const createQuoteMutation = createQuote;
 
   // Generate options
   const containerOptions = React.useMemo(() => {
@@ -241,11 +235,11 @@ const Quote = () => {
   const showPickup = modeValue === "door-to-door" || modeValue === "door-to-port";
   const showDelivery = modeValue === "door-to-door" || modeValue === "port-to-door";
 
-  // ✅ UPDATED: Section completion check (removed userId requirement)
+  // Section completion check
   const isSectionComplete = (section) => {
     switch (section) {
       case 1:
-        return formData.firstName && formData.lastName && formData.email; // ✅ REMOVED: userId
+        return formData.firstName && formData.lastName && formData.email;
       case 2:
         return formData.shipperFirstName && formData.shipperLastName;
       case 3:
@@ -262,29 +256,6 @@ const Quote = () => {
         return false;
     }
   };
-
-  // Custom DateTime input
-  const DateTimeInput = React.forwardRef(({ value, onClick, placeholder }, ref) => (
-    <div className="relative">
-      <input
-        ref={ref}
-        onClick={onClick}
-        value={value || ""}
-        readOnly
-        placeholder={placeholder}
-        className="modal-input pr-10 cursor-pointer"
-      />
-      <button
-        type="button"
-        onClick={onClick}
-        className="absolute right-2 top-1/2 -translate-y-1/2 p-1"
-        aria-label="open-calendar"
-      >
-        <Calendar className="w-5 h-5 text-gray-500" />
-      </button>
-    </div>
-  ));
-  DateTimeInput.displayName = "DateTimeInput";
 
   // Custom Container Quantity Input
   const ContainerQuantityInput = () => (
@@ -321,16 +292,7 @@ const Quote = () => {
     </div>
   );
 
-  // Handle DateTime change
-  const handleDepartureDateChange = (momentDate) => {
-    setDepartureDate(momentDate ? momentDate.toDate() : null);
-  };
-
-  const handleDeliveryDateChange = (momentDate) => {
-    setDeliveryDate(momentDate ? momentDate.toDate() : null);
-  };
-
-  // ✅ UPDATED: Form submission handler with quote schema
+  // Form submission handler
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     console.log("Form submitted");
@@ -344,8 +306,6 @@ const Quote = () => {
       const formDataForValidation = {
         ...formData,
         containerQuantity,
-        departureDate: departureDate ?? null,
-        deliveryDate: deliveryDate ?? null,
         pickupLocation: showPickup && Object.keys(pickupLocation).length > 0 ? pickupLocation : null,
         deliveryLocation: showDelivery && Object.keys(deliveryLocation).length > 0 ? deliveryLocation : null,
         terms: parseInt(formData.terms) || 1,
@@ -359,17 +319,14 @@ const Quote = () => {
 
       console.log("Form data for validation:", formDataForValidation);
 
-      // ✅ UPDATED: Validate with quote schema (not booking schema)
       const validatedData = quoteSchema.parse(formDataForValidation);
       console.log("Validation successful:", validatedData);
 
       setFormErrors({});
 
-      // ✅ UPDATED: Transform using quote API format
       const quoteData = transformQuoteToApi(validatedData);
       console.log("Transformed quote data:", quoteData);
 
-      // ✅ UPDATED: Use quote mutation
       createQuoteMutation.mutate(quoteData, {
         onSuccess: (data) => {
           console.log("Quote submitted successfully:", data);
@@ -396,7 +353,7 @@ const Quote = () => {
     }
   };
 
-  // ✅ UPDATED: Reset form (removed userId)
+  // Reset form
   const resetForm = () => {
     setItems([{ id: 1, name: "", weight: "", quantity: "", category: "", customCategory: "" }]);
     setFormData({
@@ -406,8 +363,6 @@ const Quote = () => {
       modeOfService: null, containerSize: null, origin: null, destination: null,
       shippingLine: null, truckCompany: null, terms: "",
     });
-    setDepartureDate(null);
-    setDeliveryDate(null);
     setPickupLocation({});
     setDeliveryLocation({});
     setContainerQuantity(1);
@@ -468,14 +423,13 @@ const Quote = () => {
           </div>
 
           <form onSubmit={handleFormSubmit} className="space-y-8">
-            {/* ✅ UPDATED: Section 1 - Removed customer selection */}
+            {/* Section 1: Customer Information */}
             <div className="space-y-4" ref={sectionRefs[1]}>
               <h2 className="text-2xl font-bold text-heading border-b border-main pb-2">
                 1. Customer Information
               </h2>
 
               <div className="space-y-4">
-                {/* First Name & Last Name on same row */}
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="modal-label">First Name</label>
@@ -505,7 +459,6 @@ const Quote = () => {
                   </div>
                 </div>
 
-                {/* Contact Number */}
                 <div>
                   <label className="modal-label">Contact Number (Optional)</label>
                   <input
@@ -517,7 +470,6 @@ const Quote = () => {
                   />
                 </div>
                 
-                {/* Email field */}
                 <div>
                   <label className="modal-label">Email</label>
                   <input
@@ -863,52 +815,6 @@ const Quote = () => {
                 </div>
               </div>
 
-{/* Schedule Information with Preferred labels */}
-<div className="space-y-4">
-  <h3 className="text-lg font-semibold text-heading">Schedule</h3>
-  <div className="grid md:grid-cols-2 gap-4">
-    <div>
-      <label className="modal-label">Preferred Departure Date (Optional)</label>
-      <DateTime
-        value={departureDate}
-        onChange={handleDepartureDateChange}
-        inputProps={{
-          placeholder: "Select preferred departure date",
-          className: "modal-input pr-10 cursor-pointer",
-        }}
-        timeFormat={false}
-        dateFormat="YYYY-MM-DD"
-        closeOnSelect={true}
-        isValidDate={(current) => {
-          return current.isAfter(new Date(), 'day');
-        }}
-      />
-      {formErrors.departureDate && (
-        <p className="text-red-500 text-sm mt-1">{formErrors.departureDate}</p>
-      )}
-    </div>
-    <div>
-      <label className="modal-label">Preferred Delivery Date (Optional)</label>
-      <DateTime
-        value={deliveryDate}
-        onChange={handleDeliveryDateChange}
-        inputProps={{
-          placeholder: "Select preferred delivery date",
-          className: "modal-input pr-10 cursor-pointer",
-        }}
-        timeFormat={false}
-        dateFormat="YYYY-MM-DD"
-        closeOnSelect={true}
-        isValidDate={(current) => {
-          return departureDate ? current.isAfter(departureDate, 'day') : current.isAfter(new Date(), 'day');
-        }}
-      />
-      {formErrors.deliveryDate && (
-        <p className="text-red-500 text-sm mt-1">{formErrors.deliveryDate}</p>
-      )}
-    </div>
-  </div>
-</div>
               {/* Service Providers (Optional) */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-heading">Service Providers (Optional)</h3>
@@ -968,7 +874,7 @@ const Quote = () => {
               )}
             </div>
 
-            {/* ✅ UPDATED: Submit button with quote mutation */}
+            {/* Submit button */}
             <div className="flex justify-end pt-6 border-t border-main">
               <button
                 type="submit"

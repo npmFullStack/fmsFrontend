@@ -250,10 +250,7 @@ const Booking = () => {
                 <Plus className="page-btn-icon" />
                 Add Booking
               </button>
-              <button className="page-btn-secondary">
-                <Filter className="page-btn-icon" />
-                Filter
-              </button>
+
             </div>
           }
         >

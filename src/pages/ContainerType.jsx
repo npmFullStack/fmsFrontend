@@ -192,10 +192,7 @@ const ContainerType = () => {
                 <Plus className="page-btn-icon" />
                 Add Container Type
               </button>
-              <button className="page-btn-secondary">
-                <Filter className="page-btn-icon" />
-                Filter
-              </button>
+
             </div>
           }
         >

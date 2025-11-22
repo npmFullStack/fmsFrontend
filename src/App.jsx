@@ -13,7 +13,6 @@ const lazyWithRetry = (componentImport) =>
       return await componentImport();
     } catch (error) {
       console.error('Failed to load component:', error);
-      // You can add retry logic here if needed
       throw error;
     }
   });
@@ -29,6 +28,7 @@ const ContainerType = lazyWithRetry(() => import('./pages/ContainerType'));
 const Port = lazyWithRetry(() => import('./pages/Port'));
 const TruckComp = lazyWithRetry(() => import('./pages/TruckComp'));
 const ShippingLine = lazyWithRetry(() => import('./pages/ShippingLine'));
+const QuoteRequest = lazyWithRetry(() => import('./pages/QuoteRequest'));
 const BookingRequest = lazyWithRetry(() => import('./pages/BookingRequest'));
 const Booking = lazyWithRetry(() => import('./pages/Booking'));
 const User = lazyWithRetry(() => import('./pages/User'));
@@ -68,6 +68,7 @@ function App() {
             <Route path="/truck-comp" element={<TruckComp />} />
             <Route path="/shipping-line" element={<ShippingLine />} />
             <Route path="/booking-request" element={<BookingRequest />} />
+            <Route path="/quote-request" element={<QuoteRequest  />} />
             <Route path="/booking" element={<Booking />} />
             <Route path="/users" element={<User />} />
             <Route path="/cargo-monitoring" element={<CargoMonitoring />} />
@@ -76,8 +77,6 @@ function App() {
             <Route path="/customer-bookings"
                         element={<CustomerBookings />} />
             <Route path="/accounts-receivable" element={<AccountsReceivable />} />
-            <Route path="/customer-bookings"
-                        element={<CustomerBookings />} />
           </Route>
         </Routes>
       </Suspense>

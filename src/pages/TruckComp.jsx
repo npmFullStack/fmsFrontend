@@ -165,9 +165,7 @@ const TruckComp = () => {
               <button onClick={() => setIsAddModalOpen(true)} className="page-btn-primary">
                 <Plus className="page-btn-icon" /> Add Truck Company
               </button>
-              <button className="page-btn-secondary">
-                <Filter className="page-btn-icon" /> Filter
-              </button>
+
             </div>
           }
         >
