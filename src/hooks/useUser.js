@@ -39,7 +39,7 @@ const userApi = {
 export const useUser = () => {
     const queryClient = useQueryClient();
 
-    // Get users with search and pagination - FIXED: This should be a function that returns useQuery
+    // Get users
     const usersQuery = (params) => 
         useQuery({
             queryKey: [...USER_KEY, params],
