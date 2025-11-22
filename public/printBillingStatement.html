@@ -23,37 +23,47 @@
         }
         .form {
             background: #fff;
-            width: 800px;
+            width: 700px;
             margin: auto;
-            padding: 20px;
             border: 2px solid #000;
+            padding: 15px;
+            box-sizing: border-box;
         }
-        .section-title {
-            font-size: 14px;
-            font-weight: bold;
-            margin-top: 10px;
-            margin-bottom: 5px;
-        }
-        .row {
+        .company-header {
             display: flex;
-            width: 100%;
-            margin-bottom: 5px;
+            align-items: flex-end;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
         }
-        .cell {
-            border: 1px solid #000;
-            padding: 8px;
-            font-size: 13px;
-            flex: 1;
+        .company-info {
+            font-size: 9px;
+            line-height: 1.2;
+        }
+        .billing-title {
+            text-align: right;
+            font-size: 18px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .hwb-number {
+            font-size: 14px;
+            color: red;
+        }
+        .date {
+            font-size: 12px;
+            font-weight: normal;
         }
         .table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
+            margin-top: 10px;
         }
         .table th, .table td {
             border: 1px solid #000;
             padding: 8px;
             font-size: 13px;
+            text-align: left;
         }
         .total {
             font-size: 18px;
@@ -64,12 +74,24 @@
         .notes {
             font-size: 12px;
             margin-top: 15px;
+            line-height: 1.4;
+        }
+        .signature-section {
+            margin-top: 40px;
+            border-top: 1px solid #000;
+            padding-top: 10px;
+            font-size: 12px;
         }
         .footer {
-            margin-top: 40px;
+            margin-top: 20px;
             font-size: 14px;
             display: flex;
             justify-content: space-between;
+        }
+        .booking-info {
+            margin: 10px 0;
+            font-size: 13px;
+            line-height: 1.4;
         }
     </style>
 </head>
@@ -77,60 +99,163 @@
 <div class="scale-wrapper">
 <div class="form">
 
-    <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid #000; padding-bottom:10px; margin-bottom:10px;">
-        <div>
-            <div style="font-size:32px; font-weight:bold;">XMFFI</div>
-            <div style="font-size:10px;">X-TRA MILE FREIGHT FORWARDING INC.<br>Poblacion Indahag 9000<br>Cagayan de Oro City, Misamis Oriental Phils.<br>NON VAT REG. TIN: 010-682-601-00000</div>
+    <!-- Header Section -->
+    <div class="company-header">
+        <!-- Logo -->
+        <div style="margin-right: 15px">
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 64 64"
+                style="width: 60px; height: 60px"
+            >
+                <circle
+                    cx="32"
+                    cy="32"
+                    r="30"
+                    fill="none"
+                    stroke="black"
+                    stroke-width="2"
+                />
+                <path
+                    d="M2 32h60M32 2c8 10 8 50 0 60M2 20h60M2 44h60"
+                    stroke="black"
+                    stroke-width="2"
+                />
+                <path
+                    d="M40 16l12 12-12 12"
+                    stroke="black"
+                    stroke-width="3"
+                />
+            </svg>
         </div>
-        <div style="text-align:right; font-size:18px; font-weight:bold;">BILLING
-        STATEMENT<br><span style="font-size:14px; color:red;">No.
-        {{HWB_NUMBER}}</span><br><span style="font-size:12px;
-        font-weight:normal;">Date: {{DATE}}</span></div>
+
+        <!-- XMFFI Text -->
+        <div style="margin-right: 20px">
+            <div style="font-size: 32px; font-weight: bold; line-height: 1;">
+                XMFFI
+            </div>
+            <div style="font-size: 8px; line-height: 1.2; margin-top: 5px;">
+                X-TRA MILE FREIGHT FORWARDING INC.
+            </div>
+        </div>
+
+        <!-- Address -->
+        <div class="company-info" style="flex-grow: 1">
+            Poblacion Indahag 9000<br />
+            Cag. de Oro City Mis. Or. Phils<br />
+            NON VAT REG. TIN: 010-682-601-00000
+        </div>
+
+        <!-- Billing Statement Title -->
+        <div class="billing-title">
+            BILLING STATEMENT<br>
+            <span class="hwb-number">HWB #: {{HWB_NUMBER}}</span><br>
+            <span class="date">Date: {{DATE}}</span>
+        </div>
     </div>
 
-    <div class="row">
-        <div class="cell">Customer: {{CUSTOMER}}</div>
-        <div class="cell">OSCA/PWD ID No.: {{OSCA_ID}}</div>
-        <div class="cell">Term: {{TERM}}</div>
-    </div>
-    <div class="row">
-        <div class="cell">Address: {{ADDRESS}}</div>
+    <!-- Customer Information -->
+    <div class="booking-info">
+        <strong>Customer:</strong> {{CUSTOMER}}
     </div>
 
+    <!-- Booking Details -->
+    <div class="booking-info">
+        <strong>HWB NO.</strong> {{HWB_NUMBER}} | 
+        <strong>MODE:</strong> {{MODE}}<br>
+        <strong>Container:</strong> {{CONTAINER_QTY}} x {{CONTAINER_SIZE}} {{VAN_NUMBER}}
+    </div>
+
+    <!-- Items Table -->
     <table class="table">
         <tr>
             <th>Qty/Unit</th>
             <th>Description</th>
-            <th>Unit Price</th>
             <th>Amount</th>
         </tr>
         <tr>
             <td>{{QTY}}</td>
-            <td>{{DESCRIPTION}}</td>
-            <td>{{UNIT_PRICE}}</td>
+            <td>
+                {{CONTAINER_QTY}} x {{CONTAINER_SIZE}} {{VAN_NUMBER}}<br>
+                {{COMMODITY}}<br>
+                {{ROUTE}}
+            </td>
             <td>{{AMOUNT}}</td>
         </tr>
     </table>
 
     <div style="margin-top:10px; font-size:12px;">***NOTHING FOLLOWS***</div>
 
-<div class="notes">
-    <b>NOTE:</b><br>
-    1. PLEASE MAKE CHECK PAYABLE TO X-TRA MILE FREIGHT FORWARDING INC.<br>
-    2. YOU CAN ALSO DEPOSIT AT OUR ACCOUNT<br>
-    ACCOUNT NAME: X-TRA MILE FREIGHT FORWARDING INC<br>
-    ACCOUNT NO.: BDO-011788004144<br>
-    3. OR PAY ONLINE THROUGH OUR WEBSITE: <a href="https://xmffi-fms.vercel.app/" style="color: blue;">https://xmffi-fms.vercel.app/</a> USING YOUR XMFFI ACCOUNT (IF YOU HAVE)
-</div>
+    <div class="notes">
+        <b>NOTE:</b><br>
+        1. PLEASE MAKE CHECK PAYABLE TO X-TRA MILE FREIGHT FORWARDING INC.<br>
+        2. YOU CAN ALSO DEPOSIT AT OUR ACCOUNT<br>
+        ACCOUNT NAME: X-TRA MILE FREIGHT FORWARDING INC<br>
+        ACCOUNT NO.: BDO-011788004144<br>
+        3. OR PAY ONLINE THROUGH OUR WEBSITE: <a href="https://xmffi-fms.vercel.app/" style="color: blue;">https://xmffi-fms.vercel.app/</a> USING YOUR XMFFI ACCOUNT (IF YOU HAVE)
+    </div>
 
     <div class="total">TOTAL: PHP {{TOTAL}}</div>
 
-    <div class="footer">
-        <div>Customer Signature Over Printed Name: _________________________</div>
-        <div>By: ____________________</div>
+    <div class="signature-section">
+        <div>This Certifies that I have ordered and agreed the price of the above stated article(s).</div>
+        <div class="footer">
+            <div>Customer Signature Over Printed Name: _________________________</div>
+            <div>Date: ____________________</div>
+        </div>
     </div>
 
 </div>
 </div>
+
+<script>
+    // Parse URL parameters and populate the template
+    function populateTemplate() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const dataParam = urlParams.get('data');
+        
+        if (dataParam) {
+            try {
+                const data = JSON.parse(decodeURIComponent(dataParam));
+                
+                // Determine mode based on mode_of_service
+                let mode = 'PORT TO PORT';
+                if (data.mode && data.mode.toLowerCase().includes('door')) {
+                    mode = 'DOOR TO DOOR';
+                }
+                
+                // Populate all template variables
+                document.body.innerHTML = document.body.innerHTML
+                    .replace(/{{HWB_NUMBER}}/g, data.hwbNumber || '')
+                    .replace(/{{DATE}}/g, new Date().toLocaleDateString())
+                    .replace(/{{CUSTOMER}}/g, data.customerName || '')
+                    .replace(/{{QTY}}/g, data.totalItems || '')
+                    .replace(/{{AMOUNT}}/g, formatCurrency(data.totalAmount))
+                    .replace(/{{TOTAL}}/g, formatCurrency(data.totalAmount))
+                    .replace(/{{MODE}}/g, mode)
+                    .replace(/{{CONTAINER_QTY}}/g, data.containerInfo?.split(' x ')[0] || '')
+                    .replace(/{{CONTAINER_SIZE}}/g, data.containerInfo?.split(' x ')[1] || '')
+                    .replace(/{{VAN_NUMBER}}/g, data.vanNumber ? ` ${data.vanNumber}` : '')
+                    .replace(/{{COMMODITY}}/g, data.commodity || 'General Cargo')
+                    .replace(/{{ROUTE}}/g, data.route || '');
+                
+            } catch (error) {
+                console.error('Error parsing data:', error);
+                document.body.innerHTML = '<div style="text-align: center; padding: 50px;">Error loading billing statement data</div>';
+            }
+        }
+    }
+    
+    function formatCurrency(amount) {
+        if (!amount) return '0.00';
+        return new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(amount);
+    }
+    
+    // Populate template when page loads
+    document.addEventListener('DOMContentLoaded', populateTemplate);
+</script>
 </body>
 </html>
