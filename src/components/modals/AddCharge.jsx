@@ -14,7 +14,7 @@ import {
 } from '../../schemas/apSchema';
 import SharedModal from '../ui/SharedModal';
 import { useAP } from '../../hooks/useAP';
-import { Loader2, Anchor, Plus, Trash2, DollarSign, FileText, Truck, Calendar, AlertCircle } from 'lucide-react';
+import { Loader2, Anchor, Plus, Trash2, DollarSign, FileText, Truck, Calendar, AlertCircle, Calculator } from 'lucide-react';
 
 // Simple DateTime component
 const DateTimeInput = React.memo(({ value, onChange, placeholder }) => {
@@ -65,6 +65,7 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
   const [truckingCharges, setTruckingCharges] = useState([]);
   const [portCharges, setPortCharges] = useState([]);
   const [miscCharges, setMiscCharges] = useState([]);
+  const [totalExpenses, setTotalExpenses] = useState(0);
   
   // Refs for auto-scrolling to newly added charges
   const truckingChargesEndRef = useRef(null);
@@ -88,7 +89,31 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
   });
 
   const watchedBookingId = watch('booking_id');
+  const watchedFreightCharge = watch('freight_charge.amount');
   const { data: existingCharges, isLoading: isLoadingExisting } = apByBookingQuery(watchedBookingId);
+
+  // Calculate total expenses whenever charges change
+  useEffect(() => {
+    const freightAmount = parseFloat(watchedFreightCharge) || 0;
+    
+    const truckingTotal = truckingCharges.reduce((sum, charge) => {
+      const amount = parseFloat(charge.amount) || 0;
+      return sum + amount;
+    }, 0);
+    
+    const portTotal = portCharges.reduce((sum, charge) => {
+      const amount = parseFloat(charge.amount) || 0;
+      return sum + amount;
+    }, 0);
+    
+    const miscTotal = miscCharges.reduce((sum, charge) => {
+      const amount = parseFloat(charge.amount) || 0;
+      return sum + amount;
+    }, 0);
+    
+    const total = freightAmount + truckingTotal + portTotal + miscTotal;
+    setTotalExpenses(total);
+  }, [watchedFreightCharge, truckingCharges, portCharges, miscCharges]);
 
   // Memoized booking options
   const bookingOptions = useMemo(() => 
@@ -112,6 +137,7 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
       setTruckingCharges([]);
       setPortCharges([]);
       setMiscCharges([]);
+      setTotalExpenses(0);
       setActiveTab('freight');
     }
   }, [isOpen, reset]);
@@ -399,10 +425,11 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
       onClose={onClose} 
       title="Add Charges" 
       size="sm"
-      className="h-[85vh]"
+      className="h-[75vh]"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full">
-        <div className="flex-1 overflow-y-auto max-h-[calc(90vh-120px)] pr-2 -mr-2">
+{/* Scrollable Content */}
+<div className="flex-1 overflow-y-auto pr-2 -mr-2 max-h-[calc(75vh-180px)]">
           <div className="space-y-6">
             {/* Booking Selection */}
             <div>
@@ -739,8 +766,24 @@ const AddCharge = ({ isOpen, onClose, onSave, isLoading = false, bookings = [] }
           </div>
         </div>
 
+{/* Total Expenses Section */}
+<div className="bg-main border border-main rounded-lg p-4 mt-2 flex-shrink-0">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <Calculator className="w-5 h-5 text-heading" />
+              <span className="text-lg font-semibold text-heading">Total Expenses</span>
+            </div>
+            <span className="text-2xl font-bold text-heading">
+              ₱{totalExpenses.toFixed(2)}
+            </span>
+          </div>
+          <p className="text-sm text-muted mt-1">
+            This is the total amount of all charges added above.
+          </p>
+        </div>
+
         {/* Fixed Buttons */}
-        <div className="flex justify-end gap-3 pt-6 border-t border-main mt-6">
+        <div className="flex justify-end gap-3 pt-4 border-t border-main mt-4 flex-shrink-0">
           <button
             type="button"
             onClick={onClose}

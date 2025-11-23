@@ -131,11 +131,11 @@ const processPayment = useMutation({
     },
   });
   
-  const paymentBreakdownQuery = (id) => useQuery({
+const paymentBreakdownQuery = (id) => useQuery({
     queryKey: [...AR_KEY, 'payment-breakdown', id],
     queryFn: () => arApi.getPaymentBreakdown(id),
     enabled: !!id,
-  });
+});
   return {
     // Queries
     arQuery,

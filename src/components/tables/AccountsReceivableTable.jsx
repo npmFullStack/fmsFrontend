@@ -1,19 +1,18 @@
-// src/components/tables/AccountsReceivableTable.jsx
+// [file name]: AccountsReceivableTable.jsx
 import React, { useState, useMemo } from 'react';
 import {
   DollarSign,
-  Calendar,
   User,
   Truck,
   Anchor,
   ChevronUp,
   ChevronDown,
   CheckCircle,
-  XCircle,
-  AlertTriangle,
   Send,
   Clock,
-  FileText
+  FileText,
+  Calculator,
+  AlertTriangle
 } from 'lucide-react';
 import Select from 'react-select';
 import { formatCurrency, formatDate } from '../../utils/formatters';
@@ -90,14 +89,49 @@ const AccountsReceivableTable = ({
     { value: 'paid', label: 'Paid' }
   ];
 
-  // Aging filter options
-  const agingOptions = [
-    { value: 'all', label: 'All Aging' },
-    ...agingBuckets.map(bucket => ({
-      value: bucket.value,
-      label: bucket.label
-    }))
-  ];
+
+
+const getChargeBreakdown = (ar) => {
+  console.log('AR data for breakdown:', ar); // Debug log
+  
+  // First, check if we have charges saved in the AR record (from SendTotalPayment)
+  if (ar.charges && Array.isArray(ar.charges) && ar.charges.length > 0) {
+    console.log('Using charges from AR record:', ar.charges);
+    return ar.charges.map(charge => ({
+      description: charge.description,
+      amount: charge.amount,
+      markup: charge.markup,
+      markup_amount: charge.markup_amount,
+      total: charge.total
+    }));
+  }
+  
+  // Fallback: If no charges array but we have total payment and expenses
+  if (ar.total_payment && ar.total_payment > 0 && ar.total_expenses > 0) {
+    console.log('Using fallback calculation');
+    const totalMarkup = ar.total_payment - ar.total_expenses;
+    const markupPercentage = (totalMarkup / ar.total_expenses) * 100;
+    
+    return [
+      {
+        description: 'Total Expenses',
+        amount: ar.total_expenses,
+        markup: 0,
+        markup_amount: 0,
+        total: ar.total_expenses
+      },
+      {
+        description: 'Service Fee',
+        amount: totalMarkup,
+        markup: markupPercentage.toFixed(1),
+        markup_amount: totalMarkup,
+        total: totalMarkup
+      }
+    ];
+  }
+  
+  return [];
+};
 
   if (isLoading) return (
     <div className="flex justify-center items-center py-12">
@@ -127,16 +161,6 @@ const AccountsReceivableTable = ({
             />
           </div>
 
-          {/* Aging Filter */}
-          <div className="min-w-[150px]">
-            <Select
-              options={agingOptions}
-              value={agingOptions.find(option => option.value === agingFilter)}
-              onChange={(selected) => setAgingFilter(selected.value)}
-              className="react-select-container"
-              classNamePrefix="react-select"
-            />
-          </div>
         </div>
       </div>
 
@@ -147,6 +171,7 @@ const AccountsReceivableTable = ({
         const agingColor = getAgingBadgeColor(ar.aging_bucket);
         const statusBadge = getStatusBadge(ar);
         const StatusIcon = statusBadge.icon;
+        const chargeBreakdown = getChargeBreakdown(ar);
 
         return (
           <div
@@ -184,30 +209,18 @@ const AccountsReceivableTable = ({
                     <StatusIcon className="w-3 h-3" />
                     {statusBadge.label}
                   </span>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium bg-${agingColor}-100 text-${agingColor}-800`}>
-                    {agingBuckets.find(b => b.value === ar.aging_bucket)?.label || ar.aging_bucket}
-                  </span>
                 </div>
               </div>
 
-              {/* Financial Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-3 text-sm mb-3 border-t border-b border-main py-3">
+              {/* Financial Grid - Simplified */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm mb-3 border-t border-b border-main py-3">
                 {/* Collectible Amount */}
                 <div>
                   <div className="text-xs font-bold text-muted mb-1 uppercase">COLLECTIBLE:</div>
                   <div className={`text-lg font-semibold ${
-                    ar.collectible_amount > 0 ? 'text-red-600' : 'text-green-600'
+                    ar.collectible_amount > 0 ? 'text-grren-600' : 'text-content'
                   }`}>
                     {formatCurrency(ar.collectible_amount)}
-                  </div>
-                </div>
-
-                {/* Due Date */}
-                <div>
-                  <div className="text-xs font-bold text-muted mb-1 uppercase">DUE DATE:</div>
-                  <div className={`text-heading text-sm ${ar.is_overdue ? 'text-red-600 font-semibold' : ''}`}>
-                    {ar.due_date ? formatDate(ar.due_date, false) : 'Not Set'}
-                    {ar.is_overdue && <AlertTriangle className="w-3 h-3 text-red-600 inline ml-1" />}
                   </div>
                 </div>
 
@@ -254,75 +267,123 @@ const AccountsReceivableTable = ({
                 </div>
               </div>
 
-{/* Actions and Expand */}
-<div className="flex justify-between items-center mt-2 pt-2 border-t border-main">
-  <button
-    onClick={() => toggleCard(ar.id || index)}
-    className="text-sm flex items-center gap-2 font-semibold text-heading hover:text-heading transition-colors"
-  >
-    {isExpanded ? (
-      <ChevronUp className="w-4 h-4" />
-    ) : (
-      <ChevronDown className="w-4 h-4" />
-    )}
-    {isExpanded ? 'Hide Details' : 'View Details'}
-  </button>
+              {/* Actions and Expand */}
+              <div className="flex justify-between items-center mt-2 pt-2 border-t border-main">
+                <button
+                  onClick={() => toggleCard(ar.id || index)}
+                  className="text-sm flex items-center gap-2 font-semibold text-heading hover:text-heading transition-colors"
+                >
+                  {isExpanded ? (
+                    <ChevronUp className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
+                  {isExpanded ? 'Hide Details' : 'View Details'}
+                </button>
 
-  <div className="flex gap-2">
-    {/* DEBUG: Check why button isn't showing */}
-    {/* Send Payment Button - Show when expenses exist and not paid */}
-    {!ar.is_paid && ar.total_expenses > 0 && (
-      <button
-        onClick={() => onSendPayment && onSendPayment(ar)}
-        className="px-3 py-1 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors flex items-center gap-2"
-      >
-        <Send className="w-4 h-4" />
-        Send Payment
-      </button>
-    )}
+                <div className="flex gap-2">
+                  {/* Send Payment Button - Show when expenses exist and not paid */}
+                  {!ar.is_paid && ar.total_expenses > 0 && (
+                    <button
+                      onClick={() => onSendPayment && onSendPayment(ar)}
+                      className="px-3 py-1 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    >
+                      <Send className="w-4 h-4" />
+                      Send Payment
+                    </button>
+                  )}
 
-    {/* Mark as Paid Button - Show when payment is set but not paid */}
-    {!ar.is_paid && ar.total_payment > 0 && (
-      <button
-        onClick={() => onMarkAsPaid && onMarkAsPaid(ar.id)}
-        className="px-3 py-1 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 transition-colors"
-      >
-        Mark as Paid
-      </button>
-    )}
+                  {/* Mark as Paid Button - Show when payment is set but not paid */}
+                  {!ar.is_paid && ar.total_payment > 0 && (
+                    <button
+                      onClick={() => onMarkAsPaid && onMarkAsPaid(ar.id)}
+                      className="px-3 py-1 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 transition-colors"
+                    >
+                      Mark as Paid
+                    </button>
+                  )}
 
-    {/* No Charges Warning */}
-    {!ar.is_paid && (!ar.total_expenses || ar.total_expenses === 0) && (
-      <span className="text-xs text-orange-600 flex items-center gap-1 px-2 py-1 bg-orange-100 rounded">
-        <AlertTriangle className="w-3 h-3" />
-        Add AP Charges First
-      </span>
-    )}
-  </div>
-</div>
+                  {/* No Charges Warning */}
+                  {!ar.is_paid && (!ar.total_expenses || ar.total_expenses === 0) && (
+                    <span className="text-xs text-orange-600 flex items-center gap-1 px-2 py-1 bg-orange-100 rounded">
+                      <AlertTriangle className="w-3 h-3" />
+                      Add AP Charges First
+                    </span>
+                  )}
+                </div>
+              </div>
 
               {/* Expanded Details */}
               {isExpanded && (
-                <div className="mt-4 space-y-3 border-t pt-4">
-                  {/* Financial Breakdown */}
+                <div className="mt-4 space-y-4 border-t pt-4">
+
+
+{chargeBreakdown.length > 0 ? (
+  <div className="bg-main border border-main rounded-lg p-4">
+    <h4 className="font-medium text-heading mb-3 flex items-center gap-2">
+      <Calculator className="w-4 h-4" />
+      Charge Breakdown
+    </h4>
+    <div className="space-y-3">
+      {chargeBreakdown.map((charge, idx) => (
+        <div key={idx} className="flex justify-between items-start py-2 border-b border-main/20 last:border-b-0">
+          <div className="flex-1">
+            <div className="font-medium text-heading">{charge.description}</div>
+            {charge.markup > 0 ? (
+              <div className="text-xs text-muted mt-1">
+                Base: {formatCurrency(charge.amount)} + {charge.markup}% markup
+                {charge.markup_amount && (
+                  <span> ({formatCurrency(charge.markup_amount)})</span>
+                )}
+              </div>
+            ) : (
+              <div className="text-xs text-muted mt-1">
+                Amount: {formatCurrency(charge.amount)}
+              </div>
+            )}
+          </div>
+          <div className="font-semibold text-heading text-right min-w-[100px]">
+            {formatCurrency(charge.total || charge.amount)}
+          </div>
+        </div>
+      ))}
+      
+      {/* Total Summary */}
+      <div className="flex justify-between items-center pt-3 border-t border-main/30 font-bold text-heading text-lg">
+        <div>Total Amount:</div>
+        <div>{formatCurrency(ar.total_payment)}</div>
+      </div>
+    </div>
+  </div>
+) : (
+  <div className="bg-main border border-main rounded-lg p-4 text-center">
+    <Calculator className="w-8 h-8 mx-auto mb-2 text-muted opacity-50" />
+    <p className="text-sm text-muted">No charge breakdown available</p>
+    <p className="text-xs text-muted mt-1">
+      Charges will appear here after payment is set
+    </p>
+  </div>
+)}
+
+                  {/* Financial Summary */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
-                      <h4 className="font-medium text-heading mb-2">Income Breakdown</h4>
+                      <h4 className="font-medium text-heading mb-2">Financial Summary</h4>
                       <div className="space-y-1">
-                        <div className="flex justify-between">
-                          <span className="text-muted">Gross Income:</span>
-                          <span className="font-medium text-heading">{formatCurrency(ar.gross_income || 0)}</span>
-                        </div>
                         <div className="flex justify-between">
                           <span className="text-muted">Total Expenses:</span>
                           <span className="font-medium text-heading">{formatCurrency(ar.total_expenses || 0)}</span>
                         </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted">Total Payment:</span>
+                          <span className="font-medium text-heading">{formatCurrency(ar.total_payment || 0)}</span>
+                        </div>
                         <div className="flex justify-between border-t border-main pt-1">
-                          <span className="text-muted font-medium">Net Revenue:</span>
+                          <span className="text-muted font-medium">Net Profit:</span>
                           <span className={`font-semibold ${
-                            ar.net_revenue >= 0 ? 'text-green-600' : 'text-red-600'
+                            ar.profit >= 0 ? 'text-green-600' : 'text-red-600'
                           }`}>
-                            {formatCurrency(ar.net_revenue || 0)}
+                            {formatCurrency(ar.profit || 0)}
                           </span>
                         </div>
                       </div>
@@ -332,45 +393,20 @@ const AccountsReceivableTable = ({
                       <h4 className="font-medium text-heading mb-2">Payment Status</h4>
                       <div className="space-y-1">
                         <div className="flex justify-between">
-                          <span className="text-muted">Total Payment:</span>
-                          <span className="font-medium text-heading">{formatCurrency(ar.total_payment || 0)}</span>
+                          <span className="text-muted">Amount Collected:</span>
+                          <span className="font-medium text-heading">
+                            {formatCurrency((ar.total_payment || 0) - (ar.collectible_amount || 0))}
+                          </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted">Amount Collected:</span>
-                          <span className="font-medium text-heading">{formatCurrency((ar.total_payment || 0) - (ar.collectible_amount || 0))}</span>
-                        </div>
-                        <div className="flex justify-between border-t border-main pt-1">
-                          <span className="text-muted font-medium">Balance Due:</span>
-                          <span className={`font-semibold ${
+                          <span className="text-muted">Remaining Balance:</span>
+                          <span className={`font-medium ${
                             ar.collectible_amount > 0 ? 'text-red-600' : 'text-green-600'
                           }`}>
                             {formatCurrency(ar.collectible_amount || 0)}
                           </span>
                         </div>
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Dates */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted">Invoice Date:</span>
-                      <span className="text-heading ml-2">{ar.invoice_date ? formatDate(ar.invoice_date, false) : 'Not Set'}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted">Due Date:</span>
-                      <span className={`ml-2 ${ar.is_overdue ? 'text-red-600 font-semibold' : 'text-heading'}`}>
-                        {ar.due_date ? formatDate(ar.due_date, false) : 'Not Set'}
-                        {ar.is_overdue && ' (Overdue)'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted">Created:</span>
-                      <span className="text-heading ml-2">{formatDate(ar.created_at, true)}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted">Last Updated:</span>
-                      <span className="text-heading ml-2">{formatDate(ar.updated_at, true)}</span>
                     </div>
                   </div>
                 </div>
