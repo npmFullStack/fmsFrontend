@@ -425,8 +425,8 @@ const CustomerAddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
       <div className="space-y-6 max-h-[80vh] overflow-y-auto">
         {/* Customer Information - Auto-filled */}
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
-            Customer Information
+          <h3 className="text-lg font-semibold text-heading  ">
+            
           </h3>
           {user && (
             <div className="email-notice border border-blue-700 bg-blue-900">

@@ -5,7 +5,7 @@ import { Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { usePayment } from '../hooks/usePayment';
 import { useBooking } from '../hooks/useBooking';
-import { useAR } from '../hooks/useAR'; // Add this import
+import { useAR } from '../hooks/useAR';
 import TableLayout from '../components/layout/TableLayout';
 import CustomerBookingsTable from '../components/tables/CustomerBookingsTable';
 import CustomerAddBooking from '../components/modals/CustomerAddBooking';
@@ -23,7 +23,7 @@ const CustomerBookings = () => {
 
   const { customerBookingsQuery } = usePayment();
   const { createBooking } = useBooking();
-  const { paymentBreakdownQuery } = useAR(); // Add this hook
+  const { paymentBreakdownQuery } = useAR();
 
   const { data, isLoading, isError } = customerBookingsQuery({
     search: debouncedSearch,
@@ -42,13 +42,42 @@ const CustomerBookings = () => {
     total: data?.total || 0,
   };
 
-  // Function to get charges breakdown for a booking
+  // Function to get simplified charges breakdown for a booking (customer view)
   const getChargesBreakdown = useCallback((bookingId) => {
     if (!bookingId) return null;
     
-    const { data: breakdownData } = paymentBreakdownQuery(bookingId);
-    return breakdownData?.charges || null;
-  }, [paymentBreakdownQuery]);
+    // Use the paymentBreakdownQuery hook for this specific booking
+    const { data: breakdownData, isLoading: breakdownLoading } = paymentBreakdownQuery(bookingId);
+    
+    if (breakdownLoading || !breakdownData) return null;
+    
+    console.log('🎯 Breakdown data for booking', bookingId, ':', breakdownData);
+    
+    // Check if we have charges in the breakdown data
+    if (breakdownData.charges && Array.isArray(breakdownData.charges)) {
+      // Simplify the charges - only show charge type and total amount (with margin included)
+      const simplifiedCharges = breakdownData.charges.map(charge => ({
+        description: charge.description,
+        amount: charge.total // Show only the total amount (base + markup)
+      }));
+      
+      console.log('🎯 Simplified charges:', simplifiedCharges);
+      return simplifiedCharges;
+    }
+    
+    // Fallback: Check if booking has AR data with charges
+    const booking = bookings.find(b => b.id === bookingId);
+    if (booking?.accounts_receivable?.charges) {
+      const simplifiedCharges = booking.accounts_receivable.charges.map(charge => ({
+        description: charge.description,
+        amount: charge.total
+      }));
+      console.log('🎯 Fallback charges from AR:', simplifiedCharges);
+      return simplifiedCharges;
+    }
+    
+    return null;
+  }, [paymentBreakdownQuery, bookings]);
 
   const handleAdd = useCallback(
     async (bookingData) => {
@@ -153,7 +182,7 @@ const CustomerBookings = () => {
             onPay={handlePayBooking}
             onDownloadStatement={handleDownloadStatement}
             isLoading={isLoading}
-            getChargesBreakdown={getChargesBreakdown} // Pass the function to table
+            getChargesBreakdown={getChargesBreakdown}
           />
         </TableLayout>
       </div>

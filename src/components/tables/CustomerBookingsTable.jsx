@@ -26,7 +26,6 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { formatDate, formatCurrency } from '../../utils/formatters';
-import { useAR } from '../../hooks/useAR';
 
 const CustomerBookingsTable = ({ 
   data = [],
@@ -36,7 +35,6 @@ const CustomerBookingsTable = ({
   getChargesBreakdown
 }) => {
   const [expandedCards, setExpandedCards] = useState([]);
-  const { arByBookingQuery } = useAR();
 
   const toggleCard = (id) => {
     setExpandedCards(prev => ({ ...prev, [id]: !prev[id] }));
@@ -177,7 +175,7 @@ const CustomerBookingsTable = ({
         const hasPayment = hasPaymentData(item);
         const paymentPending = isPaymentPending(item);
 
-        // Get charges breakdown using the function passed from parent
+        // Get simplified charges breakdown using the function passed from parent
         const chargesBreakdown = getChargesBreakdown ? getChargesBreakdown(item.id) : null;
 
         return (
@@ -388,63 +386,130 @@ const CustomerBookingsTable = ({
                         Charges Breakdown
                       </h4>
 
-                      {hasPayment ? (
-                        <div className="space-y-2">
-                          {/* Total Payment Summary - Simplified without balance due */}
-                          <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
-                            <div className="flex justify-between items-center">
-                              <span className="font-semibold text-primary">Total Payment:</span>
-                              <span className="font-bold text-primary text-lg">
-                                {formatCurrency(item.accounts_receivable.total_payment)}
-                              </span>
-                            </div>
-                          </div>
+{hasPayment ? (
+  <div className="space-y-2">
+    {/* Total Payment Summary */}
+    <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
+      <div className="flex justify-between items-center">
+        <span className="font-semibold text-primary">Total Payment:</span>
+        <span className="font-bold text-primary text-lg">
+          {formatCurrency(item.accounts_receivable.total_payment)}
+        </span>
+      </div>
+      {item.accounts_receivable.collectible_amount > 0 && (
+        <div className="flex justify-between items-center mt-2 pt-2 border-t border-primary/20">
+          <span className="font-semibold text-orange-600">Balance Due:</span>
+          <span className="font-bold text-orange-600 text-lg">
+            {formatCurrency(item.accounts_receivable.collectible_amount)}
+          </span>
+        </div>
+      )}
+      {item.accounts_receivable.is_paid && (
+        <div className="flex justify-between items-center mt-2 pt-2 border-t border-primary/20">
+          <span className="font-semibold text-green-600">Status:</span>
+          <span className="font-bold text-green-600 text-lg">Paid</span>
+        </div>
+      )}
+    </div>
 
-                          {/* Individual Charges - Using charges breakdown data */}
-                          {chargesBreakdown && chargesBreakdown.length > 0 ? (
-                            <div className="space-y-2">
-                              <div className="text-xs font-bold text-muted uppercase">CHARGES DETAILS:</div>
-                              {chargesBreakdown.map((charge, idx) => (
-                                <div key={idx} className="flex justify-between items-center py-2 border-b border-main/20">
-                                  <div className="flex-1">
-                                    <div className="font-medium text-heading">{charge.description}</div>
-                                    {charge.markup > 0 ? (
-                                      <div className="text-xs text-muted">
-                                        Base: {formatCurrency(charge.amount)} + {charge.markup}% markup
-                                      </div>
-                                    ) : (
-                                      <div className="text-xs text-muted">
-                                        Amount: {formatCurrency(charge.amount)}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="font-semibold text-heading text-right">
-                                    {formatCurrency(charge.total || charge.amount)}
-                                  </div>
-                                </div>
-                              ))}
-                              
-                              {/* Total Summary */}
-                              <div className="flex justify-between items-center pt-2 border-t border-main/30 font-bold text-heading">
-                                <div>Total Amount:</div>
-                                <div>{formatCurrency(item.accounts_receivable.total_payment)}</div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-center py-4 text-muted">
-                              <Calculator className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                              <p className="text-sm">No detailed charges available</p>
-                              <p className="text-xs mt-1">Total amount: {formatCurrency(item.accounts_receivable.total_payment)}</p>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-muted bg-main/30 rounded-lg">
-                          <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                          <p className="text-sm font-medium">Payment calculation in progress</p>
-                          <p className="text-xs mt-1">The admin is currently calculating your total payment amount.</p>
-                        </div>
-                      )}
+    {/* Individual Charges - Improved logic */}
+    {(() => {
+      // Check multiple sources for charges data
+      const chargesFromBreakdown = chargesBreakdown && chargesBreakdown.length > 0 ? chargesBreakdown : null;
+      const chargesFromAR = item.accounts_receivable?.charges && 
+                           Array.isArray(item.accounts_receivable.charges) && 
+                           item.accounts_receivable.charges.length > 0 ? 
+                           item.accounts_receivable.charges : null;
+      
+      const chargesToDisplay = chargesFromBreakdown || chargesFromAR;
+
+      return chargesToDisplay ? (
+        <div className="space-y-2">
+          <div className="text-xs font-bold text-muted uppercase">CHARGES BREAKDOWN:</div>
+          {chargesToDisplay.map((charge, idx) => (
+            <div key={idx} className="flex justify-between items-start py-2 border-b border-main/20">
+              <div className="flex-1">
+                <div className="font-medium text-heading">{charge.description}</div>
+                {/* Show detailed breakdown if available */}
+                {(charge.amount !== charge.total || charge.markup > 0) && (
+                  <div className="text-xs text-muted mt-1">
+                    Base: {formatCurrency(charge.amount || charge.baseAmount)}
+                    {charge.markup > 0 && (
+                      <span> + Markup ({charge.markup}%): {formatCurrency(charge.markup_amount)}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="font-semibold text-heading text-right min-w-[100px]">
+                {formatCurrency(charge.total || charge.amount)}
+              </div>
+            </div>
+          ))}
+          
+          {/* Financial Summary */}
+          <div className="space-y-1 pt-2 border-t border-main/30">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted">Subtotal:</span>
+              <span className="font-medium text-heading">
+                {formatCurrency(item.accounts_receivable.total_expenses || 0)}
+              </span>
+            </div>
+            {item.accounts_receivable.profit > 0 && (
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted">Service Fee:</span>
+                <span className="font-medium text-green-600">
+                  {formatCurrency(item.accounts_receivable.profit || 0)}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between items-center pt-1 border-t border-main/20 font-bold text-heading">
+              <div>Total Amount:</div>
+              <div>{formatCurrency(item.accounts_receivable.total_payment)}</div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        // Fallback when no detailed charges but we have payment data
+        <div className="space-y-2">
+          <div className="text-xs font-bold text-muted uppercase">PAYMENT SUMMARY:</div>
+          <div className="flex justify-between items-center py-2 border-b border-main/20">
+            <div className="flex-1">
+              <div className="font-medium text-heading">Total Expenses</div>
+            </div>
+            <div className="font-semibold text-heading text-right">
+              {formatCurrency(item.accounts_receivable.total_expenses || 0)}
+            </div>
+          </div>
+          {item.accounts_receivable.profit > 0 && (
+            <div className="flex justify-between items-center py-2 border-b border-main/20">
+              <div className="flex-1">
+                <div className="font-medium text-heading">Service Fee</div>
+              </div>
+              <div className="font-semibold text-green-600 text-right">
+                {formatCurrency(item.accounts_receivable.profit || 0)}
+              </div>
+            </div>
+          )}
+          <div className="flex justify-between items-center pt-2 border-t border-main/30 font-bold text-heading">
+            <div>Total Amount:</div>
+            <div>{formatCurrency(item.accounts_receivable.total_payment)}</div>
+          </div>
+        </div>
+      );
+    })()}
+  </div>
+) : (
+  <div className="text-center py-8 text-muted bg-main/30 rounded-lg">
+    <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+    <p className="text-sm font-medium">Payment calculation in progress</p>
+    <p className="text-xs mt-1">The admin is currently calculating your total payment amount.</p>
+    {item.accounts_receivable && (
+      <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-700 text-xs">
+        <p>Payment record exists but amount is not set yet.</p>
+      </div>
+    )}
+  </div>
+)}
                     </div>
                   </div>
 
