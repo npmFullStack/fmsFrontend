@@ -3,7 +3,7 @@ import React from 'react';
 
 const TableLayout = ({ children, searchBar, actions, showingText }) => {
   return (
-    <div className="bg-surface rounded-lg border border-main overflow-hidden">
+    <div className="bg-main rounded-lg overflow-hidden">
       {/* Top Bar - Search and Actions */}
       <div className="bg-surface px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-main">
         {/* Left - Search Bar */}
