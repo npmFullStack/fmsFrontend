@@ -23,7 +23,8 @@ const AccountsPayableTable = ({
   onBulkPrint,
   selectedRecords = [],
   onSelectRecord,
-  onSelectAllRecords
+  onSelectAllRecords,
+  onPrintBRFP // Add this new prop
 }) => {
   const [expandedCards, setExpandedCards] = useState([]);
   const [dateFilter, setDateFilter] = useState('all');
@@ -212,6 +213,7 @@ const AccountsPayableTable = ({
                     checked={isSelected}
                     onChange={(e) => onSelectRecord && onSelectRecord(ap.id, e.target.checked)}
                     className="w-4 h-4 text-primary border-main rounded focus:ring-primary"
+                    title="Select for bulk printing"
                   />
                 </div>
               </div>
@@ -255,18 +257,41 @@ const AccountsPayableTable = ({
                 </div>
               </div>
 
-              {/* Expandable Charges Section */}
-              <button
-                onClick={() => toggleCard(ap.id || index)}
-                className="w-full text-left mt-2 pt-2 border-t border-main text-sm flex items-center gap-2 font-semibold text-heading hover:text-heading transition-colors"
-              >
-                {isExpanded ? (
-                  <ChevronUp className="w-4 h-4" />
-                ) : (
-                  <ChevronDown className="w-4 h-4" />
-                )}
-                {isExpanded ? 'Hide All Charges' : 'View All Charges'}
-              </button>
+              {/* Action Buttons */}
+              <div className="flex items-center gap-4 mt-2 pt-2 border-t border-main">
+                {/* Expand/Collapse Button */}
+                <button
+                  onClick={() => toggleCard(ap.id || index)}
+                  className="text-sm flex items-center gap-2 font-semibold text-heading hover:text-heading transition-colors"
+                >
+                  {isExpanded ? (
+                    <ChevronUp className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
+                  {isExpanded ? 'Hide All Charges' : 'View All Charges'}
+                </button>
+
+                {/* Print BRFP Button */}
+                <button
+                  onClick={() => onPrintBRFP && onPrintBRFP(ap)}
+                  className="flex items-center gap-2 px-3 py-1 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                  title="Print Booking/Request for Payment"
+                >
+                  <Printer className="w-4 h-4" />
+                  Print BFRP
+                </button>
+
+                {/* Individual Print Button */}
+                <button
+                  onClick={() => onPrint && onPrint(ap)}
+                  className="flex items-center gap-2 px-3 py-1 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+                  title="Print this record"
+                >
+                  <Printer className="w-4 h-4" />
+                  Print
+                </button>
+              </div>
 
               {/* Expanded Charges Details - Compact with smaller text */}
               {isExpanded && (

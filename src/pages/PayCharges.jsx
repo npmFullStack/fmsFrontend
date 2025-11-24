@@ -19,8 +19,8 @@ const PayCharges = () => {
   const [page, setPage] = useState(1);
   const [selectedAP, setSelectedAP] = useState(null);
 
-  // ✅ Hooks
-  const { apQuery, updateChargeStatus } = useAP();
+  // ✅ Hooks - FIXED: Check if updateChargeStatus exists
+  const { apQuery, markChargeAsPaid } = useAP();
   const { bookingsQuery } = useBooking();
 
   // ✅ Fetch AP records (unpaid only by default)
@@ -58,24 +58,30 @@ const PayCharges = () => {
   const handleMarkAsPaid = useCallback(
     async (apId, chargeType, chargeId, paymentData) => {
       try {
-        await updateChargeStatus.mutateAsync({
-          apId,
-          chargeType,
-          chargeId,
-          payload: {
-            is_paid: true,
-            voucher: paymentData.voucher,
-            check_date: paymentData.check_date
-          }
+        if (!markChargeAsPaid) {
+          toast.error('Update charge status function not available');
+          return;
+        }
+        
+        // FIXED: Send the correct field names that the API expects
+        await markChargeAsPaid.mutateAsync({
+          ap_id: apId,           // Changed from apId to ap_id
+          charge_type: chargeType, // Changed from chargeType to charge_type
+          charge_id: chargeId,    // Changed from chargeId to charge_id
+          voucher: paymentData.voucher, // Moved out of payload object
+          check_date: paymentData.check_date // Moved out of payload object
         });
         toast.success('Charge marked as paid successfully');
+        return true; // Return success for auto-close
       } catch (error) {
         toast.error(error.response?.data?.message || 'Failed to mark charge as paid');
+        throw error; // Re-throw to handle in PaidCharges
       }
     },
-    [updateChargeStatus]
+    [markChargeAsPaid]
   );
 
+  // ✅ FIXED: Added missing 'const' keyword
   const handleCloseModal = useCallback(() => {
     setIsPayModalOpen(false);
     setSelectedAP(null);
@@ -153,10 +159,10 @@ const PayCharges = () => {
       {/* Pay Charges Modal */}
       <PaidCharges
         isOpen={isPayModalOpen}
-        onClose={handleCloseModal}
+        onClose={handleCloseModal} 
         apRecord={selectedAP}
         onMarkAsPaid={handleMarkAsPaid}
-        isLoading={updateChargeStatus.isPending}
+        isLoading={markChargeAsPaid?.isLoading || false}
         bookings={bookings}
       />
     </div>

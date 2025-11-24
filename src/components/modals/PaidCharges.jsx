@@ -1,58 +1,18 @@
 // src/components/modals/PaidCharges.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import Select from 'react-select';
-import DateTime from 'react-datetime';
-import 'react-datetime/css/react-datetime.css';
 import { 
   DollarSign, 
   Truck, 
   Anchor, 
   FileText, 
-  Calendar, 
   CheckCircle, 
-  User,
-  CreditCard
+  CreditCard,
+  Loader2
 } from 'lucide-react';
 import SharedModal from '../ui/SharedModal';
-import { formatCurrency, formatDate } from '../../utils/formatters';
+import { formatCurrency } from '../../utils/formatters';
 import { useAP } from '../../hooks/useAP';
-
-// Simple DateTime component
-const DateTimeInput = React.memo(({ value, onChange, placeholder }) => {
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      return dateString;
-    }
-    try {
-      const date = new Date(dateString);
-      return date.toISOString().split('T')[0];
-    } catch {
-      return dateString;
-    }
-  };
-
-  return (
-    <div className="relative">
-      <DateTime
-        value={formatDate(value)}
-        onChange={(date) => {
-          const dateString = typeof date === 'string' ? date : date?.format('YYYY-MM-DD') || '';
-          onChange(dateString);
-        }}
-        inputProps={{
-          placeholder: placeholder,
-          className: "modal-input pr-10 cursor-pointer w-full",
-          readOnly: true
-        }}
-        timeFormat={false}
-        closeOnSelect={true}
-        dateFormat="YYYY-MM-DD"
-      />
-      <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-    </div>
-  );
-});
 
 const PaidCharges = ({ 
   isOpen, 
@@ -64,10 +24,8 @@ const PaidCharges = ({
 }) => {
   const [selectedBookingId, setSelectedBookingId] = useState(null);
   const [selectedAP, setSelectedAP] = useState(null);
-  const [paymentData, setPaymentData] = useState({
-    check_date: new Date().toISOString().split('T')[0]
-  });
   const [selectedCharges, setSelectedCharges] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { apByBookingQuery } = useAP();
 
@@ -84,10 +42,8 @@ const PaidCharges = ({
         setSelectedBookingId(null);
         setSelectedAP(null);
       }
-      setPaymentData({
-        check_date: new Date().toISOString().split('T')[0]
-      });
       setSelectedCharges([]);
+      setIsSubmitting(false);
     }
   }, [isOpen, apRecord]);
 
@@ -148,7 +104,7 @@ const PaidCharges = ({
     return total;
   }, [selectedAP]);
 
-  // Get all unpaid charges
+  // Get all unpaid charges with unique identifiers
   const unpaidCharges = useMemo(() => {
     if (!selectedAP) return [];
 
@@ -159,6 +115,7 @@ const PaidCharges = ({
       charges.push({
         type: 'freight',
         id: selectedAP.freight_charge.id,
+        uniqueId: `freight-${selectedAP.freight_charge.id}`, // Create unique ID
         charge_type: 'FREIGHT',
         voucher_number: selectedAP.freight_charge.voucher_number,
         payee: selectedAP.booking?.shipping_line?.name || 'Freight Charge',
@@ -176,6 +133,7 @@ const PaidCharges = ({
           charges.push({
             type: 'trucking',
             id: charge.id,
+            uniqueId: `trucking-${charge.id}`, // Create unique ID
             charge_type: `TRUCKING_${charge.type}`,
             voucher_number: charge.voucher_number,
             payee: selectedAP.booking?.truck_comp?.name || `Trucking - ${charge.type}`,
@@ -194,6 +152,7 @@ const PaidCharges = ({
           charges.push({
             type: 'port',
             id: charge.id,
+            uniqueId: `port-${charge.id}`, // Create unique ID
             charge_type: charge.charge_type,
             voucher_number: charge.voucher_number,
             payee: charge.payee || `Port - ${charge.charge_type}`,
@@ -212,6 +171,7 @@ const PaidCharges = ({
           charges.push({
             type: 'misc',
             id: charge.id,
+            uniqueId: `misc-${charge.id}`, // Create unique ID
             charge_type: charge.charge_type,
             voucher_number: charge.voucher_number,
             payee: charge.payee || `Misc - ${charge.charge_type}`,
@@ -229,23 +189,23 @@ const PaidCharges = ({
     const bookingId = selected?.value ? Number(selected.value) : null;
     setSelectedBookingId(bookingId);
     setSelectedAP(null);
-    setPaymentData({
-      check_date: new Date().toISOString().split('T')[0]
-    });
     setSelectedCharges([]);
   };
 
-  const handleChargeSelect = (chargeId, isSelected) => {
+  // FIXED: Use uniqueId instead of id for selection
+  const handleChargeSelect = (uniqueId, isSelected) => {
+    console.log('Selecting charge:', uniqueId, isSelected);
     if (isSelected) {
-      setSelectedCharges(prev => [...prev, chargeId]);
+      setSelectedCharges(prev => [...prev, uniqueId]);
     } else {
-      setSelectedCharges(prev => prev.filter(id => id !== chargeId));
+      setSelectedCharges(prev => prev.filter(id => id !== uniqueId));
     }
   };
 
   const handleSelectAll = (isSelected) => {
+    console.log('Select all:', isSelected);
     if (isSelected) {
-      setSelectedCharges(unpaidCharges.map(charge => charge.id));
+      setSelectedCharges(unpaidCharges.map(charge => charge.uniqueId));
     } else {
       setSelectedCharges([]);
     }
@@ -254,25 +214,33 @@ const PaidCharges = ({
   const handleMarkAsPaid = async () => {
     if (!selectedAP || selectedCharges.length === 0) return;
 
+    setIsSubmitting(true);
+
     try {
       const selectedChargeData = unpaidCharges.filter(charge => 
-        selectedCharges.includes(charge.id)
+        selectedCharges.includes(charge.uniqueId)
       );
 
+      // Process each charge sequentially
       for (const charge of selectedChargeData) {
         await onMarkAsPaid(
           selectedAP.id,
           charge.type,
           charge.id,
-          paymentData
+          {
+            voucher: '',
+            check_date: new Date().toISOString().split('T')[0]
+          }
         );
       }
 
+      // Success - close modal and reset
       setSelectedCharges([]);
-      setPaymentData({
-        check_date: new Date().toISOString().split('T')[0]
-      });
+      setIsSubmitting(false);
+      onClose(); // Auto-close like AddTruckComp
+      
     } catch (error) {
+      setIsSubmitting(false);
       // Error handling is done in the parent component
     }
   };
@@ -280,10 +248,8 @@ const PaidCharges = ({
   const handleClose = () => {
     setSelectedBookingId(null);
     setSelectedAP(null);
-    setPaymentData({
-      check_date: new Date().toISOString().split('T')[0]
-    });
     setSelectedCharges([]);
+    setIsSubmitting(false);
     onClose();
   };
 
@@ -301,6 +267,10 @@ const PaidCharges = ({
   const getChargeStatusIcon = (isPaid) => {
     return CheckCircle;
   };
+
+  // Calculate selection states
+  const allSelected = unpaidCharges.length > 0 && selectedCharges.length === unpaidCharges.length;
+  const someSelected = selectedCharges.length > 0 && selectedCharges.length < unpaidCharges.length;
 
   if (!isOpen) return null;
 
@@ -364,7 +334,6 @@ const PaidCharges = ({
               </div>
             )}
 
-
             {/* Charges List */}
             {selectedAP && unpaidCharges.length > 0 && (
               <div className="space-y-3">
@@ -373,7 +342,12 @@ const PaidCharges = ({
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      checked={selectedCharges.length === unpaidCharges.length && unpaidCharges.length > 0}
+                      checked={allSelected}
+                      ref={(input) => {
+                        if (input) {
+                          input.indeterminate = someSelected;
+                        }
+                      }}
                       onChange={(e) => handleSelectAll(e.target.checked)}
                       className="w-4 h-4 text-primary border-main rounded focus:ring-primary"
                     />
@@ -384,18 +358,18 @@ const PaidCharges = ({
                   {unpaidCharges.map((charge, index) => {
                     const StatusIcon = getChargeStatusIcon(charge.is_paid);
                     const ChargeIcon = getChargeIcon(charge.charge_type);
-                    const isSelected = selectedCharges.includes(charge.id);
+                    const isSelected = selectedCharges.includes(charge.uniqueId); // Use uniqueId
                     
                     return (
                       <div
-                        key={`${charge.type}-${charge.id}-${index}`}
+                        key={charge.uniqueId} // Use uniqueId as key
                         className="bg-surface rounded border border-main p-3"
                       >
                         <div className="flex items-start gap-2">
                           <input
                             type="checkbox"
                             checked={isSelected}
-                            onChange={(e) => handleChargeSelect(charge.id, e.target.checked)}
+                            onChange={(e) => handleChargeSelect(charge.uniqueId, e.target.checked)} // Use uniqueId
                             className="w-4 h-4 text-primary border-main rounded focus:ring-primary mt-0.5"
                           />
                           <div className="flex-1 grid grid-cols-1 gap-1">
@@ -452,7 +426,7 @@ const PaidCharges = ({
             type="button"
             onClick={handleClose}
             className="modal-btn-cancel text-sm py-2 px-3"
-            disabled={isLoading}
+            disabled={isSubmitting}
           >
             Close
           </button>
@@ -460,11 +434,20 @@ const PaidCharges = ({
             <button
               type="button"
               onClick={handleMarkAsPaid}
-              disabled={selectedCharges.length === 0 || isLoading}
+              disabled={selectedCharges.length === 0 || isSubmitting}
               className="modal-btn-primary disabled:modal-btn-disabled flex items-center gap-2 text-sm py-2 px-3"
             >
-              <CreditCard className="w-3 h-3" />
-              Mark as Paid ({selectedCharges.length})
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <CreditCard className="w-3 h-3" />
+                  Mark as Paid ({selectedCharges.length})
+                </>
+              )}
             </button>
           )}
         </div>

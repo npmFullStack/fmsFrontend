@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking/Request for Payment</title>
+    <style>
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+            }
+            .page-break {
+                page-break-after: always;
+            }
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 10px;
+            line-height: 1.2;
+            font-size: 11px;
+        }
+        
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 10px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        
+        .company-name {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .company-address {
+            font-size: 12px;
+        }
+        
+        .document-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        
+        .field-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        
+        .field-label {
+            width: 180px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        
+        .field-value {
+            flex: 1;
+            border-bottom: 1px solid black;
+            margin-left: 8px;
+            padding: 2px 4px;
+            color: blue;
+            min-height: 16px;
+        }
+        
+        .charges-section {
+            border: 2px solid black;
+            padding: 10px;
+            margin-top: 15px;
+        }
+        
+        .charges-header {
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .charges-grid {
+            display: flex;
+        }
+        
+        .charges-column {
+            flex: 1;
+        }
+        
+        .charge-row {
+            display: flex;
+            border-bottom: 1px solid #ccc;
+            min-height: 18px;
+        }
+        
+        .charge-description {
+            width: 40%;
+            padding: 2px 4px;
+        }
+        
+        .charge-amount {
+            width: 20%;
+            padding: 2px 4px;
+            text-align: left;
+        }
+        
+        .charge-payee {
+            width: 40%;
+            padding: 2px 4px;
+            border-bottom: 1px solid black;
+        }
+        
+        .no-border {
+            border-bottom: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="company-name">X-TRA MILE FREIGHT FORWARDING INC.</div>
+            <div class="company-address">POBLACION INDAHAG</div>
+            <div class="company-address">Cagayan de Oro City</div>
+            <div class="document-title">BOOKING/REQUEST FOR PAYMENT</div>
+        </div>
+
+        <div style="text-align: right; margin-bottom: 15px;">
+            <span style="font-weight: bold;">Date:</span> 
+            <span style="display: inline-block; width: 120px; border-bottom: 1px solid black; margin-left: 8px; text-align: center; color: blue;" id="currentDate"></span>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <div class="field-row">
+                <div class="field-label">HWB</div>
+                <div class="field-value" id="hwbNumber"></div>
+            </div>
+
+            <div class="field-row">
+                <div class="field-label">SHIPPER</div>
+                <div class="field-value" id="shipper"></div>
+            </div>
+
+            <div class="field-row">
+                <div class="field-label">CONTACT PERSON</div>
+                <div class="field-value" id="contactPerson"></div>
+            </div>
+
+            <div class="field-row">
+                <div class="field-label">PICKUP ADD</div>
+                <div class="field-value" id="pickupAddress"></div>
+            </div>
+
+            <div class="field-row">
+                <div class="field-label">DATE OF PICKUP/STUFFING</div>
+                <div class="field-value" id="pickupDate"></div>
+            </div>
+
+            <div class="field-row">
+                <div class="field-label">CONSIGNEE</div>
+                <div class="field-value" id="consignee"></div>
+            </div>
+
+            <div class="field-row">
+                <div class="field-label">ADDRESS</div>
+                <div class="field-value" id="consigneeAddress"></div>
+            </div>
+
+            <div class="field-row">
+                <div class="field-label">VOLUME</div>
+                <div class="field-value" id="volume"></div>
+            </div>
+
+            <div class="field-row">
+                <div class="field-label">ROUTE</div>
+                <div class="field-value" id="route"></div>
+            </div>
+
+            <div class="field-row">
+                <div class="field-label">MODE OF SERVICE</div>
+                <div class="field-value" id="modeOfService"></div>
+            </div>
+
+            <div class="field-row">
+                <div class="field-label">SHIPPING LINE</div>
+                <div class="field-value" id="shippingLine"></div>
+            </div>
+
+            <div class="field-row">
+                <div class="field-label">COMMODITY</div>
+                <div class="field-value" id="commodity"></div>
+            </div>
+
+            <div class="field-row">
+                <div class="field-label">TERMS</div>
+                <div class="field-value" id="terms"></div>
+            </div>
+
+            <div class="field-row">
+                <div class="field-label">VAN NUMBER(S)</div>
+                <div class="field-value" id="vanNumbers"></div>
+            </div>
+
+            <div class="field-row">
+                <div class="field-label">BOOKING NUMBER</div>
+                <div class="field-value" id="bookingNumber"></div>
+            </div>
+
+            <div class="field-row">
+                <div class="field-label">ATD</div>
+                <div class="field-value" id="atd"></div>
+            </div>
+
+            <div class="field-row">
+                <div class="field-label">ATA</div>
+                <div class="field-value" id="ata"></div>
+            </div>
+        </div>
+
+        <!-- Accounts Payable Section -->
+        <div class="charges-section">
+            <div class="charges-header">Note: Please pay the following:</div>
+            
+            <!-- Headers -->
+            <div class="charge-row">
+                <div class="charge-description" style="font-weight: bold;">Charge Description</div>
+                <div class="charge-amount" style="font-weight: bold;">Amount</div>
+                <div class="charge-payee no-border" style="font-weight: bold;">Payee</div>
+            </div>
+            
+            <!-- Charges will be populated by JavaScript -->
+            <div id="chargesContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        function formatCurrency(amount) {
+            if (!amount) return '0.00';
+            return parseFloat(amount).toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString();
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function populateBRFP() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const dataParam = urlParams.get('data');
+            
+            if (dataParam) {
+                try {
+                    const data = JSON.parse(decodeURIComponent(dataParam));
+                    const booking = data.booking || {};
+                    
+                    // Set current date
+                    document.getElementById('currentDate').textContent = new Date().toLocaleDateString();
+                    
+                    // Populate booking fields
+                    document.getElementById('hwbNumber').textContent = booking.hwb_number || '';
+                    document.getElementById('shipper').textContent = `${booking.first_name || ''} ${booking.last_name || ''}`.trim() || '';
+                    document.getElementById('contactPerson').textContent = booking.contact_person || '';
+                    document.getElementById('pickupAddress').textContent = booking.pickup_address || '';
+                    document.getElementById('pickupDate').textContent = formatDate(booking.stuffing_date);
+                    document.getElementById('consignee').textContent = booking.consignee_name || '';
+                    document.getElementById('consigneeAddress').textContent = booking.delivery_address || '';
+                    document.getElementById('volume').textContent = booking.container_quantity ? `${booking.container_quantity} x ${booking.container_size?.size || booking.container_size?.name || ''}` : '';
+                    document.getElementById('route').textContent = `${booking.origin?.route_name || booking.origin?.name || ''} → ${booking.destination?.route_name || booking.destination?.name || ''}`;
+                    document.getElementById('modeOfService').textContent = booking.mode_of_service || '';
+                    document.getElementById('shippingLine').textContent = booking.shipping_line?.name || '';
+                    document.getElementById('commodity').textContent = booking.commodity || '';
+                    document.getElementById('terms').textContent = booking.payment_terms || '';
+                    document.getElementById('vanNumbers').textContent = booking.van_number || '';
+                    document.getElementById('bookingNumber').textContent = booking.booking_number || '';
+                    document.getElementById('atd').textContent = formatDate(booking.atd);
+                    document.getElementById('ata').textContent = formatDate(booking.ata);
+                    
+                    // Populate charges
+                    const chargesContainer = document.getElementById('chargesContainer');
+                    chargesContainer.innerHTML = '';
+                    
+                    const allCharges = [];
+                    
+                    // Add freight charge
+                    if (data.freight_charge && data.freight_charge.amount) {
+                        allCharges.push({
+                            description: 'Freight Charges',
+                            amount: formatCurrency(data.freight_charge.amount),
+                            payee: data.freight_charge.payee || ''
+                        });
+                    }
+                    
+                    // Add trucking charges
+                    if (data.trucking_charges && data.trucking_charges.length > 0) {
+                        data.trucking_charges.forEach(charge => {
+                            allCharges.push({
+                                description: `Trucking - ${charge.type || ''}`,
+                                amount: formatCurrency(charge.amount),
+                                payee: charge.payee || ''
+                            });
+                        });
+                    }
+                    
+                    // Add port charges
+                    if (data.port_charges && data.port_charges.length > 0) {
+                        data.port_charges.forEach(charge => {
+                            allCharges.push({
+                                description: charge.charge_type || 'Port Charge',
+                                amount: formatCurrency(charge.amount),
+                                payee: charge.payee || ''
+                            });
+                        });
+                    }
+                    
+                    // Add miscellaneous charges
+                    if (data.misc_charges && data.misc_charges.length > 0) {
+                        data.misc_charges.forEach(charge => {
+                            allCharges.push({
+                                description: charge.charge_type || 'Misc Charge',
+                                amount: formatCurrency(charge.amount),
+                                payee: charge.payee || ''
+                            });
+                        });
+                    }
+                    
+                    // Render charges
+                    allCharges.forEach(charge => {
+                        const chargeRow = document.createElement('div');
+                        chargeRow.className = 'charge-row';
+                        chargeRow.innerHTML = `
+                            <div class="charge-description">${charge.description}</div>
+                            <div class="charge-amount">${charge.amount}</div>
+                            <div class="charge-payee">${charge.payee}</div>
+                        `;
+                        chargesContainer.appendChild(chargeRow);
+                    });
+                    
+                    // Auto-print after loading
+                    setTimeout(() => {
+                        window.print();
+                    }, 500);
+                    
+                } catch (error) {
+                    console.error('Error parsing data:', error);
+                    document.body.innerHTML = '<div style="text-align: center; padding: 50px; font-size: 16px;">Error loading BRFP data</div>';
+                }
+            } else {
+                document.body.innerHTML = '<div style="text-align: center; padding: 50px; font-size: 16px;">No data provided for printing</div>';
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', populateBRFP);
+    </script>
+</body>
+</html>

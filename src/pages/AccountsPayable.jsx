@@ -5,39 +5,41 @@ import { Plus, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { useAP } from '../hooks/useAP';
+import { useBooking } from '../hooks/useBooking';
 import { useOptimizedApi } from '../hooks/useOptimizedApi';
 import TableLayout from '../components/layout/TableLayout';
 import AccountsPayableTable from '../components/tables/AccountsPayableTable';
-import AddAPRecord from '../components/modals/AddAPRecord';
-import DeleteAPRecord from '../components/modals/DeleteAPRecord';
-import UpdateAPRecord from '../components/modals/UpdateAPRecord';
+import AddCharge from '../components/modals/AddCharge';
 import SearchBar from '../components/ui/SearchBar';
 import Pagination from '../components/ui/Pagination';
 
 const AccountsPayable = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
-  const [deletingRecord, setDeletingRecord] = useState(null);
-  const [deletingRecords, setDeletingRecords] = useState([]);
-  const [updatingRecord, setUpdatingRecord] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch] = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState('id');
   const [direction, setDirection] = useState('asc');
   const [forceRefresh, setForceRefresh] = useState(0);
+  const [selectedRecords, setSelectedRecords] = useState([]); // Add selected records state
 
   // Optimized API hook
   const { optimizedRequest, cancelRequest, clearCache } = useOptimizedApi();
 
-  // ✅ useAP hook handles everything
+  // ✅ useAP hookhandles everything
   const {
     apQuery,
     createAP,
-    updateAP,
-    deleteAP,
   } = useAP();
+
+  // ✅ Add useBooking hook to get bookings for AddCharge
+  const { bookingsQuery } = useBooking();
+  const { data: bookingsData } = bookingsQuery({
+    per_page: 1000, // Get all bookings for dropdown
+    status: 'active' // Only active bookings
+  });
+
+  const bookings = useMemo(() => bookingsData?.data || [], [bookingsData]);
 
   // ✅ Fetch AP records with optimization
   const { data, isLoading, isError, refetch } = apQuery({
@@ -86,6 +88,7 @@ const AccountsPayable = () => {
   const handleRefresh = useCallback(() => {
     clearCache('accounts-payables'); // Clear cache for fresh data
     setForceRefresh(prev => prev + 1);
+    setSelectedRecords([]); // Clear selection on refresh
     toast.success('Data refreshed');
   }, [clearCache]);
 
@@ -96,6 +99,98 @@ const AccountsPayable = () => {
     };
   }, [cancelRequest]);
 
+  /* =========================
+   * PRINT HANDLERS
+   * ========================= */
+  const handlePrintAccountsPayable = useCallback((apData) => {
+    // Prepare data for printing
+    const printData = {
+      ...apData,
+      // Ensure all charge arrays exist
+      trucking_charges: apData.trucking_charges || [],
+      port_charges: apData.port_charges || [],
+      misc_charges: apData.misc_charges || [],
+      freight_charge: apData.freight_charge || null,
+      created_at: apData.created_at || new Date().toISOString(),
+      total_expenses: apData.total_expenses || 0
+    };
+
+    // Encode and open print window
+    const encodedData = encodeURIComponent(JSON.stringify(printData));
+    const printUrl = `/printAccountsPayable.html?data=${encodedData}`;
+    
+    const printWindow = window.open(printUrl, '_blank');
+    if (printWindow) {
+      printWindow.focus();
+    }
+  }, []);
+
+  const handleBulkPrint = useCallback((recordIds) => {
+    if (recordIds.length === 0) {
+      toast.error('Please select at least one record to print');
+      return;
+    }
+
+    const selectedRecords = apRecords.filter(ap => recordIds.includes(ap.id));
+    
+    // Prepare bulk print data
+    const printData = selectedRecords.map(ap => ({
+      ...ap,
+      trucking_charges: ap.trucking_charges || [],
+      port_charges: ap.port_charges || [],
+      misc_charges: ap.misc_charges || [],
+      freight_charge: ap.freight_charge || null,
+      created_at: ap.created_at || new Date().toISOString(),
+      total_expenses: ap.total_expenses || 0
+    }));
+
+    // Encode and open print window with multiple parameter
+    const encodedData = encodeURIComponent(JSON.stringify(printData));
+    const printUrl = `/printAccountsPayable.html?data=${encodedData}&multiple=true`;
+    
+    const printWindow = window.open(printUrl, '_blank');
+    if (printWindow) {
+      printWindow.focus();
+    }
+    
+    toast.success(`Printing ${recordIds.length} records`);
+  }, [apRecords]);
+
+  const handleSelectRecord = useCallback((recordId, isSelected) => {
+    setSelectedRecords(prev => 
+      isSelected 
+        ? [...prev, recordId]
+        : prev.filter(id => id !== recordId)
+    );
+  }, []);
+
+  const handleSelectAllRecords = useCallback((recordIds) => {
+    setSelectedRecords(recordIds);
+  }, []);
+
+
+const handlePrintBRFP = useCallback((apData) => {
+  // Prepare data for BRFP printing
+  const printData = {
+    ...apData,
+    booking: apData.booking || {},
+    // Ensure all charge arrays exist
+    trucking_charges: apData.trucking_charges || [],
+    port_charges: apData.port_charges || [],
+    misc_charges: apData.misc_charges || [],
+    freight_charge: apData.freight_charge || null,
+    created_at: apData.created_at || new Date().toISOString()
+  };
+
+  // Encode and open BRFP print window
+  const encodedData = encodeURIComponent(JSON.stringify(printData));
+  const printUrl = `/printBRFP.html?data=${encodedData}`;
+  
+  const printWindow = window.open(printUrl, '_blank');
+  if (printWindow) {
+    printWindow.focus();
+  }
+}, []);
   /* =========================
    * CRUD ACTIONS
    * ========================= */
@@ -112,54 +207,6 @@ const AccountsPayable = () => {
       toast.error(error.response?.data?.message || 'Failed to add AP record');
     }
   }, [createAP, clearCache]);
-
-  const handleUpdate = useCallback(async (id, apData) => {
-    try {
-      await updateAP.mutateAsync({ 
-        id, 
-        ...apData 
-      });
-      
-      // Clear cache after successful update
-      clearCache('accounts-payables');
-      toast.success('AP record updated successfully');
-      setIsUpdateModalOpen(false);
-      setUpdatingRecord(null);
-    } catch (error) {
-      console.error('Update AP record error:', error);
-      toast.error(error.response?.data?.message || 'Failed to update AP record');
-    }
-  }, [updateAP, clearCache]);
-
-  const handleDelete = useCallback(() => {
-    if (deletingRecord) {
-      deleteAP.mutate(deletingRecord.id, {
-        onSuccess: () => {
-          clearCache('accounts-payables');
-          toast.success('AP record deleted successfully');
-          setIsDeleteModalOpen(false);
-          setDeletingRecord(null);
-        },
-        onError: (error) => {
-          console.error('Delete AP record error:', error);
-          toast.error(error.response?.data?.message || 'Failed to delete AP record');
-        },
-      });
-    } else {
-      setIsDeleteModalOpen(false);
-      setDeletingRecord(null);
-    }
-  }, [deleteAP, deletingRecord, clearCache]);
-
-  const handleEditClick = useCallback((record) => {
-    setUpdatingRecord(record);
-    setIsUpdateModalOpen(true);
-  }, []);
-
-  const handleDeleteClick = useCallback((record) => {
-    setDeletingRecord(record);
-    setIsDeleteModalOpen(true);
-  }, []);
 
   /* =========================
    * STATES
@@ -231,18 +278,22 @@ const AccountsPayable = () => {
                 disabled={createAP.isPending}
               >
                 <Plus className="page-btn-icon" />
-                Add AP Record
+                Add Charges
               </button>
             </div>
           }
         >
           <AccountsPayableTable
             data={apRecords}
-            onEdit={handleEditClick}
-            onDelete={handleDeleteClick}
             sortField={sort}
             sortDirection={direction}
             onSortChange={handleSortChange}
+            onPrint={handlePrintAccountsPayable}
+            onPrintBRFP={handlePrintBRFP}
+            onBulkPrint={handleBulkPrint}
+            selectedRecords={selectedRecords}
+            onSelectRecord={handleSelectRecord}
+            onSelectAllRecords={handleSelectAllRecords}
             isLoading={isLoading}
           />
         </TableLayout>
@@ -258,34 +309,13 @@ const AccountsPayable = () => {
         </div>
       )}
 
-      {/* Modals */}
-      <AddAPRecord
+      {/* Add Charge Modal - Now with bookings prop */}
+      <AddCharge
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSave={handleAdd}
         isLoading={createAP.isPending}
-      />
-
-      <UpdateAPRecord
-        isOpen={isUpdateModalOpen}
-        onClose={() => {
-          setIsUpdateModalOpen(false);
-          setUpdatingRecord(null);
-        }}
-        onUpdate={handleUpdate}
-        record={updatingRecord}
-        isLoading={updateAP.isPending}
-      />
-
-      <DeleteAPRecord
-        isOpen={isDeleteModalOpen}
-        onClose={() => {
-          setIsDeleteModalOpen(false);
-          setDeletingRecord(null);
-        }}
-        onDelete={handleDelete}
-        record={deletingRecord}
-        isLoading={deleteAP.isPending}
+        bookings={bookings} // Pass bookings to AddCharge
       />
     </div>
   );

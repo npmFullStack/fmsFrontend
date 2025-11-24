@@ -48,36 +48,6 @@ const apApi = {
     return data;
   },
 
-  update: async ({ id, ...payload }) => {
-    const { data } = await retryWithBackoff(
-      () => api.put(`/accounts-payables/${id}`, payload),
-      2,
-      1000,
-      30000
-    );
-    return data;
-  },
-
-  delete: async (id) => {
-    const { data } = await retryWithBackoff(
-      () => api.delete(`/accounts-payables/${id}`),
-      2,
-      1000,
-      30000
-    );
-    return data;
-  },
-
-  updateChargeStatus: async (apId, chargeType, chargeId, payload) => {
-    const { data } = await retryWithBackoff(
-      () => api.put(`/accounts-payables/${apId}/${chargeType}/${chargeId}`, payload),
-      2,
-      1000,
-      30000
-    );
-    return data;
-  },
-
   // Pay Charges specific APIs
   getPayableCharges: async (params = {}, signal) => {
     const { data } = await retryWithBackoff(
@@ -202,47 +172,6 @@ export const useAP = () => {
     },
   });
 
-  const updateAP = useMutation({
-    mutationFn: apApi.update,
-    onSuccess: (data) => {
-      // Invalidate specific AP record and all AP records
-      queryClient.invalidateQueries({ queryKey: AP_KEY });
-      queryClient.invalidateQueries({ queryKey: PAY_CHARGES_KEY });
-      if (data?.id) {
-        queryClient.invalidateQueries({ queryKey: [...AP_KEY, data.id] });
-      }
-      console.log('✅ AP record updated successfully');
-    },
-    onError: (error) => {
-      console.error('❌ Update AP error:', error.response?.data || error.message);
-    },
-  });
-
-  const deleteAP = useMutation({
-    mutationFn: apApi.delete,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: AP_KEY });
-      queryClient.invalidateQueries({ queryKey: PAY_CHARGES_KEY });
-      console.log('✅ AP record deleted successfully');
-    },
-    onError: (error) => {
-      console.error('❌ Delete AP error:', error.response?.data || error.message);
-    },
-  });
-
-  const updateChargeStatus = useMutation({
-    mutationFn: ({ apId, chargeType, chargeId, payload }) => 
-      apApi.updateChargeStatus(apId, chargeType, chargeId, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: AP_KEY });
-      queryClient.invalidateQueries({ queryKey: PAY_CHARGES_KEY });
-      console.log('✅ Charge status updated successfully');
-    },
-    onError: (error) => {
-      console.error('❌ Charge update error:', error.response?.data || error.message);
-    },
-  });
-
   const markChargeAsPaid = useMutation({
     mutationFn: apApi.markChargeAsPaid,
     onSuccess: () => {
@@ -276,9 +205,6 @@ export const useAP = () => {
     
     // Mutations
     createAP,
-    updateAP,
-    deleteAP,
-    updateChargeStatus,
     markChargeAsPaid,
     markMultipleChargesAsPaid,
   };
