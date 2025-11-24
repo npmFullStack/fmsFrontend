@@ -42,42 +42,30 @@ const CustomerBookings = () => {
     total: data?.total || 0,
   };
 
-  // Function to get simplified charges breakdown for a booking (customer view)
+
   const getChargesBreakdown = useCallback((bookingId) => {
-    if (!bookingId) return null;
-    
-    // Use the paymentBreakdownQuery hook for this specific booking
-    const { data: breakdownData, isLoading: breakdownLoading } = paymentBreakdownQuery(bookingId);
-    
-    if (breakdownLoading || !breakdownData) return null;
-    
-    console.log('🎯 Breakdown data for booking', bookingId, ':', breakdownData);
-    
-    // Check if we have charges in the breakdown data
-    if (breakdownData.charges && Array.isArray(breakdownData.charges)) {
-      // Simplify the charges - only show charge type and total amount (with margin included)
-      const simplifiedCharges = breakdownData.charges.map(charge => ({
-        description: charge.description,
-        amount: charge.total // Show only the total amount (base + markup)
-      }));
-      
-      console.log('🎯 Simplified charges:', simplifiedCharges);
-      return simplifiedCharges;
-    }
-    
-    // Fallback: Check if booking has AR data with charges
-    const booking = bookings.find(b => b.id === bookingId);
-    if (booking?.accounts_receivable?.charges) {
-      const simplifiedCharges = booking.accounts_receivable.charges.map(charge => ({
-        description: charge.description,
-        amount: charge.total
-      }));
-      console.log('🎯 Fallback charges from AR:', simplifiedCharges);
-      return simplifiedCharges;
-    }
-    
+  if (!bookingId) return null;
+  
+  const { data: breakdownData, isLoading: breakdownLoading } = paymentBreakdownQuery(bookingId);
+  
+  if (breakdownLoading) {
+    console.log('🔄 Loading breakdown for booking:', bookingId);
     return null;
-  }, [paymentBreakdownQuery, bookings]);
+  }
+  
+  if (!breakdownData) {
+    console.log('❌ No breakdown data for booking:', bookingId);
+    return null;
+  }
+  
+  console.log('✅ Breakdown data for booking', bookingId, ':', breakdownData);
+  console.log('✅ Charges array:', breakdownData.charges);
+  console.log('✅ Charges type:', typeof breakdownData.charges);
+  console.log('✅ Is array?:', Array.isArray(breakdownData.charges));
+  
+  return breakdownData;
+}, [paymentBreakdownQuery]);
+  
 
   const handleAdd = useCallback(
     async (bookingData) => {

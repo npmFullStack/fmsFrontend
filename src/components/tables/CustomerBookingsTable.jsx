@@ -258,7 +258,7 @@ const getDisplayStatus = (booking) => {
                   {hasPayment && (
                     <div className="text-right">
                       <div className="text-xs font-bold text-muted mb-1 uppercase">TOTAL AMOUNT</div>
-                      <div className="text-xl font-bold text-primary">
+                      <div className="text-xl font-bold text-content">
                         {formatCurrency(item.accounts_receivable.total_payment)}
                       </div>
                     </div>
@@ -332,47 +332,63 @@ const getDisplayStatus = (booking) => {
               {/* Payment Notice - Different messages based on AR record status */}
               {hasARRecord ? (
                 hasOutstandingPayment(item) && (
-                  <div className="mb-3 p-3 border border-blue-700 bg-blue-900 rounded-lg">
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="w-4 h-4 text-blue-100 mt-0.5 flex-shrink-0" />
+                  <div className={`email-notice ${
+                    isOverdue
+                      ? 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900'
+                      : 'border-blue-600 bg-white dark:border-blue-700 dark:bg-blue-900'
+                  }`}>
+                    <div className="flex items-start gap-4 pl-4">
+                      <AlertCircle className={`email-notice-icon ${
+                        isOverdue
+                          ? 'text-red-600 dark:text-red-100'
+                          : 'text-blue-600 dark:text-blue-100'
+                      }`} />
                       <div className="flex-1">
-                        <h4 className="font-semibold text-blue-100 text-sm mb-1">
-                          {isDelivered ? 'Payment Required - Shipment Delivered' : 'Outstanding Balance'}
-                        </h4>
-                        <div className="text-blue-200 text-sm space-y-1">
+                        <p className={`email-notice-text ${
+                          isOverdue
+                            ? 'text-red-700 dark:text-red-200'
+                            : 'text-black dark:text-blue-200'
+                        }`}>
+                          <strong className={`email-notice-heading ${
+                            isOverdue
+                              ? 'text-red-600 dark:text-red-100'
+                              : 'text-blue-600 dark:text-blue-100'
+                          }`}>
+                            {isDelivered ? 'Payment Required - Shipment Delivered' : 'Outstanding Balance'}
+                          </strong>{' '}
                           {isDelivered ? (
                             <>
-                              <p>Your shipment has been successfully delivered. You can pay your balance of <span className="font-bold">{formatCurrency(totalPaymentDue)}</span> today.</p>
+                              Your shipment has been successfully delivered. You can pay your balance of <span className="font-bold">{formatCurrency(totalPaymentDue)}</span> today.
                               {dueDate ? (
-                                <p className="font-medium">
+                                <>
                                   Payment is due by {formatDate(dueDate)}.
                                   {isOverdue && (
-                                    <span className="text-red-300 ml-1">This payment is now overdue.</span>
+                                    <span className="font-medium ml-1">This payment is now overdue.</span>
                                   )}
-                                </p>
+                                </>
                               ) : (
-                                <p className="text-blue-300">Payment due date will be calculated after delivery.</p>
+                                'Payment due date will be calculated after delivery.'
                               )}
                             </>
                           ) : (
                             <>
-                              <p>You can pay your balance of <span className="font-bold">{formatCurrency(totalPaymentDue)}</span> today.</p>
+                              You can pay your balance of <span className="font-bold">{formatCurrency(totalPaymentDue)}</span> today.
                               {dueDate ? (
-                                <p className="font-medium">
+                                <>
                                   Payment is due by {formatDate(dueDate)}.
                                   {isOverdue && (
-                                    <span className="text-red-300 ml-1">This payment is now overdue.</span>
+                                    <span className="font-medium ml-1">This payment is now overdue.</span>
                                   )}
-                                </p>
+                                </>
                               ) : (
-                                <p className="text-blue-300">Payment due date will be calculated after delivery.</p>
+                                'Payment due date will be calculated after delivery.'
                               )}
                             </>
                           )}
-                        </div>
+                        </p>
                         {isOverdue && (
                           <div className="mt-2 p-2 bg-red-900 border border-red-700 rounded text-red-100 text-xs">
-                            <p className="font-medium">Your payment is overdue. Please pay right away to avoid any service restrictions.</p>
+                            <p className="font-medium">Your payment is overdue. Please pay right away to avoid restrictions in availing our services.</p>
                             <p className="mt-1">Note: We still accept overdue payments and do not impose additional fees.</p>
                           </div>
                         )}
@@ -382,17 +398,16 @@ const getDisplayStatus = (booking) => {
                 )
               ) : (
                 // No AR record yet
-                <div className="mb-3 p-3 border border-blue-700 bg-blue-900 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="w-4 h-4 text-blue-100 mt-0.5 flex-shrink-0" />
+                <div className="email-notice border-blue-600 bg-white dark:border-blue-700 dark:bg-blue-900">
+                  <div className="flex items-start gap-4 pl-4">
+                    <AlertCircle className="email-notice-icon text-blue-600 dark:text-blue-100" />
                     <div className="flex-1">
-                      <h4 className="font-semibold text-blue-100 text-sm mb-1">
-                        Payment Information Pending
-                      </h4>
-                      <div className="text-blue-200 text-sm space-y-1">
-                        <p>Your payment amount is being calculated by our admin team.</p>
-                        <p>Once the amount is set, you'll be able to view the charges breakdown and make payments here.</p>
-                      </div>
+                      <p className="email-notice-text text-black dark:text-blue-200">
+                        <strong className="email-notice-heading text-blue-600 dark:text-blue-100">
+                          Payment Information Pending
+                        </strong>{' '}
+                        Your payment amount is being calculated by our admin team. Once the amount is set, you'll be able to view the charges breakdown and make payments here.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -531,38 +546,18 @@ const getDisplayStatus = (booking) => {
 
                         {hasPayment ? (
                           <div className="space-y-3">
-                            {/* Total Payment Summary */}
-                            <div className="bg-main/30 border border-main rounded-lg p-3">
-                              <div className="flex justify-between items-center">
-                                <span className="font-semibold text-heading">Total Payment:</span>
-                                <span className="font-bold text-heading text-lg">
-                                  {formatCurrency(item.accounts_receivable.total_payment)}
-                                </span>
-                              </div>
-                              {item.accounts_receivable.collectible_amount > 0 && (
-                                <div className="flex justify-between items-center mt-2 pt-2 border-t border-main/20">
-                                  <span className="font-semibold text-orange-600">Balance Due:</span>
-                                  <span className="font-bold text-orange-600 text-lg">
-                                    {formatCurrency(item.accounts_receivable.collectible_amount)}
-                                  </span>
-                                </div>
-                              )}
-                              {item.accounts_receivable.is_paid && (
-                                <div className="flex justify-between items-center mt-2 pt-2 border-t border-main/20">
-                                  <span className="font-semibold text-green-600">Status:</span>
-                                  <span className="font-bold text-green-600 text-lg">Paid</span>
-                                </div>
-                              )}
-                            </div>
-
                             {/* Individual Charges */}
                             {(() => {
                               // Check multiple sources for charges data
-                              const chargesFromBreakdown = chargesBreakdown && chargesBreakdown.charges && chargesBreakdown.charges.length > 0 ? chargesBreakdown.charges : null;
+                              const chargesFromBreakdown = chargesBreakdown?.charges && 
+                                                      Array.isArray(chargesBreakdown.charges) && 
+                                                      chargesBreakdown.charges.length > 0 ? 
+                                                      chargesBreakdown.charges : null;
+                              
                               const chargesFromAR = item.accounts_receivable?.charges && 
-                                                Array.isArray(item.accounts_receivable.charges) && 
-                                                item.accounts_receivable.charges.length > 0 ? 
-                                                item.accounts_receivable.charges : null;
+                                              Array.isArray(item.accounts_receivable.charges) && 
+                                              item.accounts_receivable.charges.length > 0 ? 
+                                              item.accounts_receivable.charges : null;
                               
                               const chargesToDisplay = chargesFromBreakdown || chargesFromAR;
 
@@ -573,20 +568,32 @@ const getDisplayStatus = (booking) => {
                                     <div key={idx} className="flex justify-between items-start py-2 border-b border-main/20">
                                       <div className="flex-1">
                                         <div className="font-medium text-heading">{charge.description}</div>
-                                        <div className="text-xs text-muted mt-1">
-                                          Type: {charge.type || 'Service Charge'}
-                                        </div>
+
                                       </div>
                                       <div className="font-semibold text-heading text-right min-w-[100px]">
-                                        {formatCurrency(charge.total || charge.amount)}
+                                        {formatCurrency(charge.total)}
                                       </div>
                                     </div>
                                   ))}
                                   
-                                  {/* Simplified Total */}
-                                  <div className="flex justify-between items-center pt-2 border-t border-main/30 font-bold text-heading text-sm">
-                                    <div>Total Amount:</div>
-                                    <div>{formatCurrency(item.accounts_receivable.total_payment)}</div>
+                                  {/* Total Amount and Balance Due at Bottom */}
+                                  <div className="space-y-2 pt-2 border-t border-main/30">
+                                    <div className="flex justify-between items-center font-bold text-heading text-sm">
+                                      <div>Total Amount:</div>
+                                      <div>{formatCurrency(item.accounts_receivable.total_payment)}</div>
+                                    </div>
+                                    {item.accounts_receivable.collectible_amount > 0 && (
+                                      <div className="flex justify-between items-center font-bold text-orange-600 text-sm">
+                                        <div>Balance Due:</div>
+                                        <div>{formatCurrency(item.accounts_receivable.collectible_amount)}</div>
+                                      </div>
+                                    )}
+                                    {item.accounts_receivable.is_paid && (
+                                      <div className="flex justify-between items-center font-bold text-green-600 text-sm">
+                                        <div>Status:</div>
+                                        <div>Paid</div>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               ) : (
