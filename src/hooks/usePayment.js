@@ -34,8 +34,12 @@ const paymentApi = {
     const { data } = await api.post('/payments', payload);
     return data;
   },
+  // FIXED: This should match the route definition
   createForBooking: async (bookingId, payload) => {
-    const { data } = await api.post(`/customer/bookings/${bookingId}/pay`, payload);
+    const { data } = await api.post(`/customer/bookings/${bookingId}/pay`, {
+      ...payload,
+      booking_id: bookingId // Ensure booking_id is included
+    });
     return data;
   },
   update: async ({ id, ...payload }) => {
@@ -50,9 +54,13 @@ const paymentApi = {
     const { data } = await api.delete(`/payments/${id}`);
     return data;
   },
+  checkStatus: async (id) => {
+    const { data } = await api.get(`/payments/${id}/status`);
+    return data;
+  },
 };
 
-// Hook
+// Hook - rest remains the same...
 export const usePayment = () => {
   const queryClient = useQueryClient();
 
@@ -86,6 +94,15 @@ export const usePayment = () => {
     enabled: !!bookingId,
   });
 
+  const paymentStatusQuery = (id) => useQuery({
+    queryKey: [...PAYMENT_KEY, 'status', id],
+    queryFn: () => paymentApi.checkStatus(id),
+    enabled: !!id,
+    refetchInterval: (data) => {
+      return data?.status === 'processing' ? 5000 : false;
+    },
+  });
+
   // Mutations
   const createPayment = useMutation({
     mutationFn: paymentApi.create,
@@ -101,10 +118,11 @@ export const usePayment = () => {
 
   const createPaymentForBooking = useMutation({
     mutationFn: ({ bookingId, ...payload }) => paymentApi.createForBooking(bookingId, payload),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries(PAYMENT_KEY);
       queryClient.invalidateQueries(CUSTOMER_BOOKING_KEY);
       console.log('✅ Payment created successfully');
+      return data;
     },
     onError: (error) => {
       console.error('❌ Create payment error:', error.response?.data || error.message);
@@ -145,6 +163,18 @@ export const usePayment = () => {
     },
   });
 
+  const checkPaymentStatus = useMutation({
+    mutationFn: paymentApi.checkStatus,
+    onSuccess: () => {
+      queryClient.invalidateQueries(PAYMENT_KEY);
+      queryClient.invalidateQueries(CUSTOMER_BOOKING_KEY);
+      console.log('✅ Payment status checked');
+    },
+    onError: (error) => {
+      console.error('❌ Check payment status error:', error.response?.data || error.message);
+    },
+  });
+
   return {
     // Queries
     customerBookingsQuery,
@@ -152,6 +182,7 @@ export const usePayment = () => {
     paymentsQuery,
     paymentQuery,
     paymentsByBookingQuery,
+    paymentStatusQuery,
     
     // Mutations
     createPayment,
@@ -159,5 +190,6 @@ export const usePayment = () => {
     updatePayment,
     processGCashPayment,
     deletePayment,
+    checkPaymentStatus,
   };
 };

@@ -1,7 +1,7 @@
 // [file name]: CustomerBookings.jsx
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useDebounce } from 'use-debounce';
-import { Plus } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { usePayment } from '../hooks/usePayment';
 import { useBooking } from '../hooks/useBooking';
@@ -20,12 +20,13 @@ const CustomerBookings = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch] = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
+  const [lastRefreshed, setLastRefreshed] = useState(new Date());
 
-  const { customerBookingsQuery } = usePayment();
+  const { customerBookingsQuery, checkPaymentStatus } = usePayment();
   const { createBooking } = useBooking();
   const { paymentBreakdownQuery } = useAR();
 
-  const { data, isLoading, isError } = customerBookingsQuery({
+  const { data, isLoading, isError, refetch } = customerBookingsQuery({
     search: debouncedSearch,
     page,
     per_page: 10,
@@ -42,46 +43,44 @@ const CustomerBookings = () => {
     total: data?.total || 0,
   };
 
+  // Auto-refresh data every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refetch();
+      setLastRefreshed(new Date());
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [refetch]);
 
   const getChargesBreakdown = useCallback((bookingId) => {
-  if (!bookingId) return null;
+    if (!bookingId) return null;
+    
+    const { data: breakdownData, isLoading: breakdownLoading } = paymentBreakdownQuery(bookingId);
+    
+    if (breakdownLoading) {
+      return null;
+    }
+    
+    if (!breakdownData) {
+      return null;
+    }
+    
+    return breakdownData;
+  }, [paymentBreakdownQuery]);
   
-  const { data: breakdownData, isLoading: breakdownLoading } = paymentBreakdownQuery(bookingId);
-  
-  if (breakdownLoading) {
-    console.log('🔄 Loading breakdown for booking:', bookingId);
-    return null;
-  }
-  
-  if (!breakdownData) {
-    console.log('❌ No breakdown data for booking:', bookingId);
-    return null;
-  }
-  
-  console.log('✅ Breakdown data for booking', bookingId, ':', breakdownData);
-  console.log('✅ Charges array:', breakdownData.charges);
-  console.log('✅ Charges type:', typeof breakdownData.charges);
-  console.log('✅ Is array?:', Array.isArray(breakdownData.charges));
-  
-  return breakdownData;
-}, [paymentBreakdownQuery]);
-  
-
   const handleAdd = useCallback(
     async (bookingData) => {
-      console.log('🎯 CUSTOMER: handleAdd called with data:', bookingData);
       try {
-        console.log('🎯 CUSTOMER: Calling createBooking.mutateAsync...');
         await createBooking.mutateAsync(bookingData);
-        console.log('🎯 CUSTOMER: createBooking completed successfully');
         toast.success('Booking submitted successfully! Waiting for admin approval.');
         setIsAddModalOpen(false);
+        refetch();
       } catch (error) {
-        console.error('🎯 CUSTOMER: Add booking error:', error);
         toast.error(error.response?.data?.message || 'Failed to submit booking');
       }
     },
-    [createBooking]
+    [createBooking, refetch]
   );
 
   const handlePayBooking = useCallback((booking) => {
@@ -96,12 +95,22 @@ const CustomerBookings = () => {
 
   const handlePaymentSuccess = useCallback(() => {
     toast.success('Payment initiated successfully! You will receive a confirmation soon.');
-  }, []);
+    // Refresh data to show updated payment status
+    setTimeout(() => {
+      refetch();
+    }, 2000);
+  }, [refetch]);
 
   const handleCloseModal = useCallback(() => {
     setIsPayModalOpen(false);
     setSelectedBooking(null);
   }, []);
+
+  const handleRefresh = useCallback(() => {
+    refetch();
+    setLastRefreshed(new Date());
+    toast.success('Bookings refreshed');
+  }, [refetch]);
 
   // Function to generate PDF billing statement using the HTML template
   const generateBillingStatementPDF = (statementData) => {
@@ -137,8 +146,16 @@ const CustomerBookings = () => {
     <div className="page-container">
       {/* Page Header */}
       <div className="page-header">
-        <h1 className="page-title">My Bookings</h1>
-        <p className="page-subtitle">Manage your shipping bookings and requests</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="page-title">My Bookings</h1>
+            <p className="page-subtitle">Manage your shipping bookings and requests</p>
+          </div>
+          <div className="text-xs text-gray-500 text-right">
+            <div>Last updated: {lastRefreshed.toLocaleTimeString()}</div>
+            <div>Auto-refreshes every 30 seconds</div>
+          </div>
+        </div>
       </div>
 
       {/* Table Section */}
@@ -153,7 +170,15 @@ const CustomerBookings = () => {
             />
           }
           actions={
-            <div className="page-actions">
+            <div className="page-actions flex gap-2">
+              <button
+                onClick={handleRefresh}
+                className="page-btn-secondary flex items-center gap-2"
+                disabled={isLoading}
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
               <button
                 onClick={() => setIsAddModalOpen(true)}
                 className="page-btn-primary"

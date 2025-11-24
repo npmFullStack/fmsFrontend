@@ -23,7 +23,8 @@ import {
   Download,
   FileText,
   Calculator,
-  AlertCircle
+  AlertCircle,
+  BadgeCheck
 } from 'lucide-react';
 import { formatDate, formatCurrency } from '../../utils/formatters';
 
@@ -59,8 +60,12 @@ const getDisplayStatus = (booking) => {
   return statusMap[booking.booking_status] || 'Pending';
 };
 
-  // Status badge configuration - same as CargoMonitoringTable
-  const getBookingStatusBadge = (status) => {
+  // Status badge configuration - updated with payment status
+  const getBookingStatusBadge = (status, isFullyPaid = false) => {
+    if (isFullyPaid) {
+      return 'bg-green-500 text-white border-green-600';
+    }
+    
     const statusConfig = {
       'Pending': 'bg-gray-500 text-white border-gray-600',
       'Picked Up': 'bg-blue-500 text-white border-blue-600',
@@ -73,7 +78,11 @@ const getDisplayStatus = (booking) => {
     return statusConfig[status] || 'bg-gray-500 text-white border-gray-600';
   };
 
-  const getBookingStatusIcon = (status) => {
+  const getBookingStatusIcon = (status, isFullyPaid = false) => {
+    if (isFullyPaid) {
+      return <BadgeCheck className="w-4 h-4" />;
+    }
+    
     const iconConfig = {
       'Pending': <Clock className="w-4 h-4" />,
       'Picked Up': <Truck className="w-4 h-4" />,
@@ -95,6 +104,15 @@ const getDisplayStatus = (booking) => {
     if (booking.accounts_receivable) {
       const ar = booking.accounts_receivable;
       return ar.collectible_amount > 0 && !ar.is_paid;
+    }
+    return false;
+  };
+
+  // Check if booking is fully paid
+  const isFullyPaid = (booking) => {
+    if (booking.accounts_receivable) {
+      const ar = booking.accounts_receivable;
+      return ar.is_paid || ar.collectible_amount === 0;
     }
     return false;
   };
@@ -179,7 +197,8 @@ const getDisplayStatus = (booking) => {
       departureDate: booking.departure_date ? formatDate(booking.departure_date) : 'Not specified',
       deliveryDate: booking.delivery_date ? formatDate(booking.delivery_date) : 'Not specified',
       dueDate: dueDate ? formatDate(dueDate) : 'Not specified',
-      isOverdue: isPaymentOverdue(booking)
+      isOverdue: isPaymentOverdue(booking),
+      isFullyPaid: isFullyPaid(booking)
     };
     
     return statementData;
@@ -213,6 +232,7 @@ const getDisplayStatus = (booking) => {
         const totalItems = calculateTotalItems(item.items);
         const isExpanded = expandedCards[item.id || index];
         const displayStatus = getDisplayStatus(item);
+        const fullyPaid = isFullyPaid(item);
         const canPay = hasOutstandingPayment(item);
         const totalPaymentDue = getTotalPaymentDue(item);
         const hasPayment = hasPaymentData(item);
@@ -270,9 +290,9 @@ const getDisplayStatus = (booking) => {
                     </div>
                   )}
                   {/* Booking Status */}
-                  <span className={`px-3 py-1 text-sm font-medium rounded-full border ${getBookingStatusBadge(displayStatus)} flex items-center gap-2`}>
-                    {getBookingStatusIcon(displayStatus)}
-                    {displayStatus}
+                  <span className={`px-3 py-1 text-sm font-medium rounded-full border ${getBookingStatusBadge(displayStatus, fullyPaid)} flex items-center gap-2`}>
+                    {getBookingStatusIcon(displayStatus, fullyPaid)}
+                    {fullyPaid ? 'Fully Paid' : displayStatus}
                   </span>
                 </div>
               </div>
@@ -331,7 +351,21 @@ const getDisplayStatus = (booking) => {
 
               {/* Payment Notice - Different messages based on AR record status */}
               {hasARRecord ? (
-                hasOutstandingPayment(item) && (
+                fullyPaid ? (
+                  <div className="email-notice border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-900">
+                    <div className="flex items-start gap-4 pl-4">
+                      <BadgeCheck className="email-notice-icon text-green-600 dark:text-green-100" />
+                      <div className="flex-1">
+                        <p className="email-notice-text text-green-700 dark:text-green-200">
+                          <strong className="email-notice-heading text-green-600 dark:text-green-100">
+                            Payment Complete
+                          </strong>{' '}
+                          This booking is fully paid. Thank you for your payment!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : hasOutstandingPayment(item) && (
                   <div className={`email-notice ${
                     isOverdue
                       ? 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900'
@@ -588,10 +622,10 @@ const getDisplayStatus = (booking) => {
                                         <div>{formatCurrency(item.accounts_receivable.collectible_amount)}</div>
                                       </div>
                                     )}
-                                    {item.accounts_receivable.is_paid && (
+                                    {fullyPaid && (
                                       <div className="flex justify-between items-center font-bold text-green-600 text-sm">
                                         <div>Status:</div>
-                                        <div>Paid</div>
+                                        <div>Fully Paid</div>
                                       </div>
                                     )}
                                   </div>
@@ -637,6 +671,16 @@ const getDisplayStatus = (booking) => {
                   <CreditCard className="w-4 h-4" />
                   Pay {formatCurrency(totalPaymentDue)}
                 </button>
+              </div>
+            )}
+
+            {/* Fully Paid Status */}
+            {fullyPaid && (
+              <div className="bg-green-50 px-4 py-3 border-t border-green-200 flex items-center justify-center">
+                <div className="flex items-center gap-2 text-green-700">
+                  <BadgeCheck className="w-5 h-5" />
+                  <span className="font-semibold">Fully Paid</span>
+                </div>
               </div>
             )}
           </div>

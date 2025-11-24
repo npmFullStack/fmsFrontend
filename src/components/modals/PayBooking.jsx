@@ -5,11 +5,11 @@ import {
   CreditCard, 
   Smartphone, 
   CheckCircle, 
-  XCircle, 
-  AlertTriangle,
   TrendingUp,
   Calculator,
-  Shield
+  Shield,
+  Clipboard,
+  SmartphoneIcon
 } from 'lucide-react';
 import SharedModal from '../ui/SharedModal';
 import { formatCurrency } from '../../utils/formatters';
@@ -26,23 +26,22 @@ const PayBooking = ({
   const [amount, setAmount] = useState('');
   const [gcashMobile, setGcashMobile] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentData, setPaymentData] = useState(null);
 
   const { createPaymentForBooking } = usePayment();
 
   // Get actual amount due from AR data
   const actualAmountDue = booking?.accounts_receivable?.collectible_amount || 0;
   const totalPayment = booking?.accounts_receivable?.total_payment || 0;
-  const totalExpenses = booking?.accounts_receivable?.total_expenses || 0;
-  const profit = booking?.accounts_receivable?.profit || 0;
   const isFullyPaid = actualAmountDue === 0;
 
   // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen && booking) {
-      // Set amount to the actual due amount, or allow partial payment
       setAmount(actualAmountDue > 0 ? actualAmountDue.toString() : '');
       setGcashMobile('');
       setPaymentMethod('gcash');
+      setPaymentData(null);
     }
   }, [isOpen, booking, actualAmountDue]);
 
@@ -52,9 +51,14 @@ const PayBooking = ({
 
     const paymentAmount = parseFloat(amount);
     
-    // Validate amount
-    if (paymentAmount <= 0) {
+    // Validation
+    if (isNaN(paymentAmount) || paymentAmount <= 0) {
       toast.error('Please enter a valid payment amount');
+      return;
+    }
+
+    if (paymentAmount < 1) {
+      toast.error('Minimum payment amount is ₱1.00');
       return;
     }
 
@@ -63,20 +67,44 @@ const PayBooking = ({
       return;
     }
 
+    const formattedAmount = parseFloat(paymentAmount.toFixed(2));
     setIsSubmitting(true);
 
     try {
-      await createPaymentForBooking.mutateAsync({
+      const result = await createPaymentForBooking.mutateAsync({
         bookingId: booking.id,
         payment_method: paymentMethod,
-        amount: paymentAmount,
+        amount: formattedAmount,
         gcash_mobile_number: paymentMethod === 'gcash' ? gcashMobile : undefined
       });
 
-      toast.success('Payment initiated successfully!');
-      onPaymentSuccess?.();
-      onClose();
+      console.log('🔍 PAYMENT RESPONSE DATA:', result);
+
+      // Handle different payment methods
+      if (paymentMethod === 'paymongo') {
+        if (result?.checkout_url) {
+          // If there's a checkout URL, redirect to it
+          window.open(result.checkout_url, '_blank', 'noopener,noreferrer');
+          toast.success('Redirecting to payment gateway...');
+          onPaymentSuccess?.();
+          onClose();
+        } else if (result?.client_key && result?.payment_intent_id) {
+          // Show instructions instead of a non-working URL
+          setPaymentData(result);
+          toast.success('Payment intent created! Complete payment using the instructions below.');
+        } else {
+          toast.success('Payment intent created!');
+          onPaymentSuccess?.();
+          onClose();
+        }
+      } else {
+        // GCash payment
+        toast.success('GCash payment initiated successfully! Please complete the payment in your GCash app.');
+        onPaymentSuccess?.();
+        onClose();
+      }
     } catch (error) {
+      console.error('❌ Payment error:', error);
       toast.error(error.response?.data?.message || 'Failed to process payment');
     } finally {
       setIsSubmitting(false);
@@ -87,6 +115,7 @@ const PayBooking = ({
     setAmount('');
     setGcashMobile('');
     setPaymentMethod('gcash');
+    setPaymentData(null);
     onClose();
   };
 
@@ -100,12 +129,20 @@ const PayBooking = ({
     }
   };
 
-  // Quick payment buttons
+  // Copy reference number to clipboard
+  const copyReferenceNumber = () => {
+    if (paymentData?.payment_intent_id) {
+      navigator.clipboard.writeText(paymentData.payment_intent_id);
+      toast.success('Reference number copied to clipboard!');
+    }
+  };
+
+  // Quick payment buttons - fixed to ensure numbers
   const quickPaymentOptions = [
-    { label: 'Full Amount', amount: actualAmountDue },
-    { label: '50%', amount: actualAmountDue * 0.5 },
-    { label: '25%', amount: actualAmountDue * 0.25 },
-  ].filter(option => option.amount > 0);
+    { label: 'Full Amount', amount: Number(actualAmountDue) },
+    { label: '50%', amount: Number(actualAmountDue * 0.5) },
+    { label: '25%', amount: Number(actualAmountDue * 0.25) },
+  ].filter(option => option.amount >= 1);
 
   if (!isOpen || !booking) return null;
 
@@ -116,8 +153,91 @@ const PayBooking = ({
       title="Make Payment" 
       size="md"
     >
-      <div className="space-y-4">
-        {/* Booking Summary with Financial Details */}
+      <div className="max-h-[80vh] overflow-y-auto space-y-4">
+        {/* Debug Info - Remove after testing */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="bg-gray-100 border border-gray-300 rounded-lg p-3 text-xs">
+            <p><strong>Debug Info:</strong></p>
+            <p>Payment Method: {paymentMethod}</p>
+            <p>Payment Data: {paymentData ? JSON.stringify(paymentData) : 'null'}</p>
+          </div>
+        )}
+
+        {/* PayMongo Instructions Section */}
+        {paymentData && paymentMethod === 'paymongo' && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center gap-3 mb-4">
+              <SmartphoneIcon className="w-6 h-6 text-blue-600" />
+              <div>
+                <h4 className="font-semibold text-blue-800">Complete GCash Payment</h4>
+                <p className="text-sm text-blue-700 mt-1">
+                  Your payment intent has been created. Please follow these steps to complete your payment:
+                </p>
+              </div>
+            </div>
+            
+            <div className="bg-white border border-blue-300 rounded-lg p-4">
+              <h5 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                <Clipboard className="w-4 h-4" />
+                GCash Payment Instructions:
+              </h5>
+              <ol className="list-decimal list-inside space-y-3 text-sm text-blue-800">
+                <li className="font-medium">Open your GCash app</li>
+                <li className="font-medium">Go to "Pay Bills" section</li>
+                <li className="font-medium">Select "Other Bills" or "Online Payment"</li>
+                <li className="font-medium">
+                  Look for <span className="font-bold">PayMongo</span> in your recent transactions or billers
+                </li>
+                <li className="font-medium">Enter the amount: <span className="font-bold">{formatCurrency(parseFloat(amount))}</span></li>
+                <li className="font-medium">Complete the payment in the GCash app</li>
+                <li className="font-medium">Return here and click "I've Completed Payment"</li>
+              </ol>
+
+              {/* Reference Number */}
+              {paymentData?.payment_intent_id && (
+                <div className="mt-4 p-3 bg-gray-50 border border-gray-300 rounded">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-600">Reference Number:</p>
+                      <p className="font-mono text-sm text-gray-800">{paymentData.payment_intent_id}</p>
+                    </div>
+                    <button
+                      onClick={copyReferenceNumber}
+                      className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Keep this reference number for your records.
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => {
+                  toast.success('Thank you! We will verify your payment shortly.');
+                  onPaymentSuccess?.();
+                  onClose();
+                }}
+                className="flex-1 bg-green-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <CheckCircle className="w-4 h-4" />
+                I've Completed Payment
+              </button>
+              <button
+                onClick={handleClose}
+                className="flex-1 bg-gray-500 text-white py-3 px-4 rounded-lg font-semibold hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Booking Summary */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h4 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
             <Calculator className="w-4 h-4" />
@@ -176,8 +296,8 @@ const PayBooking = ({
           </div>
         )}
 
-        {/* Payment Method Selection */}
-        {!isFullyPaid && (
+        {/* Payment Method Selection - Only show if no payment data and not fully paid */}
+        {!isFullyPaid && !paymentData && (
           <>
             <div>
               <label className="modal-label text-heading flex items-center gap-2">
@@ -209,7 +329,7 @@ const PayBooking = ({
                 >
                   <CreditCard className="w-6 h-6 mx-auto mb-2" />
                   <span className="text-sm font-medium block">PayMongo</span>
-                  <span className="text-xs text-gray-500 mt-1">Card/Bank Transfer</span>
+                  <span className="text-xs text-gray-500 mt-1">Card/Bank/GCash</span>
                 </button>
               </div>
             </div>
@@ -231,7 +351,7 @@ const PayBooking = ({
                     className="modal-input pl-10 text-lg font-semibold"
                     placeholder="0.00"
                     step="0.01"
-                    min="0"
+                    min="1"
                     max={actualAmountDue}
                     required
                   />
@@ -244,10 +364,10 @@ const PayBooking = ({
                       <button
                         key={index}
                         type="button"
-                        onClick={() => setAmount(option.amount.toFixed(2))}
+                        onClick={() => setAmount(Number(option.amount).toFixed(2))}
                         className="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-200 transition-colors border border-blue-200"
                       >
-                        {option.label} ({formatCurrency(option.amount)})
+                        {option.label} ({formatCurrency(Number(option.amount))})
                       </button>
                     ))}
                   </div>
@@ -326,11 +446,10 @@ const PayBooking = ({
                   </ul>
                 ) : (
                   <ul className="text-xs text-blue-700 space-y-1">
-                    <li>• You will be redirected to PayMongo's secure payment page</li>
-                    <li>• Choose your preferred payment method (Credit/Debit Card, Bank Transfer)</li>
-                    <li>• Complete the payment process</li>
-                    <li>• You will be automatically returned to this page</li>
-                    <li>• Payment verification is automatic and instant</li>
+                    <li>• Payment will be processed through PayMongo</li>
+                    <li>• You'll receive instructions to complete payment in GCash</li>
+                    <li>• Payment verification is automatic</li>
+                    <li>• Keep your reference number for tracking</li>
                   </ul>
                 )}
               </div>
