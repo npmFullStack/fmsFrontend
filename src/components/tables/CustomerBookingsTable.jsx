@@ -40,25 +40,24 @@ const CustomerBookingsTable = ({
     setExpandedCards(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // Get display status from cargo monitoring or fallback to booking_status
-  const getDisplayStatus = (booking) => {
-    if (booking.cargo_monitoring && booking.cargo_monitoring.current_status) {
-      return booking.cargo_monitoring.current_status;
-    }
-    
-    // Complete status mapping
-    const statusMap = {
-      'pending': 'Pending',
-      'picked_up': 'Picked Up',
-      'origin_port': 'Origin Port', 
-      'in_transit': 'In Transit',
-      'destination_port': 'Destination Port',
-      'out_for_delivery': 'Out for Delivery',
-      'delivered': 'Delivered'
-    };
-    
-    return statusMap[booking.booking_status] || 'Pending';
+const getDisplayStatus = (booking) => {
+  if (booking.cargo_monitoring && booking.cargo_monitoring.current_status) {
+    return booking.cargo_monitoring.current_status;
+  }
+  
+  // Complete status mapping
+  const statusMap = {
+    'pending': 'Pending',
+    'picked_up': 'Picked Up',
+    'origin_port': 'Origin Port', 
+    'in_transit': 'In Transit',
+    'destination_port': 'Destination Port',
+    'out_for_delivery': 'Out for Delivery',
+    'delivered': 'Delivered'
   };
+  
+  return statusMap[booking.booking_status] || 'Pending';
+};
 
   // Status badge configuration - same as CargoMonitoringTable
   const getBookingStatusBadge = (status) => {

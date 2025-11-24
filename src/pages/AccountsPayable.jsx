@@ -3,6 +3,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { useDebounce } from 'use-debounce';
 import { Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useQueryClient } from '@tanstack/react-query'; // ✅ ADD THIS IMPORT
 
 import { useAP } from '../hooks/useAP';
 import { useBooking } from '../hooks/useBooking';
@@ -21,12 +22,15 @@ const AccountsPayable = () => {
   const [direction, setDirection] = useState('desc');
   const [selectedRecords, setSelectedRecords] = useState([]);
 
+  // ✅ ADD QUERY CLIENT
+  const queryClient = useQueryClient();
+
   // ✅ Hooks
   const { apQuery, createAP } = useAP();
   const { bookingsQuery } = useBooking();
 
   // ✅ Fetch AP records
-  const { data, isLoading, isError } = apQuery({
+  const { data, isLoading, isError, refetch } = apQuery({ // ✅ ADD refetch
     search: debouncedSearch,
     page,
     per_page: 10,
@@ -73,19 +77,38 @@ const AccountsPayable = () => {
   }, []);
 
   /* =========================
-   * CRUD ACTIONS
+   * UPDATED CRUD ACTIONS
    * ========================= */
   const handleAdd = useCallback(
     async (apData) => {
       try {
-        await createAP.mutateAsync(apData);
+        const response = await createAP.mutateAsync(apData);
         toast.success('Charges added successfully');
         setIsAddModalOpen(false);
+        
+        // ✅ FORCE REFRESH ALL RELATED DATA
+        console.log('Refreshing data after adding charges...');
+        
+        // Invalidate AP queries
+        queryClient.invalidateQueries(['accounts-payables']);
+        
+        // Invalidate AR queries
+        queryClient.invalidateQueries(['accounts-receivables']);
+        
+        // Invalidate payable charges queries
+        queryClient.invalidateQueries(['pay-charges']);
+        
+        // Manually refetch current AP data
+        await refetch();
+        
+        console.log('Data refresh completed');
+        
       } catch (error) {
+        console.error('Failed to add charges:', error);
         toast.error(error.response?.data?.message || 'Failed to add charges');
       }
     },
-    [createAP]
+    [createAP, queryClient, refetch] // ✅ ADD DEPENDENCIES
   );
 
   const handleViewDetails = useCallback((apRecord) => {
