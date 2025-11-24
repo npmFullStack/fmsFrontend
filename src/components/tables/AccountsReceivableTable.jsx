@@ -25,10 +25,9 @@ const AccountsReceivableTable = ({
   data = [],
   onMarkAsPaid,
   onSendPayment,
-  onView,
-  isLoading = false,
   onPrint,
   onBulkPrint,
+  isLoading = false,
   selectedRecords = [],
   onSelectRecord,
   onSelectAllRecords
@@ -252,7 +251,7 @@ const AccountsReceivableTable = ({
               className="flex items-center gap-2 px-3 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors"
             >
               <Printer className="w-4 h-4" />
-              Print Invoices ({selectedRecords.length})
+              Print BS ({selectedRecords.length})
             </button>
           )}
         </div>
@@ -267,6 +266,7 @@ const AccountsReceivableTable = ({
         const StatusIcon = statusBadge.icon;
         const chargeBreakdown = getChargeBreakdown(ar);
         const isSelected = selectedRecords.includes(ar.id);
+        const isInvoiceSent = statusBadge.label === 'Invoice Sent';
 
         return (
           <div
@@ -314,9 +314,6 @@ const AccountsReceivableTable = ({
                     }`}>
                       <StatusIcon className="w-3 h-3" />
                       {statusBadge.label}
-                    </span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium bg-${agingColor}-100 text-${agingColor}-800`}>
-                      {agingBuckets.find(b => b.value === ar.aging_bucket)?.label || ar.aging_bucket}
                     </span>
                   </div>
                 </div>
@@ -383,14 +380,14 @@ const AccountsReceivableTable = ({
                       className="flex items-center gap-2 px-3 py-1 bg-gray-600 text-white text-sm font-medium rounded hover:bg-gray-700 transition-colors"
                     >
                       <Printer className="w-4 h-4" />
-                      Print Invoice
+                      Print BS
                     </button>
                   )}
                 </div>
 
                 <div className="flex gap-2">
-                  {/* Create Invoice Button - Show when expenses exist and not paid */}
-                  {!ar.is_paid && ar.total_expenses > 0 && (
+                  {/* Create Invoice Button - Show when expenses exist, not paid, and NOT invoice sent */}
+                  {!ar.is_paid && ar.total_expenses > 0 && !isInvoiceSent && (
                     <button
                       onClick={() => onSendPayment && onSendPayment(ar)}
                       className="px-3 py-1 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors flex items-center gap-2"

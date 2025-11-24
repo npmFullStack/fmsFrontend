@@ -316,7 +316,7 @@ const handleSubmit = (e) => {
                 <h3 className="text-base font-semibold text-heading mb-2">Booking Details</h3>
                 <div className="flex items-center gap-2 mb-2">
                   <Package className="w-3 h-3 text-blue-600" />
-                  <span className="font-medium text-blue-800 text-sm">Booking #{selectedAR.booking.booking_number}</span>
+                  <span className="font-medium text-heading text-sm uppercase">Booking #{selectedAR.booking.booking_number}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
@@ -417,21 +417,21 @@ const handleSubmit = (e) => {
                           <button
                             type="button"
                             onClick={() => applyQuickMarkup(charge.id, 20)}
-                            className="text-xs bg-main text-white px-2 py-1 rounded hover:bg-main-dark transition-colors"
+                            className="text-xs bg-primary text-white px-2 py-1 rounded hover:bg-primary-dark transition-colors"
                           >
                             20%
                           </button>
                           <button
                             type="button"
                             onClick={() => applyQuickMarkup(charge.id, 30)}
-                            className="text-xs bg-main text-white px-2 py-1 rounded hover:bg-main-dark transition-colors"
+                            className="text-xs bg-primary text-white px-2 py-1 rounded hover:bg-primary-dark transition-colors"
                           >
                             30%
                           </button>
                           <button
                             type="button"
                             onClick={() => applyQuickMarkup(charge.id, 50)}
-                            className="text-xs bg-main text-white px-2 py-1 rounded hover:bg-main-dark transition-colors"
+                            className="text-xs bg-primary text-white px-2 py-1 rounded hover:bg-primary-dark transition-colors"
                           >
                             50%
                           </button>
@@ -440,20 +440,22 @@ const handleSubmit = (e) => {
                     </div>
 
                     {/* Charge Summary */}
-                    <div className="bg-gray-50 rounded p-2 border border-gray-200">
+                    <div className="bg-main rounded p-2 border border-surface">
                       <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="text-gray-600">Base Amount:</div>
-                        <div className="font-medium text-gray-800 text-right">
+                        <div className="text-muted uppercase">Base Amount:</div>
+                        <div className="font-medium text-content text-right">
                           {formatCurrency(parseFloat(charge.amount) || 0)}
                         </div>
                         
-                        <div className="text-gray-600">Markup ({charge.markup || 0}%):</div>
+                        <div className="text-muted uppercase">Markup ({charge.markup || 0}%):</div>
                         <div className="font-medium text-green-600 text-right">
                           {formatCurrency(chargeProfit)}
                         </div>
                         
-                        <div className="text-gray-600 font-medium border-t border-gray-300 pt-1">Total:</div>
-                        <div className="font-bold text-heading text-right border-t border-gray-300 pt-1">
+                        <div className="text-muted uppercase font-medium
+                        border-t border-surface pt-1">Total:</div>
+                        <div className="font-bold text-heading text-right
+                        border-t border-surface pt-1">
                           {formatCurrency(chargeTotal)}
                         </div>
                       </div>
