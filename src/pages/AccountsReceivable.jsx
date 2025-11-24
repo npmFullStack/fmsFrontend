@@ -1,10 +1,11 @@
 // [file name]: AccountsReceivable.jsx
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useDebounce } from 'use-debounce';
-import { Plus } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { useAR } from '../hooks/useAR';
+import { useOptimizedApi } from '../hooks/useOptimizedApi';
 import TableLayout from '../components/layout/TableLayout';
 import AccountsReceivableTable from '../components/tables/AccountsReceivableTable';
 import SendTotalPayment from '../components/modals/SendTotalPayment';
@@ -17,15 +18,26 @@ const AccountsReceivable = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch] = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
+  const [forceRefresh, setForceRefresh] = useState(0);
 
-  // Hooks
-  const { arQuery, updateAR, markAsPaid } = useAR();
+  // Optimized API hook
+  const { optimizedRequest, cancelRequest, clearCache } = useOptimizedApi();
 
-  // Fetch AR records
+  // ✅ useAR hook with enhanced features
+  const { 
+    arQuery, 
+    updateAR, 
+    markAsPaid, 
+    sendPaymentEmail,
+    createAR 
+  } = useAR();
+
+  // ✅ Fetch AR records with optimization
   const { data, isLoading, isError, refetch } = arQuery({
     search: debouncedSearch,
     page,
     per_page: 10,
+    _refresh: forceRefresh // Add refresh trigger
   });
 
   const arRecords = data?.data || [];
@@ -37,48 +49,66 @@ const AccountsReceivable = () => {
     total: data?.total || 0,
   };
 
+  // Refresh data function
+  const handleRefresh = useCallback(() => {
+    clearCache('accounts-receivables');
+    setForceRefresh(prev => prev + 1);
+    toast.success('Data refreshed');
+  }, [clearCache]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cancelRequest('accounts-receivables');
+    };
+  }, [cancelRequest]);
+
   // CRUD Actions
-const handleSendPayment = useCallback(
-  async (paymentData) => {
-    try {
-      console.log('Sending payment data:', paymentData); // Debug log
-      
-      if (selectedAR && selectedAR.id) {
-        // Use the store method to create/update AR with charges
-        await api.post('/accounts-receivables', paymentData);
+  const handleSendPayment = useCallback(
+    async (paymentData) => {
+      try {
+        console.log('Sending payment data:', paymentData);
         
-        // Send payment email
-        try {
-          await api.post(`/accounts-receivables/${selectedAR.id}/send-payment-email`);
-          toast.success('Payment request sent to customer successfully');
-        } catch (emailError) {
-          console.error('Email sending failed:', emailError);
-          toast.success('Payment amount set successfully, but email failed to send');
+        if (selectedAR && selectedAR.id) {
+          // Use the createAR mutation instead of direct api call
+          await createAR.mutateAsync(paymentData);
+          
+          // Send payment email using the mutation
+          try {
+            await sendPaymentEmail.mutateAsync(selectedAR.id);
+            toast.success('Payment request sent to customer successfully');
+          } catch (emailError) {
+            console.error('Email sending failed:', emailError);
+            toast.success('Payment amount set successfully, but email failed to send');
+          }
         }
+        
+        setIsPaymentModalOpen(false);
+        setSelectedAR(null);
+        // Clear cache and refresh
+        clearCache('accounts-receivables');
+        refetch();
+      } catch (error) {
+        console.error('Payment error:', error);
+        toast.error(error.response?.data?.message || 'Failed to send payment request');
       }
-      
-      setIsPaymentModalOpen(false);
-      setSelectedAR(null);
-      refetch();
-    } catch (error) {
-      console.error('Payment error:', error);
-      toast.error(error.response?.data?.message || 'Failed to send payment request');
-    }
-  },
-  [selectedAR, refetch]
-);
+    },
+    [selectedAR, createAR, sendPaymentEmail, clearCache, refetch]
+  );
 
   const handleMarkAsPaid = useCallback(
     async (arId) => {
       try {
         await markAsPaid.mutateAsync(arId);
+        // Clear cache after successful mutation
+        clearCache('accounts-receivables');
         toast.success('Record marked as paid successfully');
         refetch();
       } catch (error) {
         toast.error(error.response?.data?.message || 'Failed to mark as paid');
       }
     },
-    [markAsPaid, refetch]
+    [markAsPaid, clearCache, refetch]
   );
 
   // Handle opening payment modal for specific AR record
@@ -109,7 +139,14 @@ const handleSendPayment = useCallback(
     return (
       <div className="page-error">
         <div className="page-error-content">
-          Failed to load accounts receivable records. Please try again.
+          <p>Failed to load accounts receivable records. Please try again.</p>
+          <button 
+            onClick={handleRefresh}
+            className="page-btn-primary mt-4"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -117,13 +154,21 @@ const handleSendPayment = useCallback(
 
   return (
     <div className="page-container">
-      {/* Page Header - Simplified without cards */}
+      {/* Page Header - Enhanced with refresh */}
       <div className="page-header">
         <div className="flex justify-between items-start">
           <div>
             <h1 className="page-title">Accounts Receivable</h1>
             <p className="page-subtitle">Manage customer payments and financial tracking</p>
           </div>
+          <button
+            onClick={handleRefresh}
+            className="page-btn-secondary flex items-center gap-2"
+            disabled={isLoading}
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
         </div>
       </div>
 
@@ -170,7 +215,7 @@ const handleSendPayment = useCallback(
         isOpen={isPaymentModalOpen}
         onClose={handleCloseModal}
         onSave={handleSendPayment}
-        isLoading={updateAR.isPending}
+        isLoading={createAR.isPending || sendPaymentEmail.isPending}
         selectedAR={selectedAR}
       />
     </div>

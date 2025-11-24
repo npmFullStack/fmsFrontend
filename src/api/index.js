@@ -9,7 +9,7 @@ const api = axios.create({
   timeout: 30000,
 });
 
-// Add token to requests if available
+// Enhanced request interceptor
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -17,11 +17,14 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
+    // Add request ID for tracking
+    config.headers['X-Request-ID'] = Date.now().toString(36) + Math.random().toString(36).substr(2);
+    
     console.log('🚀 API Request:', {
       method: config.method?.toUpperCase(),
       url: config.baseURL + config.url,
-      data: config.data,
-      hasToken: !!token
+      hasToken: !!token,
+      requestId: config.headers['X-Request-ID']
     });
     return config;
   },
@@ -31,27 +34,38 @@ api.interceptors.request.use(
   }
 );
 
-// Add auth error handling
+// Enhanced response interceptor
 api.interceptors.response.use(
   (response) => {
     console.log('✅ API Response Success:', {
       status: response.status,
-      data: response.data,
-      url: response.config.url
+      url: response.config.url,
+      requestId: response.config.headers['X-Request-ID']
     });
     return response;
   },
   (error) => {
+    const requestId = error.config?.headers?.['X-Request-ID'];
+    
     console.error('❌ API Response Error:', {
       message: error.message,
       status: error.response?.status,
-      data: error.response?.data
+      requestId,
+      url: error.config?.url
     });
     
     if (error.response?.status === 401) {
-      // Unauthorized - clear token and redirect to login
       localStorage.removeItem('token');
       window.location.href = '/login';
+    }
+    
+    // Enhanced error handling
+    if (error.code === 'ECONNABORTED') {
+      error.message = 'Request timeout - please try again';
+    }
+    
+    if (error.response?.status >= 500) {
+      error.message = 'Server error - please try again later';
     }
     
     return Promise.reject(error);

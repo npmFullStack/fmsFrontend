@@ -1,10 +1,11 @@
 // src/pages/Category.jsx
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useDebounce } from 'use-debounce';
-import { Plus, Filter } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { useCategory } from '../hooks/useCategory';
+import { useOptimizedApi } from '../hooks/useOptimizedApi';
 import TableLayout from '../components/layout/TableLayout';
 import CategoryTable from '../components/tables/CategoryTable';
 import AddCategory from '../components/modals/AddCategory';
@@ -18,15 +19,19 @@ const Category = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [deletingCategory, setDeletingCategory] = useState(null);
-  const [deletingCategories, setDeletingCategories] = useState(null);
+  const [deletingCategories, setDeletingCategories] = useState([]);
   const [updatingCategory, setUpdatingCategory] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch] = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState('id');
   const [direction, setDirection] = useState('asc');
+  const [forceRefresh, setForceRefresh] = useState(0);
 
-  // ✅ useCategory hook handles everything
+  // Optimized API hook
+  const { optimizedRequest, cancelRequest, clearCache } = useOptimizedApi();
+
+  // useCategory hook handles everything
   const {
     categoriesQuery,
     createCategory,
@@ -35,13 +40,14 @@ const Category = () => {
     bulkDeleteCategories,
   } = useCategory();
 
-  // ✅ Fetch categories (server-side pagination & search)
-  const { data, isLoading, isError } = categoriesQuery({
+  // Optimized categories query
+  const { data, isLoading, isError, refetch } = categoriesQuery({
     search: debouncedSearch,
     page,
     per_page: 10,
     sort,
-    direction
+    direction,
+    _refresh: forceRefresh // Add refresh trigger
   });
 
   // Client-side sorting (fallback if server-side sorting isn't working)
@@ -74,61 +80,91 @@ const Category = () => {
     setDirection(dir);
   }, []);
 
+  // Refresh data function
+  const handleRefresh = useCallback(() => {
+    clearCache('categories'); // Clear cache for fresh data
+    setForceRefresh(prev => prev + 1);
+    toast.success('Data refreshed');
+  }, [clearCache]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cancelRequest('categories');
+    };
+  }, [cancelRequest]);
+
   /* =========================
    * CRUD ACTIONS
    * ========================= */
-  const handleAdd = useCallback(
-    async (categoryData) => {
-      try {
-        await createCategory.mutateAsync(categoryData);
-        toast.success('Category added successfully');
-        setIsAddModalOpen(false);
-      } catch (error) {
-        toast.error(error.response?.data?.message || 'Failed to add category');
-      }
-    },
-    [createCategory]
-  );
+  const handleAdd = useCallback(async (categoryData) => {
+    try {
+      await createCategory.mutateAsync(categoryData);
+      
+      // Clear cache after successful creation
+      clearCache('categories');
+      toast.success('Category added successfully');
+      setIsAddModalOpen(false);
+    } catch (error) {
+      console.error('Add category error:', error);
+      toast.error(error.response?.data?.message || 'Failed to add category');
+    }
+  }, [createCategory, clearCache]);
 
-  const handleUpdate = useCallback(
-    async (id, categoryData) => {
-      try {
-        await updateCategory.mutateAsync({ id, ...categoryData });
-        toast.success('Category updated successfully');
-        setIsUpdateModalOpen(false);
-        setUpdatingCategory(null);
-      } catch (error) {
-        toast.error(error.response?.data?.message || 'Failed to update category');
-      }
-    },
-    [updateCategory]
-  );
+  const handleUpdate = useCallback(async (id, categoryData) => {
+    try {
+      await updateCategory.mutateAsync({
+        id, 
+        ...categoryData 
+      });
+      
+      // Clear cache after successful update
+      clearCache('categories');
+      toast.success('Category updated successfully');
+      setIsUpdateModalOpen(false);
+      setUpdatingCategory(null);
+    } catch (error) {
+      console.error('Update category error:', error);
+      toast.error(error.response?.data?.message || 'Failed to update category');
+    }
+  }, [updateCategory, clearCache]);
 
   const handleDelete = useCallback(() => {
-    if (deletingCategories) {
-      const ids = deletingCategories.map((cat) => cat.id);
+    if (deletingCategories.length > 0) {
+      const ids = deletingCategories.map((category) => category.id);
       bulkDeleteCategories.mutate(ids, {
         onSuccess: (res) => {
+          clearCache('categories');
           toast.success(res?.message || 'Categories deleted successfully');
+          setIsDeleteModalOpen(false);
+          setDeletingCategory(null);
+          setDeletingCategories([]);
         },
         onError: (error) => {
+          console.error('Bulk delete error:', error);
           toast.error(error.response?.data?.message || 'Failed to delete categories');
         },
       });
     } else if (deletingCategory) {
       deleteCategory.mutate(deletingCategory.id, {
         onSuccess: () => {
+          clearCache('categories');
           toast.success('Category deleted successfully');
+          setIsDeleteModalOpen(false);
+          setDeletingCategory(null);
+          setDeletingCategories([]);
         },
         onError: (error) => {
+          console.error('Delete category error:', error);
           toast.error(error.response?.data?.message || 'Failed to delete category');
         },
       });
+    } else {
+      setIsDeleteModalOpen(false);
+      setDeletingCategory(null);
+      setDeletingCategories([]);
     }
-    setIsDeleteModalOpen(false);
-    setDeletingCategory(null);
-    setDeletingCategories(null);
-  }, [deleteCategory, bulkDeleteCategories, deletingCategory, deletingCategories]);
+  }, [deleteCategory, bulkDeleteCategories, deletingCategory, deletingCategories, clearCache]);
 
   const handleEditClick = useCallback((category) => {
     setUpdatingCategory(category);
@@ -141,7 +177,7 @@ const Category = () => {
       setDeletingCategory(null);
     } else {
       setDeletingCategory(categoryOrCategories);
-      setDeletingCategories(null);
+      setDeletingCategories([]);
     }
     setIsDeleteModalOpen(true);
   }, []);
@@ -161,7 +197,14 @@ const Category = () => {
     return (
       <div className="page-error">
         <div className="page-error-content">
-          Failed to load categories. Please try again.
+          <p>Failed to load categories. Please try again.</p>
+          <button 
+            onClick={handleRefresh}
+            className="page-btn-primary mt-4"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -174,8 +217,20 @@ const Category = () => {
     <div className="page-container">
       {/* Page Header */}
       <div className="page-header">
-        <h1 className="page-title">Category Management</h1>
-        <p className="page-subtitle">Manage your categories and their base rates</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="page-title">Category Management</h1>
+            <p className="page-subtitle">Manage your categories and their base rates</p>
+          </div>
+          <button
+            onClick={handleRefresh}
+            className="page-btn-secondary flex items-center gap-2"
+            disabled={isLoading}
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Table Section */}
@@ -194,11 +249,11 @@ const Category = () => {
               <button
                 onClick={() => setIsAddModalOpen(true)}
                 className="page-btn-primary"
+                disabled={createCategory.isPending}
               >
                 <Plus className="page-btn-icon" />
                 Add Category
               </button>
-
             </div>
           }
         >
@@ -248,7 +303,7 @@ const Category = () => {
         onClose={() => {
           setIsDeleteModalOpen(false);
           setDeletingCategory(null);
-          setDeletingCategories(null);
+          setDeletingCategories([]);
         }}
         onDelete={handleDelete}
         category={deletingCategory}

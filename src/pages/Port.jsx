@@ -1,9 +1,10 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useDebounce } from 'use-debounce';
-import { Plus, Filter } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { usePort } from '../hooks/usePort';
+import { useOptimizedApi } from '../hooks/useOptimizedApi';
 import TableLayout from '../components/layout/TableLayout';
 import PortTable from '../components/tables/PortTable';
 import AddPort from '../components/modals/AddPort';
@@ -17,13 +18,17 @@ const Port = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [deletingPort, setDeletingPort] = useState(null);
-  const [deletingPorts, setDeletingPorts] = useState(null);
+  const [deletingPorts, setDeletingPorts] = useState([]);
   const [updatingPort, setUpdatingPort] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch] = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState('id');
   const [direction, setDirection] = useState('asc');
+  const [forceRefresh, setForceRefresh] = useState(0);
+
+  // Optimized API hook
+  const { optimizedRequest, cancelRequest, clearCache } = useOptimizedApi();
 
   // ✅ usePort hook handles everything
   const {
@@ -34,13 +39,14 @@ const Port = () => {
     bulkDeletePorts,
   } = usePort();
 
-  // ✅ Fetch ports (server-side pagination & search)
-  const { data, isLoading, isError } = portsQuery({
+  // ✅ Fetch ports with optimization
+  const { data, isLoading, isError, refetch } = portsQuery({
     search: debouncedSearch,
     page,
     per_page: 10,
     sort,
-    direction
+    direction,
+    _refresh: forceRefresh // Add refresh trigger
   });
 
   // Client-side sorting (fallback if server-side sorting isn't working)
@@ -73,61 +79,91 @@ const Port = () => {
     setDirection(dir);
   }, []);
 
+  // Refresh data function
+  const handleRefresh = useCallback(() => {
+    clearCache('ports'); // Clear cache for fresh data
+    setForceRefresh(prev => prev + 1);
+    toast.success('Data refreshed');
+  }, [clearCache]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cancelRequest('ports');
+    };
+  }, [cancelRequest]);
+
   /* =========================
    * CRUD ACTIONS
    * ========================= */
-  const handleAdd = useCallback(
-    async (portData) => {
-      try {
-        await createPort.mutateAsync(portData);
-        toast.success('Port added successfully');
-        setIsAddModalOpen(false);
-      } catch (error) {
-        toast.error(error.response?.data?.message || 'Failed to add port');
-      }
-    },
-    [createPort]
-  );
+  const handleAdd = useCallback(async (portData) => {
+    try {
+      await createPort.mutateAsync(portData);
+      
+      // Clear cache after successful creation
+      clearCache('ports');
+      toast.success('Port added successfully');
+      setIsAddModalOpen(false);
+    } catch (error) {
+      console.error('Add port error:', error);
+      toast.error(error.response?.data?.message || 'Failed to add port');
+    }
+  }, [createPort, clearCache]);
 
-  const handleUpdate = useCallback(
-    async (id, portData) => {
-      try {
-        await updatePort.mutateAsync({ id, ...portData });
-        toast.success('Port updated successfully');
-        setIsUpdateModalOpen(false);
-        setUpdatingPort(null);
-      } catch (error) {
-        toast.error(error.response?.data?.message || 'Failed to update port');
-      }
-    },
-    [updatePort]
-  );
+  const handleUpdate = useCallback(async (id, portData) => {
+    try {
+      await updatePort.mutateAsync({ 
+        id, 
+        ...portData 
+      });
+      
+      // Clear cache after successful update
+      clearCache('ports');
+      toast.success('Port updated successfully');
+      setIsUpdateModalOpen(false);
+      setUpdatingPort(null);
+    } catch (error) {
+      console.error('Update port error:', error);
+      toast.error(error.response?.data?.message || 'Failed to update port');
+    }
+  }, [updatePort, clearCache]);
 
   const handleDelete = useCallback(() => {
-    if (deletingPorts) {
+    if (deletingPorts.length > 0) {
       const ids = deletingPorts.map((port) => port.id);
       bulkDeletePorts.mutate(ids, {
         onSuccess: (res) => {
+          clearCache('ports');
           toast.success(res?.message || 'Ports deleted successfully');
+          setIsDeleteModalOpen(false);
+          setDeletingPort(null);
+          setDeletingPorts([]);
         },
         onError: (error) => {
+          console.error('Bulk delete error:', error);
           toast.error(error.response?.data?.message || 'Failed to delete ports');
         },
       });
     } else if (deletingPort) {
       deletePort.mutate(deletingPort.id, {
         onSuccess: () => {
+          clearCache('ports');
           toast.success('Port deleted successfully');
+          setIsDeleteModalOpen(false);
+          setDeletingPort(null);
+          setDeletingPorts([]);
         },
         onError: (error) => {
+          console.error('Delete port error:', error);
           toast.error(error.response?.data?.message || 'Failed to delete port');
         },
       });
+    } else {
+      setIsDeleteModalOpen(false);
+      setDeletingPort(null);
+      setDeletingPorts([]);
     }
-    setIsDeleteModalOpen(false);
-    setDeletingPort(null);
-    setDeletingPorts(null);
-  }, [deletePort, bulkDeletePorts, deletingPort, deletingPorts]);
+  }, [deletePort, bulkDeletePorts, deletingPort, deletingPorts, clearCache]);
 
   const handleEditClick = useCallback((port) => {
     setUpdatingPort(port);
@@ -140,7 +176,7 @@ const Port = () => {
       setDeletingPort(null);
     } else {
       setDeletingPort(portOrPorts);
-      setDeletingPorts(null);
+      setDeletingPorts([]);
     }
     setIsDeleteModalOpen(true);
   }, []);
@@ -160,7 +196,14 @@ const Port = () => {
     return (
       <div className="page-error">
         <div className="page-error-content">
-          Failed to load ports. Please try again.
+          <p>Failed to load ports. Please try again.</p>
+          <button 
+            onClick={handleRefresh}
+            className="page-btn-primary mt-4"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -173,8 +216,20 @@ const Port = () => {
     <div className="page-container">
       {/* Page Header */}
       <div className="page-header">
-        <h1 className="page-title">Port Management</h1>
-        <p className="page-subtitle">Manage your shipping ports and their locations</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="page-title">Port Management</h1>
+            <p className="page-subtitle">Manage your shipping ports and their locations</p>
+          </div>
+          <button
+            onClick={handleRefresh}
+            className="page-btn-secondary flex items-center gap-2"
+            disabled={isLoading}
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Table Section */}
@@ -193,11 +248,11 @@ const Port = () => {
               <button
                 onClick={() => setIsAddModalOpen(true)}
                 className="page-btn-primary"
+                disabled={createPort.isPending}
               >
                 <Plus className="page-btn-icon" />
                 Add Port
               </button>
-
             </div>
           }
         >
@@ -247,7 +302,7 @@ const Port = () => {
         onClose={() => {
           setIsDeleteModalOpen(false);
           setDeletingPort(null);
-          setDeletingPorts(null);
+          setDeletingPorts([]);
         }}
         onDelete={handleDelete}
         port={deletingPort}

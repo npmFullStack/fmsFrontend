@@ -1,10 +1,11 @@
 // src/pages/CargoMonitoring.jsx
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useDebounce } from 'use-debounce';
-import { Calendar } from 'lucide-react';
+import { Calendar, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { useCargoMonitoring } from '../hooks/useCargoMonitoring';
+import { useOptimizedApi } from '../hooks/useOptimizedApi';
 import TableLayout from '../components/layout/TableLayout';
 import CargoMonitoringTable from '../components/tables/CargoMonitoringTable';
 import UpdateCargoStatus from '../components/modals/UpdateCargoStatus';
@@ -19,18 +20,23 @@ const CargoMonitoring = () => {
   const [page, setPage] = useState(1);
   const [dateFilter, setDateFilter] = useState('all');
   const [selectedRecords, setSelectedRecords] = useState([]);
+  const [forceRefresh, setForceRefresh] = useState(0);
+
+  // Optimized API hook
+  const { optimizedRequest, cancelRequest, clearCache } = useOptimizedApi();
 
   const {
     cargoMonitoringQuery,
     updateCargoStatus,
   } = useCargoMonitoring();
 
-  // Fetch cargo monitoring data
-  const { data, isLoading, isError } = cargoMonitoringQuery({
+  // ✅ Enhanced cargo monitoring query with optimization
+  const { data, isLoading, isError, refetch } = cargoMonitoringQuery({
     search: debouncedSearch,
     page,
     per_page: 10,
     date_filter: dateFilter,
+    _refresh: forceRefresh // Add refresh trigger
   });
 
   const cargoMonitoring = data?.data || [];
@@ -42,6 +48,20 @@ const CargoMonitoring = () => {
     total: data?.total || 0,
   };
 
+  // Refresh data function
+  const handleRefresh = useCallback(() => {
+    clearCache('cargo-monitoring');
+    setForceRefresh(prev => prev + 1);
+    toast.success('Cargo monitoring data refreshed');
+  }, [clearCache]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cancelRequest('cargo-monitoring');
+    };
+  }, [cancelRequest]);
+
   const handleUpdateStatus = useCallback(async (cargoMonitoring) => {
     setUpdatingCargo(cargoMonitoring);
     setIsUpdateModalOpen(true);
@@ -51,6 +71,8 @@ const CargoMonitoring = () => {
     async (id, status, timestamp) => { 
       try {
         await updateCargoStatus.mutateAsync({ id, status, timestamp });
+        // Clear cache after successful update
+        clearCache('cargo-monitoring');
         toast.success('Cargo status updated successfully');
         setIsUpdateModalOpen(false);
         setUpdatingCargo(null);
@@ -60,7 +82,7 @@ const CargoMonitoring = () => {
         throw error;
       }
     },
-    [updateCargoStatus]
+    [updateCargoStatus, clearCache]
   );
 
   const handlePrintCargoMonitoring = useCallback((cargoData) => {
@@ -179,7 +201,14 @@ const CargoMonitoring = () => {
     return (
       <div className="page-error">
         <div className="page-error-content">
-          Failed to load cargo monitoring data. Please try again.
+          <p>Failed to load cargo monitoring data. Please try again.</p>
+          <button 
+            onClick={handleRefresh}
+            className="page-btn-primary mt-4"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -189,8 +218,20 @@ const CargoMonitoring = () => {
     <div className="page-container">
       {/* Page Header */}
       <div className="page-header">
-        <h1 className="page-title">Cargo Monitoring</h1>
-        <p className="page-subtitle">Track and update cargo shipping status</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="page-title">Cargo Monitoring</h1>
+            <p className="page-subtitle">Track and update cargo shipping status</p>
+          </div>
+          <button
+            onClick={handleRefresh}
+            className="page-btn-secondary flex items-center gap-2"
+            disabled={isLoading}
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Table Section */}
@@ -206,7 +247,9 @@ const CargoMonitoring = () => {
           }
           actions={
             <div className="page-actions">
-              {/* Date filter will be handled in the table component */}
+              <span className="text-sm text-muted">
+                Showing {cargoMonitoring.length} of {pagination.total} records
+              </span>
             </div>
           }
         >

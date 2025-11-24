@@ -1,9 +1,10 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useDebounce } from 'use-debounce';
-import { Plus, Filter } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { useUser } from '../hooks/useUser';
+import { useOptimizedApi } from '../hooks/useOptimizedApi';
 import TableLayout from '../components/layout/TableLayout';
 import UserTable from '../components/tables/UserTable';
 import AddUser from '../components/modals/AddUser';
@@ -17,13 +18,17 @@ const User = () => {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
     const [deletingUser, setDeletingUser] = useState(null);
-    const [deletingUsers, setDeletingUsers] = useState(null);
+    const [deletingUsers, setDeletingUsers] = useState([]);
     const [promotingUser, setPromotingUser] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [debouncedSearch] = useDebounce(searchTerm, 500);
     const [page, setPage] = useState(1);
     const [sort, setSort] = useState('id');
     const [direction, setDirection] = useState('asc');
+    const [forceRefresh, setForceRefresh] = useState(0);
+
+    // Optimized API hook
+    const { optimizedRequest, cancelRequest, clearCache } = useOptimizedApi();
 
     // useUser hook handles everything
     const {
@@ -35,13 +40,14 @@ const User = () => {
         promoteUser,
     } = useUser();
 
-    // Fetch users (server-side pagination & search)
-    const { data, isLoading, isError } = usersQuery({
+    // Fetch users with optimization
+    const { data, isLoading, isError, refetch } = usersQuery({
         search: debouncedSearch,
         page,
         per_page: 10,
         sort,
-        direction
+        direction,
+        _refresh: forceRefresh // Add refresh trigger
     });
 
     // Client-side sorting (fallback if server-side sorting isn't working)
@@ -74,74 +80,103 @@ const User = () => {
         setDirection(dir);
     }, []);
 
+    // Refresh data function
+    const handleRefresh = useCallback(() => {
+        clearCache('users'); // Clear cache for fresh data
+        setForceRefresh(prev => prev + 1);
+        toast.success('Data refreshed');
+    }, [clearCache]);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            cancelRequest('users');
+        };
+    }, [cancelRequest]);
+
     /* ==========================
      * CRUD ACTIONS
      * ========================== */
-    const handleAdd = useCallback(
-        async (userData) => {
-            try {
-                await createUser.mutateAsync(userData);
-                toast.success('User added successfully');
-                setIsAddModalOpen(false);
-            } catch (error) {
-                toast.error(error.response?.data?.message || 'Failed to add user');
-            }
-        },
-        [createUser]
-    );
+    const handleAdd = useCallback(async (userData) => {
+        try {
+            await createUser.mutateAsync(userData);
+            
+            // Clear cache after successful creation
+            clearCache('users');
+            toast.success('User added successfully');
+            setIsAddModalOpen(false);
+        } catch (error) {
+            console.error('Add user error:', error);
+            toast.error(error.response?.data?.message || 'Failed to add user');
+        }
+    }, [createUser, clearCache]);
 
-    const handleUpdate = useCallback(
-        async (id, userData) => {
-            try {
-                await updateUser.mutateAsync({ id, ...userData });
-                toast.success('User updated successfully');
-            } catch (error) {
-                toast.error(error.response?.data?.message || 'Failed to update user');
-            }
-        },
-        [updateUser]
-    );
+    const handleUpdate = useCallback(async (id, userData) => {
+        try {
+            await updateUser.mutateAsync({ id, ...userData });
+            
+            // Clear cache after successful update
+            clearCache('users');
+            toast.success('User updated successfully');
+        } catch (error) {
+            console.error('Update user error:', error);
+            toast.error(error.response?.data?.message || 'Failed to update user');
+        }
+    }, [updateUser, clearCache]);
 
     const handleDelete = useCallback(() => {
-        if (deletingUsers) {
+        if (deletingUsers.length > 0) {
             const ids = deletingUsers.map((user) => user.id);
             bulkDeleteUsers.mutate(ids, {
                 onSuccess: (res) => {
+                    clearCache('users');
                     toast.success(res?.message || 'Users deleted successfully');
+                    setIsDeleteModalOpen(false);
+                    setDeletingUser(null);
+                    setDeletingUsers([]);
                 },
                 onError: (error) => {
+                    console.error('Bulk delete error:', error);
                     toast.error(error.response?.data?.message || 'Failed to delete users');
                 },
             });
         } else if (deletingUser) {
             deleteUser.mutate(deletingUser.id, {
                 onSuccess: () => {
+                    clearCache('users');
                     toast.success('User deleted successfully');
+                    setIsDeleteModalOpen(false);
+                    setDeletingUser(null);
+                    setDeletingUsers([]);
                 },
                 onError: (error) => {
+                    console.error('Delete user error:', error);
                     toast.error(error.response?.data?.message || 'Failed to delete user');
                 },
             });
+        } else {
+            setIsDeleteModalOpen(false);
+            setDeletingUser(null);
+            setDeletingUsers([]);
         }
-        setIsDeleteModalOpen(false);
-        setDeletingUser(null);
-        setDeletingUsers(null);
-    }, [deleteUser, bulkDeleteUsers, deletingUser, deletingUsers]);
+    }, [deleteUser, bulkDeleteUsers, deletingUser, deletingUsers, clearCache]);
 
     const handlePromote = useCallback(() => {
         if (!promotingUser) return;
         
         promoteUser.mutate(promotingUser.id, {
             onSuccess: () => {
+                clearCache('users');
                 toast.success('User promoted to admin successfully');
                 setIsPromoteModalOpen(false);
                 setPromotingUser(null);
             },
             onError: (error) => {
+                console.error('Promote user error:', error);
                 toast.error(error.response?.data?.message || 'Failed to promote user');
             },
         });
-    }, [promoteUser, promotingUser]);
+    }, [promoteUser, promotingUser, clearCache]);
 
     const handleEditClick = useCallback((user) => {
         handleUpdate(user.id, user);
@@ -153,7 +188,7 @@ const User = () => {
             setDeletingUser(null);
         } else {
             setDeletingUser(userOrUsers);
-            setDeletingUsers(null);
+            setDeletingUsers([]);
         }
         setIsDeleteModalOpen(true);
     }, []);
@@ -178,7 +213,14 @@ const User = () => {
         return (
             <div className="page-error">
                 <div className="page-error-content">
-                    Failed to load users. Please try again.
+                    <p>Failed to load users. Please try again.</p>
+                    <button 
+                        onClick={handleRefresh}
+                        className="page-btn-primary mt-4"
+                    >
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Retry
+                    </button>
                 </div>
             </div>
         );
@@ -191,8 +233,20 @@ const User = () => {
         <div className="page-container">
             {/* Page Header */}
             <div className="page-header">
-                <h1 className="page-title">User Management</h1>
-                <p className="page-subtitle">Manage system users and their roles</p>
+                <div className="flex justify-between items-start">
+                    <div>
+                        <h1 className="page-title">User Management</h1>
+                        <p className="page-subtitle">Manage system users and their roles</p>
+                    </div>
+                    <button
+                        onClick={handleRefresh}
+                        className="page-btn-secondary flex items-center gap-2"
+                        disabled={isLoading}
+                    >
+                        <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                        Refresh
+                    </button>
+                </div>
             </div>
 
             {/* Table Section */}
@@ -211,11 +265,11 @@ const User = () => {
                             <button
                                 onClick={() => setIsAddModalOpen(true)}
                                 className="page-btn-primary"
+                                disabled={createUser.isPending}
                             >
                                 <Plus className="page-btn-icon" />
                                 Add User
                             </button>
-
                         </div>
                     }
                 >
@@ -255,7 +309,7 @@ const User = () => {
                 onClose={() => {
                     setIsDeleteModalOpen(false);
                     setDeletingUser(null);
-                    setDeletingUsers(null);
+                    setDeletingUsers([]);
                 }}
                 onDelete={handleDelete}
                 user={deletingUser}

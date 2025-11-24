@@ -1,9 +1,10 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useDebounce } from 'use-debounce';
-import { Plus, Filter } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { useTruckComp } from '../hooks/useTruckComp';
+import { useOptimizedApi } from '../hooks/useOptimizedApi';
 import TableLayout from '../components/layout/TableLayout';
 import TruckCompTable from '../components/tables/TruckCompTable';
 import AddTruckComp from '../components/modals/AddTruckComp';
@@ -17,13 +18,17 @@ const TruckComp = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [deletingTruckComp, setDeletingTruckComp] = useState(null);
-  const [deletingTruckComps, setDeletingTruckComps] = useState(null);
+  const [deletingTruckComps, setDeletingTruckComps] = useState([]);
   const [updatingTruckComp, setUpdatingTruckComp] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch] = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState('id');
   const [direction, setDirection] = useState('asc');
+  const [forceRefresh, setForceRefresh] = useState(0);
+
+  // Optimized API hook
+  const { optimizedRequest, cancelRequest, clearCache } = useOptimizedApi();
 
   const {
     truckCompsQuery,
@@ -33,12 +38,13 @@ const TruckComp = () => {
     bulkDeleteTruckComps,
   } = useTruckComp();
 
-  const { data, isLoading, isError } = truckCompsQuery({
+  const { data, isLoading, isError, refetch } = truckCompsQuery({
     search: debouncedSearch,
     page,
     per_page: 10, 
     sort,
-    direction
+    direction,
+    _refresh: forceRefresh // Add refresh trigger
   });
 
   const sortedTruckComps = useMemo(() => {
@@ -68,50 +74,94 @@ const TruckComp = () => {
     setDirection(dir);
   }, []);
 
+  // Refresh data function
+  const handleRefresh = useCallback(() => {
+    clearCache('truck_comps'); // Clear cache for fresh data
+    setForceRefresh(prev => prev + 1);
+    toast.success('Data refreshed');
+  }, [clearCache]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cancelRequest('truck_comps');
+    };
+  }, [cancelRequest]);
+
   const handleAdd = useCallback(
     async (truckCompData) => {
       try {
         await createTruckComp.mutateAsync(truckCompData);
+        
+        // Clear cache after successful creation
+        clearCache('truck_comps');
         toast.success('Truck company added successfully');
         setIsAddModalOpen(false);
       } catch (error) {
+        console.error('Add truck company error:', error);
         toast.error(error.response?.data?.message || 'Failed to add truck company');
       }
     },
-    [createTruckComp]
+    [createTruckComp, clearCache]
   );
 
   const handleUpdate = useCallback(
     async (id, truckCompData) => {
       try {
-        await updateTruckComp.mutateAsync({ id, ...truckCompData });
+        await updateTruckComp.mutateAsync({ 
+          id, 
+          ...truckCompData 
+        });
+        
+        // Clear cache after successful update
+        clearCache('truck_comps');
         toast.success('Truck company updated successfully');
         setIsUpdateModalOpen(false);
         setUpdatingTruckComp(null);
       } catch (error) {
+        console.error('Update truck company error:', error);
         toast.error(error.response?.data?.message || 'Failed to update truck company');
       }
     },
-    [updateTruckComp]
+    [updateTruckComp, clearCache]
   );
 
   const handleDelete = useCallback(() => {
-    if (deletingTruckComps) {
+    if (deletingTruckComps.length > 0) {
       const ids = deletingTruckComps.map((tc) => tc.id);
       bulkDeleteTruckComps.mutate(ids, {
-        onSuccess: (res) => toast.success(res?.message || 'Truck companies deleted'),
-        onError: (error) => toast.error(error.response?.data?.message || 'Failed to delete'),
+        onSuccess: (res) => {
+          clearCache('truck_comps');
+          toast.success(res?.message || 'Truck companies deleted successfully');
+          setIsDeleteModalOpen(false);
+          setDeletingTruckComp(null);
+          setDeletingTruckComps([]);
+        },
+        onError: (error) => {
+          console.error('Bulk delete error:', error);
+          toast.error(error.response?.data?.message || 'Failed to delete truck companies');
+        },
       });
     } else if (deletingTruckComp) {
       deleteTruckComp.mutate(deletingTruckComp.id, {
-        onSuccess: () => toast.success('Truck company deleted'),
-        onError: (error) => toast.error(error.response?.data?.message || 'Failed to delete'),
+        onSuccess: () => {
+          clearCache('truck_comps');
+          toast.success('Truck company deleted successfully');
+          setIsDeleteModalOpen(false);
+          setDeletingTruckComp(null);
+          setDeletingTruckComps([]);
+        },
+        onError: (error) => {
+          console.error('Delete truck company error:', error);
+          toast.error(error.response?.data?.message || 'Failed to delete truck company');
+        },
       });
+    } else {
+      setIsDeleteModalOpen(false);
+      setDeletingTruckComp(null);
+      setDeletingTruckComps([]);
     }
-    setIsDeleteModalOpen(false);
-    setDeletingTruckComp(null);
-    setDeletingTruckComps(null);
-  }, [deleteTruckComp, bulkDeleteTruckComps, deletingTruckComp, deletingTruckComps]);
+  }, [deleteTruckComp, bulkDeleteTruckComps, deletingTruckComp, deletingTruckComps, clearCache]);
 
   const handleEditClick = useCallback((truckComp) => {
     setUpdatingTruckComp(truckComp);
@@ -124,7 +174,7 @@ const TruckComp = () => {
       setDeletingTruckComp(null);
     } else {
       setDeletingTruckComp(truckCompOrTruckComps);
-      setDeletingTruckComps(null);
+      setDeletingTruckComps([]);
     }
     setIsDeleteModalOpen(true);
   }, []);
@@ -139,15 +189,36 @@ const TruckComp = () => {
   if (isError)
     return (
       <div className="page-error">
-        <div className="page-error-content">Failed to load truck companies.</div>
+        <div className="page-error-content">
+          <p>Failed to load truck companies. Please try again.</p>
+          <button 
+            onClick={handleRefresh}
+            className="page-btn-primary mt-4"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Retry
+          </button>
+        </div>
       </div>
     );
 
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1 className="page-title">Truck Company Management</h1>
-        <p className="page-subtitle">Manage your truck companies and their information</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="page-title">Truck Company Management</h1>
+            <p className="page-subtitle">Manage your truck companies and their information</p>
+          </div>
+          <button
+            onClick={handleRefresh}
+            className="page-btn-secondary flex items-center gap-2"
+            disabled={isLoading}
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="page-table-section">
@@ -162,10 +233,13 @@ const TruckComp = () => {
           }
           actions={
             <div className="page-actions">
-              <button onClick={() => setIsAddModalOpen(true)} className="page-btn-primary">
+              <button 
+                onClick={() => setIsAddModalOpen(true)} 
+                className="page-btn-primary"
+                disabled={createTruckComp.isPending}
+              >
                 <Plus className="page-btn-icon" /> Add Truck Company
               </button>
-
             </div>
           }
         >
@@ -187,7 +261,12 @@ const TruckComp = () => {
         </div>
       )}
 
-      <AddTruckComp isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSave={handleAdd} isLoading={createTruckComp.isPending} />
+      <AddTruckComp 
+        isOpen={isAddModalOpen} 
+        onClose={() => setIsAddModalOpen(false)} 
+        onSave={handleAdd} 
+        isLoading={createTruckComp.isPending} 
+      />
 
       <UpdateTruckComp
         isOpen={isUpdateModalOpen}
@@ -205,7 +284,7 @@ const TruckComp = () => {
         onClose={() => {
           setIsDeleteModalOpen(false);
           setDeletingTruckComp(null);
-          setDeletingTruckComps(null);
+          setDeletingTruckComps([]);
         }}
         onDelete={handleDelete}
         truckComp={deletingTruckComp}

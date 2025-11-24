@@ -1,10 +1,11 @@
 // src/pages/ShippingLine.jsx
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useDebounce } from 'use-debounce';
-import { Plus, Filter } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { useShippingLine } from '../hooks/useShippingLine';
+import { useOptimizedApi } from '../hooks/useOptimizedApi';
 import TableLayout from '../components/layout/TableLayout';
 import ShippingLineTable from '../components/tables/ShippingLineTable';
 import AddShippingLine from '../components/modals/AddShippingLine';
@@ -18,13 +19,17 @@ const ShippingLine = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [deletingShippingLine, setDeletingShippingLine] = useState(null);
-  const [deletingShippingLines, setDeletingShippingLines] = useState(null);
+  const [deletingShippingLines, setDeletingShippingLines] = useState([]);
   const [updatingShippingLine, setUpdatingShippingLine] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch] = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState('id');
   const [direction, setDirection] = useState('asc');
+  const [forceRefresh, setForceRefresh] = useState(0);
+
+  // Optimized API hook
+  const { optimizedRequest, cancelRequest, clearCache } = useOptimizedApi();
 
   // ✅ useShippingLine hook handles everything
   const {
@@ -35,15 +40,15 @@ const ShippingLine = () => {
     bulkDeleteShippingLines,
   } = useShippingLine();
 
-  // ✅ Fetch shipping lines (server-side pagination & search)
-  // ✅ Call the query with parameters
-const { data, isLoading, isError } = shippingLinesQuery({
-  search: debouncedSearch,
-  page,
-  per_page: 10,
-  sort,
-  direction
-});
+  // ✅ Fetch shipping lines with optimization
+  const { data, isLoading, isError, refetch } = shippingLinesQuery({
+    search: debouncedSearch,
+    page,
+    per_page: 10,
+    sort,
+    direction,
+    _refresh: forceRefresh // Add refresh trigger
+  });
 
   const sortedShippingLines = useMemo(() => {
     if (!data?.data) return [];
@@ -78,61 +83,91 @@ const { data, isLoading, isError } = shippingLinesQuery({
     setDirection(dir);
   }, []);
 
+  // Refresh data function
+  const handleRefresh = useCallback(() => {
+    clearCache('shipping_lines'); // Clear cache for fresh data
+    setForceRefresh(prev => prev + 1);
+    toast.success('Data refreshed');
+  }, [clearCache]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cancelRequest('shipping_lines');
+    };
+  }, [cancelRequest]);
+
   /* =========================
    * CRUD ACTIONS
    * ========================= */
-  const handleAdd = useCallback(
-    async (shippingLineData) => {
-      try {
-        await createShippingLine.mutateAsync(shippingLineData);
-        toast.success('Shipping line added successfully');
-        setIsAddModalOpen(false);
-      } catch (error) {
-        toast.error(error.response?.data?.message || 'Failed to add shipping line');
-      }
-    },
-    [createShippingLine]
-  );
+  const handleAdd = useCallback(async (shippingLineData) => {
+    try {
+      await createShippingLine.mutateAsync(shippingLineData);
+      
+      // Clear cache after successful creation
+      clearCache('shipping_lines');
+      toast.success('Shipping line added successfully');
+      setIsAddModalOpen(false);
+    } catch (error) {
+      console.error('Add shipping line error:', error);
+      toast.error(error.response?.data?.message || 'Failed to add shipping line');
+    }
+  }, [createShippingLine, clearCache]);
 
-  const handleUpdate = useCallback(
-    async (id, shippingLineData) => {
-      try {
-        await updateShippingLine.mutateAsync({ id, ...shippingLineData });
-        toast.success('Shipping line updated successfully');
-        setIsUpdateModalOpen(false);
-        setUpdatingShippingLine(null);
-      } catch (error) {
-        toast.error(error.response?.data?.message || 'Failed to update shipping line');
-      }
-    },
-    [updateShippingLine]
-  );
+  const handleUpdate = useCallback(async (id, shippingLineData) => {
+    try {
+      await updateShippingLine.mutateAsync({ 
+        id, 
+        ...shippingLineData 
+      });
+      
+      // Clear cache after successful update
+      clearCache('shipping_lines');
+      toast.success('Shipping line updated successfully');
+      setIsUpdateModalOpen(false);
+      setUpdatingShippingLine(null);
+    } catch (error) {
+      console.error('Update shipping line error:', error);
+      toast.error(error.response?.data?.message || 'Failed to update shipping line');
+    }
+  }, [updateShippingLine, clearCache]);
 
   const handleDelete = useCallback(() => {
-    if (deletingShippingLines) {
+    if (deletingShippingLines.length > 0) {
       const ids = deletingShippingLines.map((sl) => sl.id);
       bulkDeleteShippingLines.mutate(ids, {
         onSuccess: (res) => {
+          clearCache('shipping_lines');
           toast.success(res?.message || 'Shipping lines deleted successfully');
+          setIsDeleteModalOpen(false);
+          setDeletingShippingLine(null);
+          setDeletingShippingLines([]);
         },
         onError: (error) => {
+          console.error('Bulk delete error:', error);
           toast.error(error.response?.data?.message || 'Failed to delete shipping lines');
         },
       });
     } else if (deletingShippingLine) {
       deleteShippingLine.mutate(deletingShippingLine.id, {
         onSuccess: () => {
+          clearCache('shipping_lines');
           toast.success('Shipping line deleted successfully');
+          setIsDeleteModalOpen(false);
+          setDeletingShippingLine(null);
+          setDeletingShippingLines([]);
         },
         onError: (error) => {
+          console.error('Delete shipping line error:', error);
           toast.error(error.response?.data?.message || 'Failed to delete shipping line');
         },
       });
+    } else {
+      setIsDeleteModalOpen(false);
+      setDeletingShippingLine(null);
+      setDeletingShippingLines([]);
     }
-    setIsDeleteModalOpen(false);
-    setDeletingShippingLine(null);
-    setDeletingShippingLines(null);
-  }, [deleteShippingLine, bulkDeleteShippingLines, deletingShippingLine, deletingShippingLines]);
+  }, [deleteShippingLine, bulkDeleteShippingLines, deletingShippingLine, deletingShippingLines, clearCache]);
 
   const handleEditClick = useCallback((shippingLine) => {
     setUpdatingShippingLine(shippingLine);
@@ -145,7 +180,7 @@ const { data, isLoading, isError } = shippingLinesQuery({
       setDeletingShippingLine(null);
     } else {
       setDeletingShippingLine(shippingLineOrShippingLines);
-      setDeletingShippingLines(null);
+      setDeletingShippingLines([]);
     }
     setIsDeleteModalOpen(true);
   }, []);
@@ -165,7 +200,14 @@ const { data, isLoading, isError } = shippingLinesQuery({
     return (
       <div className="page-error">
         <div className="page-error-content">
-          Failed to load shipping lines. Please try again.
+          <p>Failed to load shipping lines. Please try again.</p>
+          <button 
+            onClick={handleRefresh}
+            className="page-btn-primary mt-4"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -178,8 +220,20 @@ const { data, isLoading, isError } = shippingLinesQuery({
     <div className="page-container">
       {/* Page Header */}
       <div className="page-header">
-        <h1 className="page-title">Shipping Line Management</h1>
-        <p className="page-subtitle">Manage your shipping lines and their information</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="page-title">Shipping Line Management</h1>
+            <p className="page-subtitle">Manage your shipping lines and their information</p>
+          </div>
+          <button
+            onClick={handleRefresh}
+            className="page-btn-secondary flex items-center gap-2"
+            disabled={isLoading}
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Table Section */}
@@ -195,11 +249,14 @@ const { data, isLoading, isError } = shippingLinesQuery({
           }
           actions={
             <div className="page-actions">
-              <button onClick={() => setIsAddModalOpen(true)} className="page-btn-primary">
+              <button 
+                onClick={() => setIsAddModalOpen(true)} 
+                className="page-btn-primary"
+                disabled={createShippingLine.isPending}
+              >
                 <Plus className="page-btn-icon" />
                 Add Shipping Line
               </button>
-
             </div>
           }
         >
@@ -249,7 +306,7 @@ const { data, isLoading, isError } = shippingLinesQuery({
         onClose={() => {
           setIsDeleteModalOpen(false);
           setDeletingShippingLine(null);
-          setDeletingShippingLines(null);
+          setDeletingShippingLines([]);
         }}
         onDelete={handleDelete}
         shippingLine={deletingShippingLine}

@@ -1,10 +1,12 @@
-import React, { useState, useCallback, useMemo } from 'react';
+// src/components/pages/Booking.jsx
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useDebounce } from 'use-debounce';
-import { Plus, Filter } from 'lucide-react';
+import { Plus, Filter, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { useBooking } from '../hooks/useBooking';
-import { useCargoMonitoring } from '../hooks/useCargoMonitoring'; // NEW: Import cargo monitoring hook
+import { useCargoMonitoring } from '../hooks/useCargoMonitoring';
+import { useOptimizedApi } from '../hooks/useOptimizedApi';
 import TableLayout from '../components/layout/TableLayout';
 import BookingTable from '../components/tables/BookingTable';
 import AddBooking from '../components/modals/AddBooking';
@@ -25,6 +27,10 @@ const Booking = () => {
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState('id');
   const [direction, setDirection] = useState('desc');
+  const [forceRefresh, setForceRefresh] = useState(0);
+
+  // Optimized API hook
+  const { optimizedRequest, cancelRequest, clearCache } = useOptimizedApi();
 
   // useBooking hook handles everything
   const {
@@ -36,17 +42,18 @@ const Booking = () => {
     approveBooking,
   } = useBooking();
 
-  // NEW: Fetch cargo monitoring data
+  // NEW: Fetch cargo monitoring data with optimization
   const { cargoMonitoringQuery } = useCargoMonitoring();
   const { data: cargoData, isLoading: isCargoLoading } = cargoMonitoringQuery();
 
-  // Fetch bookings (server-side pagination & search)
-  const { data, isLoading, isError } = bookingsQuery({
+  // Optimized bookings query
+  const { data, isLoading, isError, refetch } = bookingsQuery({
     search: debouncedSearch,
     page,
     per_page: 10,
     sort,
-    direction
+    direction,
+    _refresh: forceRefresh // Add refresh trigger
   });
 
   // NEW: Merge booking data with cargo monitoring data
@@ -94,49 +101,65 @@ const Booking = () => {
     setDirection(dir);
   }, []);
 
+  // Refresh data function
+  const handleRefresh = useCallback(() => {
+    clearCache('bookings'); // Clear cache for fresh data
+    setForceRefresh(prev => prev + 1);
+    toast.success('Data refreshed');
+  }, [clearCache]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cancelRequest('bookings');
+      cancelRequest('cargo-monitoring');
+    };
+  }, [cancelRequest]);
+
   /* ---
    * CRUD ACTIONS
    * --- */
-  const handleAdd = useCallback(
-  async (bookingData) => {
+  const handleAdd = useCallback(async (bookingData) => {
     console.log('🎯 PARENT: handleAdd called with data:', bookingData);
     try {
       console.log('🎯 PARENT: Calling createBooking.mutateAsync...');
       await createBooking.mutateAsync(bookingData);
       console.log('🎯 PARENT: createBooking completed successfully');
+      
+      // Clear cache after successful creation
+      clearCache('bookings');
       toast.success('Booking added successfully');
       setIsAddModalOpen(false);
     } catch (error) {
       console.error('🎯 PARENT: Add booking error:', error);
       toast.error(error.response?.data?.message || 'Failed to add booking');
     }
-  },
-  [createBooking]
-);
+  }, [createBooking, clearCache]);
 
-  const handleUpdate = useCallback(
-    async (id, bookingData) => {
-      try {
-        await updateBooking.mutateAsync({
-          id, 
-          ...bookingData 
-        });
-        toast.success('Booking updated successfully');
-        setIsUpdateModalOpen(false);
-        setUpdatingBooking(null);
-      } catch (error) {
-        console.error('Update booking error:', error);
-        toast.error(error.response?.data?.message || 'Failed to update booking');
-      }
-    },
-    [updateBooking]
-  );
+  const handleUpdate = useCallback(async (id, bookingData) => {
+    try {
+      await updateBooking.mutateAsync({
+        id, 
+        ...bookingData 
+      });
+      
+      // Clear cache after successful update
+      clearCache('bookings');
+      toast.success('Booking updated successfully');
+      setIsUpdateModalOpen(false);
+      setUpdatingBooking(null);
+    } catch (error) {
+      console.error('Update booking error:', error);
+      toast.error(error.response?.data?.message || 'Failed to update booking');
+    }
+  }, [updateBooking, clearCache]);
 
   const handleDelete = useCallback(() => {
     if (deletingBookings.length > 0) {
       const ids = deletingBookings.map((booking) => booking.id);
       bulkDeleteBookings.mutate(ids, {
         onSuccess: (res) => {
+          clearCache('bookings');
           toast.success(res?.message || 'Bookings deleted successfully');
           setIsDeleteModalOpen(false);
           setDeletingBooking(null);
@@ -150,6 +173,7 @@ const Booking = () => {
     } else if (deletingBooking) {
       deleteBooking.mutate(deletingBooking.id, {
         onSuccess: () => {
+          clearCache('bookings');
           toast.success('Booking deleted successfully');
           setIsDeleteModalOpen(false);
           setDeletingBooking(null);
@@ -161,12 +185,11 @@ const Booking = () => {
         },
       });
     } else {
-      // If neither condition is met, just close the modal
       setIsDeleteModalOpen(false);
       setDeletingBooking(null);
       setDeletingBookings([]);
     }
-  }, [deleteBooking, bulkDeleteBookings, deletingBooking, deletingBookings]);
+  }, [deleteBooking, bulkDeleteBookings, deletingBooking, deletingBookings, clearCache]);
 
   const handleEditClick = useCallback((booking) => {
     setUpdatingBooking(booking);
@@ -187,17 +210,17 @@ const Booking = () => {
   const handleApprove = useCallback(async (booking) => {
     try {
       await approveBooking.mutateAsync(booking.id);
+      clearCache('bookings');
       toast.success('Booking approved successfully');
     } catch (error) {
       console.error('Approve booking error:', error);
       toast.error(error.response?.data?.message || 'Failed to approve booking');
     }
-  }, [approveBooking]);
+  }, [approveBooking, clearCache]);
 
   /*
    * STATES
-   *
-   *================================================*/
+   */
   const isLoadingCombined = isLoading || isCargoLoading;
 
   if (isLoadingCombined && !data) {
@@ -212,7 +235,14 @@ const Booking = () => {
     return (
       <div className="page-error">
         <div className="page-error-content">
-          Failed to load bookings. Please try again.
+          <p>Failed to load bookings. Please try again.</p>
+          <button 
+            onClick={handleRefresh}
+            className="page-btn-primary mt-4"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -225,8 +255,20 @@ const Booking = () => {
     <div className="page-container">
       {/* Page Header */}
       <div className="page-header">
-        <h1 className="page-title">Booking Management</h1>
-        <p className="page-subtitle">Manage your shipping bookings and requests</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="page-title">Booking Management</h1>
+            <p className="page-subtitle">Manage your shipping bookings and requests</p>
+          </div>
+          <button
+            onClick={handleRefresh}
+            className="page-btn-secondary flex items-center gap-2"
+            disabled={isLoadingCombined}
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoadingCombined ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Table Section */}
@@ -245,12 +287,11 @@ const Booking = () => {
               <button
                 onClick={() => setIsAddModalOpen(true)}
                 className="page-btn-primary"
-                disabled={createBooking.isPending} // Prevent opening while creating
+                disabled={createBooking.isPending}
               >
                 <Plus className="page-btn-icon" />
                 Add Booking
               </button>
-
             </div>
           }
         >
