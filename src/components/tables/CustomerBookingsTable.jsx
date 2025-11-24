@@ -46,27 +46,32 @@ const CustomerBookingsTable = ({
       return booking.cargo_monitoring.current_status;
     }
     
+    // Complete status mapping
     const statusMap = {
       'pending': 'Pending',
-      'in_transit': 'In Transit', 
+      'picked_up': 'Picked Up',
+      'origin_port': 'Origin Port', 
+      'in_transit': 'In Transit',
+      'destination_port': 'Destination Port',
+      'out_for_delivery': 'Out for Delivery',
       'delivered': 'Delivered'
     };
     
     return statusMap[booking.booking_status] || 'Pending';
   };
 
-  // Status badge configuration - using primary colors
+  // Status badge configuration - same as CargoMonitoringTable
   const getBookingStatusBadge = (status) => {
     const statusConfig = {
-      'Pending': 'bg-primary text-white border-primary',
-      'Picked Up': 'bg-primary text-white border-primary',
-      'Origin Port': 'bg-primary text-white border-primary',
-      'In Transit': 'bg-primary text-white border-primary',
-      'Destination Port': 'bg-primary text-white border-primary',
-      'Out for Delivery': 'bg-primary text-white border-primary',
-      'Delivered': 'bg-primary text-white border-primary'
+      'Pending': 'bg-gray-500 text-white border-gray-600',
+      'Picked Up': 'bg-blue-500 text-white border-blue-600',
+      'Origin Port': 'bg-purple-500 text-white border-purple-600',
+      'In Transit': 'bg-orange-500 text-white border-orange-600',
+      'Destination Port': 'bg-indigo-500 text-white border-indigo-600',
+      'Out for Delivery': 'bg-yellow-500 text-black border-yellow-600',
+      'Delivered': 'bg-green-500 text-white border-green-600'
     };
-    return statusConfig[status] || 'bg-primary text-white border-primary';
+    return statusConfig[status] || 'bg-gray-500 text-white border-gray-600';
   };
 
   const getBookingStatusIcon = (status) => {
@@ -115,8 +120,34 @@ const CustomerBookingsTable = ({
            booking.accounts_receivable.total_payment === 0;
   };
 
+  // Calculate due date based on invoice date and terms
+  const getDueDate = (booking) => {
+    if (!booking.accounts_receivable) return null;
+    
+    // Use invoice date if available, otherwise use current date
+    const invoiceDate = booking.accounts_receivable.invoice_date 
+      ? new Date(booking.accounts_receivable.invoice_date)
+      : new Date();
+    
+    const terms = booking.terms || 0;
+    const dueDate = new Date(invoiceDate);
+    dueDate.setDate(dueDate.getDate() + terms);
+    
+    return dueDate;
+  };
+
+  // Check if payment is overdue
+  const isPaymentOverdue = (booking) => {
+    const dueDate = getDueDate(booking);
+    if (!dueDate) return false;
+    
+    return new Date() > dueDate;
+  };
+
   // Generate billing statement data for download
   const generateBillingStatement = (booking) => {
+    const dueDate = getDueDate(booking);
+    
     const statementData = {
       bookingNumber: booking.booking_number,
       hwbNumber: booking.hwb_number,
@@ -136,7 +167,9 @@ const CustomerBookingsTable = ({
       shipper: `${booking.shipper_first_name} ${booking.shipper_last_name}`,
       consignee: `${booking.consignee_first_name} ${booking.consignee_last_name}`,
       departureDate: booking.departure_date ? formatDate(booking.departure_date) : 'Not specified',
-      deliveryDate: booking.delivery_date ? formatDate(booking.delivery_date) : 'Not specified'
+      deliveryDate: booking.delivery_date ? formatDate(booking.delivery_date) : 'Not specified',
+      dueDate: dueDate ? formatDate(dueDate) : 'Not specified',
+      isOverdue: isPaymentOverdue(booking)
     };
     
     return statementData;
@@ -174,6 +207,8 @@ const CustomerBookingsTable = ({
         const totalPaymentDue = getTotalPaymentDue(item);
         const hasPayment = hasPaymentData(item);
         const paymentPending = isPaymentPending(item);
+        const dueDate = getDueDate(item);
+        const isOverdue = isPaymentOverdue(item);
 
         // Get simplified charges breakdown using the function passed from parent
         const chargesBreakdown = getChargesBreakdown ? getChargesBreakdown(item.id) : null;
@@ -185,13 +220,13 @@ const CustomerBookingsTable = ({
           >
             <div className="p-4">
               {/* Header with Total Amount Prominently Displayed */}
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex flex-col gap-2">
+              <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4 mb-3">
+                <div className="flex flex-col gap-2 flex-1">
                   <div className="flex items-center gap-2">
                     <User className="w-4 h-4 text-muted" />
                     <span className="font-semibold text-heading">{item.first_name} {item.last_name}</span>
                   </div>
-                  <div className="flex items-center gap-4 ml-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 ml-4">
                     {item.booking_number && (
                       <div className="flex items-center gap-1">
                         <span className="text-xs font-bold text-muted">BOOKING #:</span>
@@ -206,7 +241,7 @@ const CustomerBookingsTable = ({
                     )}
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-2">
+                <div className="flex flex-col items-start lg:items-end gap-2">
                   {/* Total Amount Display */}
                   {hasPayment && (
                     <div className="text-right">
@@ -235,8 +270,8 @@ const CustomerBookingsTable = ({
                 Booked on {formatDate(item.created_at)}
               </div>
 
-              {/* Compact Grid with Icons on Data */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm mb-3 border-t border-b border-main py-3">
+              {/* Compact Grid with Icons on Data - Responsive */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm mb-3 border-t border-b border-main py-3">
                 {/* Route */}
                 <div>
                   <div className="text-xs font-bold text-muted mb-1 uppercase">ROUTE:</div>
@@ -258,7 +293,7 @@ const CustomerBookingsTable = ({
                       {item.container_quantity} x {item.container_size?.size || item.container_size?.name}
                     </div>
                     {item.van_number && (
-                      <div className="text-base font-mono text-content mt-1 flex items-center gap-1">
+                      <div className="text-sm font-mono text-content mt-1 flex items-center gap-1">
                         <Box className="w-3 h-3" />
                         VAN #: {item.van_number}
                       </div>
@@ -282,10 +317,41 @@ const CustomerBookingsTable = ({
                 </div>
               </div>
 
+              {/* Payment Notice for Bookings with Outstanding Payment */}
+              {hasOutstandingPayment(item) && (
+                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-blue-900 text-sm mb-1">
+                        {displayStatus === 'Delivered' ? 'Payment Required - Shipment Delivered' : 'Outstanding Balance'}
+                      </h4>
+                      <p className="text-blue-800 text-sm">
+                        {displayStatus === 'Delivered' 
+                          ? `Your shipment has been successfully delivered. Please settle the outstanding balance of ${formatCurrency(totalPaymentDue)}.`
+                          : `You have an outstanding balance of ${formatCurrency(totalPaymentDue)} for this booking.`
+                        }
+                        {dueDate && (
+                          <span className="font-semibold">
+                            {" "}Payment is due by {formatDate(dueDate)}.
+                            {isOverdue && (
+                              <span className="text-red-600"> This payment is now overdue.</span>
+                            )}
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-blue-700 text-xs mt-1">
+                        Late payments may result in service restrictions or additional fees as per our terms of service.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Extra Info (Toggle) */}
               <button
                 onClick={() => toggleCard(item.id || index)}
-                className="w-full text-left mt-2 pt-2 border-t border-main text-sm flex items-center gap-1 font-semibold text-heading"
+                className="w-full text-left mt-2 pt-2 border-t border-main text-sm flex items-center gap-1 font-semibold text-heading hover:text-heading"
               >
                 {isExpanded ? (
                   <> <ChevronUp className="w-4 h-4" /> Hide Details </>
@@ -295,12 +361,12 @@ const CustomerBookingsTable = ({
               </button>
 
               {isExpanded && (
-                <div className="mt-3 text-xs space-y-3 border-t pt-3">
+                <div className="mt-3 text-xs space-y-4 border-t pt-3">
                   {/* Two Horizontal Sections: Booking Details and Charges Breakdown */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     
-                    {/* Booking Details */}
-                    <div className="space-y-3">
+                    {/* Booking Details with Items */}
+                    <div className="space-y-4">
                       <h4 className="font-semibold text-heading text-sm flex items-center gap-2">
                         <FileText className="w-4 h-4" />
                         Booking Details
@@ -313,11 +379,17 @@ const CustomerBookingsTable = ({
                           <div className="text-content flex items-center gap-1">
                             <CreditCard className="w-3 h-3 text-muted" />
                             {item.terms === 0 ? 'Immediate' : `${item.terms} days`}
+                            {dueDate && (
+                              <span className="text-muted ml-2">
+                                (Due: {formatDate(dueDate)})
+                                {isOverdue && <span className="text-red-600 ml-1">• Overdue</span>}
+                              </span>
+                            )}
                           </div>
                         </div>
                       )}
 
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {/* Shipping Line */}
                         <div>
                           <div className="text-xs font-bold text-muted mb-1 uppercase">SHIPPING LINE:</div>
@@ -377,174 +449,174 @@ const CustomerBookingsTable = ({
                           )}
                         </div>
                       )}
+
+                      {/* Items List - Moved to Booking Details section */}
+                      <div>
+                        <div className="font-bold text-muted mb-2 uppercase">ITEMS {item.items.length}:</div>
+                        <div className="space-y-2 pl-3 border-l-2 border-main">
+                          {item.items.map((i, idx) => (
+                            <div key={idx} className="flex items-center gap-2">
+                              <Package className="w-3 h-3 text-muted" />
+                              <div>
+                                <div className="font-medium text-heading">{i.name}</div>
+                                <div className="text-muted text-xs">{i.category} | {i.quantity} units | {i.weight} kg each</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Charges Breakdown */}
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       <h4 className="font-semibold text-heading text-sm flex items-center gap-2">
                         <Calculator className="w-4 h-4" />
                         Charges Breakdown
                       </h4>
 
-{hasPayment ? (
-  <div className="space-y-2">
-    {/* Total Payment Summary */}
-    <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
-      <div className="flex justify-between items-center">
-        <span className="font-semibold text-primary">Total Payment:</span>
-        <span className="font-bold text-primary text-lg">
-          {formatCurrency(item.accounts_receivable.total_payment)}
-        </span>
-      </div>
-      {item.accounts_receivable.collectible_amount > 0 && (
-        <div className="flex justify-between items-center mt-2 pt-2 border-t border-primary/20">
-          <span className="font-semibold text-orange-600">Balance Due:</span>
-          <span className="font-bold text-orange-600 text-lg">
-            {formatCurrency(item.accounts_receivable.collectible_amount)}
-          </span>
-        </div>
-      )}
-      {item.accounts_receivable.is_paid && (
-        <div className="flex justify-between items-center mt-2 pt-2 border-t border-primary/20">
-          <span className="font-semibold text-green-600">Status:</span>
-          <span className="font-bold text-green-600 text-lg">Paid</span>
-        </div>
-      )}
-    </div>
-
-    {/* Individual Charges - Improved logic */}
-    {(() => {
-      // Check multiple sources for charges data
-      const chargesFromBreakdown = chargesBreakdown && chargesBreakdown.length > 0 ? chargesBreakdown : null;
-      const chargesFromAR = item.accounts_receivable?.charges && 
-                           Array.isArray(item.accounts_receivable.charges) && 
-                           item.accounts_receivable.charges.length > 0 ? 
-                           item.accounts_receivable.charges : null;
-      
-      const chargesToDisplay = chargesFromBreakdown || chargesFromAR;
-
-      return chargesToDisplay ? (
-        <div className="space-y-2">
-          <div className="text-xs font-bold text-muted uppercase">CHARGES BREAKDOWN:</div>
-          {chargesToDisplay.map((charge, idx) => (
-            <div key={idx} className="flex justify-between items-start py-2 border-b border-main/20">
-              <div className="flex-1">
-                <div className="font-medium text-heading">{charge.description}</div>
-                {/* Show detailed breakdown if available */}
-                {(charge.amount !== charge.total || charge.markup > 0) && (
-                  <div className="text-xs text-muted mt-1">
-                    Base: {formatCurrency(charge.amount || charge.baseAmount)}
-                    {charge.markup > 0 && (
-                      <span> + Markup ({charge.markup}%): {formatCurrency(charge.markup_amount)}</span>
-                    )}
-                  </div>
-                )}
-              </div>
-              <div className="font-semibold text-heading text-right min-w-[100px]">
-                {formatCurrency(charge.total || charge.amount)}
-              </div>
-            </div>
-          ))}
-          
-          {/* Financial Summary */}
-          <div className="space-y-1 pt-2 border-t border-main/30">
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-muted">Subtotal:</span>
-              <span className="font-medium text-heading">
-                {formatCurrency(item.accounts_receivable.total_expenses || 0)}
-              </span>
-            </div>
-            {item.accounts_receivable.profit > 0 && (
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-muted">Service Fee:</span>
-                <span className="font-medium text-green-600">
-                  {formatCurrency(item.accounts_receivable.profit || 0)}
-                </span>
-              </div>
-            )}
-            <div className="flex justify-between items-center pt-1 border-t border-main/20 font-bold text-heading">
-              <div>Total Amount:</div>
-              <div>{formatCurrency(item.accounts_receivable.total_payment)}</div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        // Fallback when no detailed charges but we have payment data
-        <div className="space-y-2">
-          <div className="text-xs font-bold text-muted uppercase">PAYMENT SUMMARY:</div>
-          <div className="flex justify-between items-center py-2 border-b border-main/20">
-            <div className="flex-1">
-              <div className="font-medium text-heading">Total Expenses</div>
-            </div>
-            <div className="font-semibold text-heading text-right">
-              {formatCurrency(item.accounts_receivable.total_expenses || 0)}
-            </div>
-          </div>
-          {item.accounts_receivable.profit > 0 && (
-            <div className="flex justify-between items-center py-2 border-b border-main/20">
-              <div className="flex-1">
-                <div className="font-medium text-heading">Service Fee</div>
-              </div>
-              <div className="font-semibold text-green-600 text-right">
-                {formatCurrency(item.accounts_receivable.profit || 0)}
-              </div>
-            </div>
-          )}
-          <div className="flex justify-between items-center pt-2 border-t border-main/30 font-bold text-heading">
-            <div>Total Amount:</div>
-            <div>{formatCurrency(item.accounts_receivable.total_payment)}</div>
-          </div>
-        </div>
-      );
-    })()}
-  </div>
-) : (
-  <div className="text-center py-8 text-muted bg-main/30 rounded-lg">
-    <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-    <p className="text-sm font-medium">Payment calculation in progress</p>
-    <p className="text-xs mt-1">The admin is currently calculating your total payment amount.</p>
-    {item.accounts_receivable && (
-      <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-700 text-xs">
-        <p>Payment record exists but amount is not set yet.</p>
-      </div>
-    )}
-  </div>
-)}
-                    </div>
-                  </div>
-
-                  {/* Items List */}
-                  <div>
-                    <div className="font-bold text-muted mb-1 uppercase">ITEMS {item.items.length}:</div>
-                    <div className="space-y-2 pl-3 border-l-2 border-main">
-                      {item.items.map((i, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <Package className="w-3 h-3 text-muted" />
-                          <div>
-                            <div className="font-medium">{i.name}</div>
-                            <div className="text-muted">{i.category} | {i.quantity} units | {i.weight} kg each</div>
+                      {hasPayment ? (
+                        <div className="space-y-3">
+                          {/* Total Payment Summary */}
+                          <div className="bg-main/30 border border-main rounded-lg p-3">
+                            <div className="flex justify-between items-center">
+                              <span className="font-semibold text-heading">Total Payment:</span>
+                              <span className="font-bold text-heading text-lg">
+                                {formatCurrency(item.accounts_receivable.total_payment)}
+                              </span>
+                            </div>
+                            {item.accounts_receivable.collectible_amount > 0 && (
+                              <div className="flex justify-between items-center mt-2 pt-2 border-t border-main/20">
+                                <span className="font-semibold text-orange-600">Balance Due:</span>
+                                <span className="font-bold text-orange-600 text-lg">
+                                  {formatCurrency(item.accounts_receivable.collectible_amount)}
+                                </span>
+                              </div>
+                            )}
+                            {item.accounts_receivable.is_paid && (
+                              <div className="flex justify-between items-center mt-2 pt-2 border-t border-main/20">
+                                <span className="font-semibold text-green-600">Status:</span>
+                                <span className="font-bold text-green-600 text-lg">Paid</span>
+                              </div>
+                            )}
                           </div>
+
+                          {/* Individual Charges - Simplified without colors */}
+                          {(() => {
+                            // Check multiple sources for charges data
+                            const chargesFromBreakdown = chargesBreakdown && chargesBreakdown.length > 0 ? chargesBreakdown : null;
+                            const chargesFromAR = item.accounts_receivable?.charges && 
+                                              Array.isArray(item.accounts_receivable.charges) && 
+                                              item.accounts_receivable.charges.length > 0 ? 
+                                              item.accounts_receivable.charges : null;
+                            
+                            const chargesToDisplay = chargesFromBreakdown || chargesFromAR;
+
+                            return chargesToDisplay ? (
+                              <div className="space-y-2">
+                                <div className="text-xs font-bold text-muted uppercase">CHARGES BREAKDOWN:</div>
+                                {chargesToDisplay.map((charge, idx) => (
+                                  <div key={idx} className="flex justify-between items-start py-2 border-b border-main/20">
+                                    <div className="flex-1">
+                                      <div className="font-medium text-heading">{charge.description}</div>
+                                      {/* Show detailed breakdown if available */}
+                                      {(charge.amount !== charge.total || charge.markup > 0) && (
+                                        <div className="text-xs text-muted mt-1">
+                                          Base: {formatCurrency(charge.amount || charge.baseAmount)}
+                                          {charge.markup > 0 && (
+                                            <span> + Markup ({charge.markup}%): {formatCurrency(charge.markup_amount)}</span>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="font-semibold text-heading text-right min-w-[100px]">
+                                      {formatCurrency(charge.total || charge.amount)}
+                                    </div>
+                                  </div>
+                                ))}
+                                
+                                {/* Financial Summary */}
+                                <div className="space-y-1 pt-2 border-t border-main/30">
+                                  <div className="flex justify-between items-center text-sm">
+                                    <span className="text-muted">Subtotal:</span>
+                                    <span className="font-medium text-heading">
+                                      {formatCurrency(item.accounts_receivable.total_expenses || 0)}
+                                    </span>
+                                  </div>
+                                  {item.accounts_receivable.profit > 0 && (
+                                    <div className="flex justify-between items-center text-sm">
+                                      <span className="text-muted">Service Fee:</span>
+                                      <span className="font-medium text-green-600">
+                                        {formatCurrency(item.accounts_receivable.profit || 0)}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div className="flex justify-between items-center pt-1 border-t border-main/20 font-bold text-heading">
+                                    <div>Total Amount:</div>
+                                    <div>{formatCurrency(item.accounts_receivable.total_payment)}</div>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              // Fallback when no detailed charges but we have payment data
+                              <div className="space-y-2">
+                                <div className="text-xs font-bold text-muted uppercase">PAYMENT SUMMARY:</div>
+                                <div className="flex justify-between items-center py-2 border-b border-main/20">
+                                  <div className="flex-1">
+                                    <div className="font-medium text-heading">Total Expenses</div>
+                                  </div>
+                                  <div className="font-semibold text-heading text-right">
+                                    {formatCurrency(item.accounts_receivable.total_expenses || 0)}
+                                  </div>
+                                </div>
+                                {item.accounts_receivable.profit > 0 && (
+                                  <div className="flex justify-between items-center py-2 border-b border-main/20">
+                                    <div className="flex-1">
+                                      <div className="font-medium text-heading">Service Fee</div>
+                                    </div>
+                                    <div className="font-semibold text-green-600 text-right">
+                                      {formatCurrency(item.accounts_receivable.profit || 0)}
+                                    </div>
+                                  </div>
+                                )}
+                                <div className="flex justify-between items-center pt-2 border-t border-main/30 font-bold text-heading">
+                                  <div>Total Amount:</div>
+                                  <div>{formatCurrency(item.accounts_receivable.total_payment)}</div>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
-                      ))}
+                      ) : (
+                        <div className="text-center py-8 text-muted bg-main/30 rounded-lg">
+                          <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm font-medium">Payment calculation in progress</p>
+                          <p className="text-xs mt-1">The admin is currently calculating your total payment amount.</p>
+                          {item.accounts_receivable && (
+                            <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-700 text-xs">
+                              <p>Payment record exists but amount is not set yet.</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Pay Action with Download Statement - Only show if payment is ready */}
+            {/* Pay Action with Download Statement - Show for any booking with outstanding payment */}
             {canPay && (
-              <div className="bg-surface px-4 py-3 border-t border-main flex justify-between items-center gap-2">
+              <div className="bg-surface px-4 py-3 border-t border-main flex flex-col sm:flex-row justify-between items-center gap-3">
                 <button
                   onClick={() => handleDownloadStatement(item)}
-                  className="bg-gray-600 text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 shadow-sm"
+                  className="w-full sm:w-auto bg-gray-600 text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
                 >
                   <Download className="w-4 h-4" />
                   Download Billing Statement
                 </button>
                 <button
                   onClick={() => onPay(item)}
-                  className="bg-primary text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 shadow-sm"
+                  className="w-full sm:w-auto bg-primary text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 shadow-sm"
                 >
                   <CreditCard className="w-4 h-4" />
                   Pay {formatCurrency(totalPaymentDue)}
