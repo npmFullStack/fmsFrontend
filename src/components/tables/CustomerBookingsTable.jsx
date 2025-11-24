@@ -120,17 +120,28 @@ const CustomerBookingsTable = ({
            booking.accounts_receivable.total_payment === 0;
   };
 
-  // Calculate due date based on invoice date and terms
+  // Calculate due date based on delivery date and terms
   const getDueDate = (booking) => {
     if (!booking.accounts_receivable) return null;
     
-    // Use invoice date if available, otherwise use current date
-    const invoiceDate = booking.accounts_receivable.invoice_date 
-      ? new Date(booking.accounts_receivable.invoice_date)
-      : new Date();
+    // Use delivery date from cargo monitoring or booking
+    let deliveryDate = null;
+    
+    // Check cargo monitoring first
+    if (booking.cargo_monitoring && booking.cargo_monitoring.delivered_at) {
+      deliveryDate = new Date(booking.cargo_monitoring.delivered_at);
+    } 
+    // Fallback to booking delivery date
+    else if (booking.delivery_date) {
+      deliveryDate = new Date(booking.delivery_date);
+    }
+    // If no delivery date yet, no due date
+    else {
+      return null;
+    }
     
     const terms = booking.terms || 0;
-    const dueDate = new Date(invoiceDate);
+    const dueDate = new Date(deliveryDate);
     dueDate.setDate(dueDate.getDate() + terms);
     
     return dueDate;
@@ -209,6 +220,8 @@ const CustomerBookingsTable = ({
         const paymentPending = isPaymentPending(item);
         const dueDate = getDueDate(item);
         const isOverdue = isPaymentOverdue(item);
+        const isDelivered = displayStatus === 'Delivered';
+        const hasARRecord = !!item.accounts_receivable;
 
         // Get simplified charges breakdown using the function passed from parent
         const chargesBreakdown = getChargesBreakdown ? getChargesBreakdown(item.id) : null;
@@ -252,7 +265,7 @@ const CustomerBookingsTable = ({
                     </div>
                   )}
                   {paymentPending && (
-                    <div className="flex items-center gap-2 px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full border border-yellow-200">
+                    <div className="flex items-center gap-2 px-3 py-1 bg-blue-600 text-white rounded-full border border-blue-700">
                       <AlertCircle className="w-3 h-3" />
                       <span className="text-sm font-medium">Calculating</span>
                     </div>
@@ -317,32 +330,70 @@ const CustomerBookingsTable = ({
                 </div>
               </div>
 
-              {/* Payment Notice for Bookings with Outstanding Payment */}
-              {hasOutstandingPayment(item) && (
-                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-blue-900 text-sm mb-1">
-                        {displayStatus === 'Delivered' ? 'Payment Required - Shipment Delivered' : 'Outstanding Balance'}
-                      </h4>
-                      <p className="text-blue-800 text-sm">
-                        {displayStatus === 'Delivered' 
-                          ? `Your shipment has been successfully delivered. Please settle the outstanding balance of ${formatCurrency(totalPaymentDue)}.`
-                          : `You have an outstanding balance of ${formatCurrency(totalPaymentDue)} for this booking.`
-                        }
-                        {dueDate && (
-                          <span className="font-semibold">
-                            {" "}Payment is due by {formatDate(dueDate)}.
-                            {isOverdue && (
-                              <span className="text-red-600"> This payment is now overdue.</span>
-                            )}
-                          </span>
+              {/* Payment Notice - Different messages based on AR record status */}
+              {hasARRecord ? (
+                hasOutstandingPayment(item) && (
+                  <div className="mb-3 p-3 border border-blue-700 bg-blue-900 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-4 h-4 text-blue-100 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-blue-100 text-sm mb-1">
+                          {isDelivered ? 'Payment Required - Shipment Delivered' : 'Outstanding Balance'}
+                        </h4>
+                        <div className="text-blue-200 text-sm space-y-1">
+                          {isDelivered ? (
+                            <>
+                              <p>Your shipment has been successfully delivered. You can pay your balance of <span className="font-bold">{formatCurrency(totalPaymentDue)}</span> today.</p>
+                              {dueDate ? (
+                                <p className="font-medium">
+                                  Payment is due by {formatDate(dueDate)}.
+                                  {isOverdue && (
+                                    <span className="text-red-300 ml-1">This payment is now overdue.</span>
+                                  )}
+                                </p>
+                              ) : (
+                                <p className="text-blue-300">Payment due date will be calculated after delivery.</p>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <p>You can pay your balance of <span className="font-bold">{formatCurrency(totalPaymentDue)}</span> today.</p>
+                              {dueDate ? (
+                                <p className="font-medium">
+                                  Payment is due by {formatDate(dueDate)}.
+                                  {isOverdue && (
+                                    <span className="text-red-300 ml-1">This payment is now overdue.</span>
+                                  )}
+                                </p>
+                              ) : (
+                                <p className="text-blue-300">Payment due date will be calculated after delivery.</p>
+                              )}
+                            </>
+                          )}
+                        </div>
+                        {isOverdue && (
+                          <div className="mt-2 p-2 bg-red-900 border border-red-700 rounded text-red-100 text-xs">
+                            <p className="font-medium">Your payment is overdue. Please pay right away to avoid any service restrictions.</p>
+                            <p className="mt-1">Note: We still accept overdue payments and do not impose additional fees.</p>
+                          </div>
                         )}
-                      </p>
-                      <p className="text-blue-700 text-xs mt-1">
-                        Late payments may result in service restrictions or additional fees as per our terms of service.
-                      </p>
+                      </div>
+                    </div>
+                  </div>
+                )
+              ) : (
+                // No AR record yet
+                <div className="mb-3 p-3 border border-blue-700 bg-blue-900 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-4 h-4 text-blue-100 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-blue-100 text-sm mb-1">
+                        Payment Information Pending
+                      </h4>
+                      <div className="text-blue-200 text-sm space-y-1">
+                        <p>Your payment amount is being calculated by our admin team.</p>
+                        <p>Once the amount is set, you'll be able to view the charges breakdown and make payments here.</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -379,10 +430,14 @@ const CustomerBookingsTable = ({
                           <div className="text-content flex items-center gap-1">
                             <CreditCard className="w-3 h-3 text-muted" />
                             {item.terms === 0 ? 'Immediate' : `${item.terms} days`}
-                            {dueDate && (
+                            {dueDate ? (
                               <span className="text-muted ml-2">
                                 (Due: {formatDate(dueDate)})
                                 {isOverdue && <span className="text-red-600 ml-1">• Overdue</span>}
+                              </span>
+                            ) : (
+                              <span className="text-muted ml-2">
+                                (Due date will be set after delivery)
                               </span>
                             )}
                           </div>
@@ -467,138 +522,93 @@ const CustomerBookingsTable = ({
                       </div>
                     </div>
 
-                    {/* Charges Breakdown */}
-                    <div className="space-y-4">
-                      <h4 className="font-semibold text-heading text-sm flex items-center gap-2">
-                        <Calculator className="w-4 h-4" />
-                        Charges Breakdown
-                      </h4>
+                    {/* Charges Breakdown - Only show if AR record exists */}
+                    {hasARRecord && (
+                      <div className="space-y-4">
+                        <h4 className="font-semibold text-heading text-sm flex items-center gap-2">
+                          <Calculator className="w-4 h-4" />
+                          Charges Breakdown
+                        </h4>
 
-                      {hasPayment ? (
-                        <div className="space-y-3">
-                          {/* Total Payment Summary */}
-                          <div className="bg-main/30 border border-main rounded-lg p-3">
-                            <div className="flex justify-between items-center">
-                              <span className="font-semibold text-heading">Total Payment:</span>
-                              <span className="font-bold text-heading text-lg">
-                                {formatCurrency(item.accounts_receivable.total_payment)}
-                              </span>
-                            </div>
-                            {item.accounts_receivable.collectible_amount > 0 && (
-                              <div className="flex justify-between items-center mt-2 pt-2 border-t border-main/20">
-                                <span className="font-semibold text-orange-600">Balance Due:</span>
-                                <span className="font-bold text-orange-600 text-lg">
-                                  {formatCurrency(item.accounts_receivable.collectible_amount)}
+                        {hasPayment ? (
+                          <div className="space-y-3">
+                            {/* Total Payment Summary */}
+                            <div className="bg-main/30 border border-main rounded-lg p-3">
+                              <div className="flex justify-between items-center">
+                                <span className="font-semibold text-heading">Total Payment:</span>
+                                <span className="font-bold text-heading text-lg">
+                                  {formatCurrency(item.accounts_receivable.total_payment)}
                                 </span>
                               </div>
-                            )}
-                            {item.accounts_receivable.is_paid && (
-                              <div className="flex justify-between items-center mt-2 pt-2 border-t border-main/20">
-                                <span className="font-semibold text-green-600">Status:</span>
-                                <span className="font-bold text-green-600 text-lg">Paid</span>
-                              </div>
-                            )}
-                          </div>
+                              {item.accounts_receivable.collectible_amount > 0 && (
+                                <div className="flex justify-between items-center mt-2 pt-2 border-t border-main/20">
+                                  <span className="font-semibold text-orange-600">Balance Due:</span>
+                                  <span className="font-bold text-orange-600 text-lg">
+                                    {formatCurrency(item.accounts_receivable.collectible_amount)}
+                                  </span>
+                                </div>
+                              )}
+                              {item.accounts_receivable.is_paid && (
+                                <div className="flex justify-between items-center mt-2 pt-2 border-t border-main/20">
+                                  <span className="font-semibold text-green-600">Status:</span>
+                                  <span className="font-bold text-green-600 text-lg">Paid</span>
+                                </div>
+                              )}
+                            </div>
 
-                          {/* Individual Charges - Simplified without colors */}
-                          {(() => {
-                            // Check multiple sources for charges data
-                            const chargesFromBreakdown = chargesBreakdown && chargesBreakdown.length > 0 ? chargesBreakdown : null;
-                            const chargesFromAR = item.accounts_receivable?.charges && 
-                                              Array.isArray(item.accounts_receivable.charges) && 
-                                              item.accounts_receivable.charges.length > 0 ? 
-                                              item.accounts_receivable.charges : null;
-                            
-                            const chargesToDisplay = chargesFromBreakdown || chargesFromAR;
+                            {/* Individual Charges */}
+                            {(() => {
+                              // Check multiple sources for charges data
+                              const chargesFromBreakdown = chargesBreakdown && chargesBreakdown.charges && chargesBreakdown.charges.length > 0 ? chargesBreakdown.charges : null;
+                              const chargesFromAR = item.accounts_receivable?.charges && 
+                                                Array.isArray(item.accounts_receivable.charges) && 
+                                                item.accounts_receivable.charges.length > 0 ? 
+                                                item.accounts_receivable.charges : null;
+                              
+                              const chargesToDisplay = chargesFromBreakdown || chargesFromAR;
 
-                            return chargesToDisplay ? (
-                              <div className="space-y-2">
-                                <div className="text-xs font-bold text-muted uppercase">CHARGES BREAKDOWN:</div>
-                                {chargesToDisplay.map((charge, idx) => (
-                                  <div key={idx} className="flex justify-between items-start py-2 border-b border-main/20">
-                                    <div className="flex-1">
-                                      <div className="font-medium text-heading">{charge.description}</div>
-                                      {/* Show detailed breakdown if available */}
-                                      {(charge.amount !== charge.total || charge.markup > 0) && (
+                              return chargesToDisplay ? (
+                                <div className="space-y-2">
+                                  <div className="text-xs font-bold text-muted uppercase">CHARGES BREAKDOWN:</div>
+                                  {chargesToDisplay.map((charge, idx) => (
+                                    <div key={idx} className="flex justify-between items-start py-2 border-b border-main/20">
+                                      <div className="flex-1">
+                                        <div className="font-medium text-heading">{charge.description}</div>
                                         <div className="text-xs text-muted mt-1">
-                                          Base: {formatCurrency(charge.amount || charge.baseAmount)}
-                                          {charge.markup > 0 && (
-                                            <span> + Markup ({charge.markup}%): {formatCurrency(charge.markup_amount)}</span>
-                                          )}
+                                          Type: {charge.type || 'Service Charge'}
                                         </div>
-                                      )}
+                                      </div>
+                                      <div className="font-semibold text-heading text-right min-w-[100px]">
+                                        {formatCurrency(charge.total || charge.amount)}
+                                      </div>
                                     </div>
-                                    <div className="font-semibold text-heading text-right min-w-[100px]">
-                                      {formatCurrency(charge.total || charge.amount)}
-                                    </div>
-                                  </div>
-                                ))}
-                                
-                                {/* Financial Summary */}
-                                <div className="space-y-1 pt-2 border-t border-main/30">
-                                  <div className="flex justify-between items-center text-sm">
-                                    <span className="text-muted">Subtotal:</span>
-                                    <span className="font-medium text-heading">
-                                      {formatCurrency(item.accounts_receivable.total_expenses || 0)}
-                                    </span>
-                                  </div>
-                                  {item.accounts_receivable.profit > 0 && (
-                                    <div className="flex justify-between items-center text-sm">
-                                      <span className="text-muted">Service Fee:</span>
-                                      <span className="font-medium text-green-600">
-                                        {formatCurrency(item.accounts_receivable.profit || 0)}
-                                      </span>
-                                    </div>
-                                  )}
-                                  <div className="flex justify-between items-center pt-1 border-t border-main/20 font-bold text-heading">
+                                  ))}
+                                  
+                                  {/* Simplified Total */}
+                                  <div className="flex justify-between items-center pt-2 border-t border-main/30 font-bold text-heading text-sm">
                                     <div>Total Amount:</div>
                                     <div>{formatCurrency(item.accounts_receivable.total_payment)}</div>
                                   </div>
                                 </div>
-                              </div>
-                            ) : (
-                              // Fallback when no detailed charges but we have payment data
-                              <div className="space-y-2">
-                                <div className="text-xs font-bold text-muted uppercase">PAYMENT SUMMARY:</div>
-                                <div className="flex justify-between items-center py-2 border-b border-main/20">
-                                  <div className="flex-1">
-                                    <div className="font-medium text-heading">Total Expenses</div>
-                                  </div>
-                                  <div className="font-semibold text-heading text-right">
-                                    {formatCurrency(item.accounts_receivable.total_expenses || 0)}
-                                  </div>
+                              ) : (
+                                // Fallback when no detailed charges but we have payment data
+                                <div className="text-center py-4 text-muted bg-main/30 rounded-lg">
+                                  <AlertCircle className="w-6 h-6 mx-auto mb-2 opacity-50" />
+                                  <p className="text-sm font-medium">Detailed charges not available</p>
+                                  <p className="text-xs mt-1">Contact admin for charges breakdown</p>
                                 </div>
-                                {item.accounts_receivable.profit > 0 && (
-                                  <div className="flex justify-between items-center py-2 border-b border-main/20">
-                                    <div className="flex-1">
-                                      <div className="font-medium text-heading">Service Fee</div>
-                                    </div>
-                                    <div className="font-semibold text-green-600 text-right">
-                                      {formatCurrency(item.accounts_receivable.profit || 0)}
-                                    </div>
-                                  </div>
-                                )}
-                                <div className="flex justify-between items-center pt-2 border-t border-main/30 font-bold text-heading">
-                                  <div>Total Amount:</div>
-                                  <div>{formatCurrency(item.accounts_receivable.total_payment)}</div>
-                                </div>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-muted bg-main/30 rounded-lg">
-                          <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                          <p className="text-sm font-medium">Payment calculation in progress</p>
-                          <p className="text-xs mt-1">The admin is currently calculating your total payment amount.</p>
-                          {item.accounts_receivable && (
-                            <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-700 text-xs">
-                              <p>Payment record exists but amount is not set yet.</p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                              );
+                            })()}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-muted bg-main/30 rounded-lg">
+                            <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm font-medium">Payment calculation in progress</p>
+                            <p className="text-xs mt-1">The admin is currently calculating your total payment amount.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
