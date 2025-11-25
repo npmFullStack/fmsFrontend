@@ -23,6 +23,8 @@ const Login = lazyWithRetry(() => import('./pages/Login'));
 const Register = lazyWithRetry(() => import('./pages/Register'));
 const Quote = lazyWithRetry(() => import('./pages/Quote'));
 const Dashboard = lazyWithRetry(() => import('./pages/Dashboard'));
+const GMDashboard = lazyWithRetry(() => import('./pages/GMDashboard'));
+const AdminDashboard = lazyWithRetry(() => import('./pages/AdminDashboard'));
 const Category = lazyWithRetry(() => import('./pages/Category'));
 const ContainerType = lazyWithRetry(() => import('./pages/ContainerType'));
 const Port = lazyWithRetry(() => import('./pages/Port'));
@@ -62,6 +64,8 @@ function App() {
           {/* Authenticated Routes */}
           <Route element={<Layout />}>
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/gm-dashboard" element={<GMDashboard />} />
+            <Route path="/admin-dashboard" element={<AdminDashboard />} />
             <Route path="/categories" element={<Category />} />
             <Route path="/container-types" element={<ContainerType />} />
             <Route path="/ports" element={<Port />} />
