@@ -100,13 +100,14 @@ const createQuoteMutation = createQuote;
 
   // Generate options
   const containerOptions = React.useMemo(() => {
-    if (!containerTypesData?.data) return [];
-    return containerTypesData.data.map(container => ({
-      value: container.id,
-      label: `${container.size}`,
-      max_weight: parseFloat(container.max_weight) || 0,
-    }));
-  }, [containerTypesData]);
+  if (!containerTypesData?.data) return [];
+  return containerTypesData.data.map(container => ({
+    value: container.id,
+    label: `${container.size} (Max: ${parseFloat(container.max_weight).toFixed(2)} kg)`, // Display size with max weight
+    max_weight: parseFloat(container.max_weight) || 0,
+    originalSize: container.size // Keep original size for reference
+  }));
+}, [containerTypesData]);
 
   const categoryOptions = React.useMemo(() => {
     if (!categoriesData?.data) return [];
@@ -118,12 +119,15 @@ const createQuoteMutation = createQuote;
   }, [categoriesData]);
 
   const portOptions = React.useMemo(() => {
-    if (!portsData?.data) return [];
-    return portsData.data.map(port => ({
-      value: port.id,
-      label: port.route_name,
-    }));
-  }, [portsData]);
+  if (!portsData?.data) return [];
+  return portsData.data.map(port => ({
+    value: port.id,
+    label: `${port.name} (${port.route_name})`, // This will display like: Port of Cebu (CEB)
+    portData: port
+  }));
+}, [portsData]);
+
+
 
   const shippingLineOptions = React.useMemo(() => {
     if (!shippingLinesData?.data) return [];
@@ -156,31 +160,41 @@ const createQuoteMutation = createQuote;
       return total + (weight * quantity);
     }, 0);
   };
-
-  // Validate weight against container capacity
-  useEffect(() => {
-    if (formData.containerSize && items.length > 0) {
-      const totalWeight = calculateTotalWeight();
-      const selectedContainer = containerOptions.find(opt => opt.value === formData.containerSize.value);
-      
-      if (selectedContainer && totalWeight > 0) {
-        const maxWeight = selectedContainer.max_weight * containerQuantity;
-        if (totalWeight > maxWeight) {
-          const excessWeight = (totalWeight - maxWeight).toFixed(2);
-          setWeightValidation({
-            isValid: false,
-            message: `Total weight (${totalWeight.toFixed(2)} kg) exceeds container capacity (${maxWeight.toFixed(2)} kg) by ${excessWeight} kg. Please add more containers or choose a larger container size.`
-          });
-        } else {
-          const remainingCapacity = (maxWeight - totalWeight).toFixed(2);
-          setWeightValidation({ 
-            isValid: true, 
-            message: `Total weight: ${totalWeight.toFixed(2)} kg / ${maxWeight.toFixed(2)} kg (${remainingCapacity} kg remaining capacity)`
-          });
-        }
+// Validate weight against container capacity
+useEffect(() => {
+  if (formData.containerSize && items.length > 0) {
+    const totalWeight = calculateTotalWeight();
+    const selectedContainer = containerOptions.find(opt => opt.value === formData.containerSize.value);
+    
+    if (selectedContainer && totalWeight > 0) {
+      const maxWeight = selectedContainer.max_weight * containerQuantity;
+      if (totalWeight > maxWeight) {
+        const excessWeight = (totalWeight - maxWeight).toFixed(2);
+        // Remove trailing .00 if present
+        const formattedExcess = excessWeight.replace(/\.00$/, '');
+        const formattedTotal = totalWeight.toFixed(2).replace(/\.00$/, '');
+        const formattedMax = maxWeight.toFixed(2).replace(/\.00$/, '');
+        
+        setWeightValidation({
+          isValid: false,
+          message: `Total weight (${formattedTotal} kg) exceeds container capacity (${formattedMax} kg) by ${formattedExcess} kg. Please add more containers or choose a larger container size.`
+        });
+      } else {
+        const remainingCapacity = (maxWeight - totalWeight).toFixed(2);
+        // Remove trailing .00 if present
+        const formattedRemaining = remainingCapacity.replace(/\.00$/, '');
+        const formattedTotal = totalWeight.toFixed(2).replace(/\.00$/, '');
+        const formattedMax = maxWeight.toFixed(2).replace(/\.00$/, '');
+        
+        setWeightValidation({ 
+          isValid: true, 
+          message: `Total weight: ${formattedTotal} kg / ${formattedMax} kg (${formattedRemaining} kg remaining capacity)`
+        });
       }
     }
-  }, [items, formData.containerSize, containerQuantity, containerOptions]);
+  }
+}, [items, formData.containerSize, containerQuantity, containerOptions]);
+
 
   // Item management
   const addItem = () => setItems((s) => [...s, {
@@ -236,26 +250,28 @@ const createQuoteMutation = createQuote;
   const showDelivery = modeValue === "door-to-door" || modeValue === "port-to-door";
 
   // Section completion check
-  const isSectionComplete = (section) => {
-    switch (section) {
-      case 1:
-        return formData.firstName && formData.lastName && formData.email;
-      case 2:
-        return formData.shipperFirstName && formData.shipperLastName;
-      case 3:
-        return formData.consigneeFirstName && formData.consigneeLastName;
-      case 4:
-        return items.every((item) => {
-          const hasCategory = item.category && (item.category !== "other" || item.customCategory);
-          return item.name && item.weight && item.quantity && hasCategory;
-        });
-      case 5:
-        return formData.modeOfService && formData.containerSize && formData.origin &&
-          formData.destination && formData.terms && weightValidation.isValid;
-      default:
-        return false;
-    }
-  };
+const isSectionComplete = (section) => {
+  switch (section) {
+    case 1:
+      return true;
+    case 2:
+      // Shipper section is now optional, so always return true
+      return true;
+    case 3:
+      // Consignee section is now optional, so always return true
+      return true;
+    case 4:
+      return items.every((item) => {
+        const hasCategory = item.category && (item.category !== "other" || item.customCategory);
+        return item.name && item.weight && item.quantity && hasCategory;
+      });
+    case 5:
+      return formData.modeOfService && formData.containerSize && formData.origin &&
+        formData.destination && formData.terms && weightValidation.isValid;
+    default:
+      return false;
+  }
+};
 
   // Custom Container Quantity Input
   const ContainerQuantityInput = () => (
@@ -432,26 +448,26 @@ const createQuoteMutation = createQuote;
               <div className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <label className="modal-label">First Name</label>
+                    <label className="modal-label">First Name (Optional)</label>
                     <input
                       className={`modal-input ${formErrors.firstName ? 'border-red-500' : ''}`}
                       value={formData.firstName}
                       onChange={(e) => handleInputChange("firstName", e.target.value)}
                       placeholder="Enter your first name"
-                      required
+                      
                     />
                     {formErrors.firstName && (
                       <p className="text-red-500 text-sm mt-1">{formErrors.firstName}</p>
                     )}
                   </div>
                   <div>
-                    <label className="modal-label">Last Name</label>
+                    <label className="modal-label">Last Name (Optional)</label>
                     <input
                       className={`modal-input ${formErrors.lastName ? 'border-red-500' : ''}`}
                       value={formData.lastName}
                       onChange={(e) => handleInputChange("lastName", e.target.value)}
                       placeholder="Enter your last name"
-                      required
+                      
                     />
                     {formErrors.lastName && (
                       <p className="text-red-500 text-sm mt-1">{formErrors.lastName}</p>
@@ -488,7 +504,7 @@ const createQuoteMutation = createQuote;
                         <strong className="email-notice-heading text-blue-100">
                           Important:
                         </strong>{' '}
-                        Please use an active email address. Your account credentials and quote details will be sent to this email once your booking is approved.
+                        Please use an active email address. Your quote details will be sent to this email once your request is processed.
                       </p>
                     </div>
                   </div>
@@ -507,26 +523,26 @@ const createQuoteMutation = createQuote;
               </h2>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <label className="modal-label">Shipper First Name</label>
+                  <label className="modal-label">Shipper First Name (Optional)</label>
                   <input
                     className={`modal-input ${formErrors.shipperFirstName ? 'border-red-500' : ''}`}
                     value={formData.shipperFirstName}
                     onChange={(e) => handleInputChange("shipperFirstName", e.target.value)}
                     placeholder="Enter shipper's first name"
-                    required
+                    
                   />
                   {formErrors.shipperFirstName && (
                     <p className="text-red-500 text-sm mt-1">{formErrors.shipperFirstName}</p>
                   )}
                 </div>
                 <div>
-                  <label className="modal-label">Shipper Last Name</label>
+                  <label className="modal-label">Shipper Last Name (Optional)</label>
                   <input
                     className={`modal-input ${formErrors.shipperLastName ? 'border-red-500' : ''}`}
                     value={formData.shipperLastName}
                     onChange={(e) => handleInputChange("shipperLastName", e.target.value)}
                     placeholder="Enter shipper's last name"
-                    required
+                    
                   />
                   {formErrors.shipperLastName && (
                     <p className="text-red-500 text-sm mt-1">{formErrors.shipperLastName}</p>
@@ -552,26 +568,26 @@ const createQuoteMutation = createQuote;
               </h2>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <label className="modal-label">Consignee First Name</label>
+                  <label className="modal-label">Consignee First Name (Optional)</label>
                   <input
                     className={`modal-input ${formErrors.consigneeFirstName ? 'border-red-500' : ''}`}
                     value={formData.consigneeFirstName}
                     onChange={(e) => handleInputChange("consigneeFirstName", e.target.value)}
                     placeholder="Enter consignee's first name"
-                    required
+                    
                   />
                   {formErrors.consigneeFirstName && (
                     <p className="text-red-500 text-sm mt-1">{formErrors.consigneeFirstName}</p>
                   )}
                 </div>
                 <div>
-                  <label className="modal-label">Consignee Last Name</label>
+                  <label className="modal-label">Consignee Last Name (Optional)</label>
                   <input
                     className={`modal-input ${formErrors.consigneeLastName ? 'border-red-500' : ''}`}
                     value={formData.consigneeLastName}
                     onChange={(e) => handleInputChange("consigneeLastName", e.target.value)}
-                    placeholder="Enter consignee's last name"
-                    required
+                    placeholder="Enter consignee's last name "
+                    
                   />
                   {formErrors.consigneeLastName && (
                     <p className="text-red-500 text-sm mt-1">{formErrors.consigneeLastName}</p>
@@ -817,7 +833,7 @@ const createQuoteMutation = createQuote;
 
               {/* Service Providers (Optional) */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-heading">Service Providers (Optional)</h3>
+                <h3 className="text-lg font-semibold text-heading">Service Providers</h3>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="modal-label">Preferred Shipping Line</label>

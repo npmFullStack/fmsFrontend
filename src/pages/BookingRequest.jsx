@@ -67,19 +67,18 @@ const BookingRequest = () => {
 
   // Handlers
   const handleApprove = useCallback(
-    async (booking) => {
-      try {
-        await approveBooking.mutateAsync(booking.id);
-        // Clear cache after successful approval
-        clearCache('booking-requests');
-        toast.success('Booking approved! Password sent to customer.');
-      } catch (error) {
-        console.error('Approve booking error:', error);
-        toast.error(error.response?.data?.message || 'Failed to approve booking');
-      }
-    },
-    [approveBooking, clearCache],
-  );
+  async (booking) => {
+    try {
+      await approveBooking.mutateAsync(booking.id);
+      clearCache('booking-requests');
+      toast.success('Booking approved successfully!'); // Updated message
+    } catch (error) {
+      console.error('Approve booking error:', error);
+      toast.error(error.response?.data?.message || 'Failed to approve booking');
+    }
+  },
+  [approveBooking, clearCache],
+);
 
   const handleReject = useCallback(
     async (booking) => {

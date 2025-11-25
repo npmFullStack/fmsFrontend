@@ -91,14 +91,14 @@ const bookingApi = {
     return data;
   },
   approve: async (id) => {
-    const { data } = await retryWithBackoff(
-      () => api.post(`/bookings/${id}/approve`),
-      2,
-      1000,
-      45000 // Longer timeout for approval (email sending)
-    );
-    return data;
-  },
+  const { data } = await retryWithBackoff(
+    () => api.post(`/bookings/${id}/approve`),
+    2,
+    1000,
+    45000 // 45 seconds timeout
+  );
+  return data;
+},
 
   // CUSTOMER BOOKING METHODS
   getCustomerBookings: async (params = {}, signal) => {

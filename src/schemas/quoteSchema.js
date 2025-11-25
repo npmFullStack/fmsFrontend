@@ -24,40 +24,24 @@ export const bookingItemSchema = z.object({
 // Main quote schema (without userId)
 export const quoteSchema = z.object({
     // Customer Information (no userId required for quotes)
-    firstName: z
-    .string({ required_error: 'First name is required' })
-    .min(1, 'First name is required')
-    .max(255, 'First name must not exceed 255 characters'),
-    lastName: z
-    .string({ required_error: 'Last name is required' })
-    .min(1, 'Last name is required')
-    .max(255, 'Last name must not exceed 255 characters'),
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
     email: z
-    .string({ required_error: 'Email is required' })
-    .email('Please enter a valid email address'),
+    .string()
+    .email('Please enter a valid email address')
+    .optional()
+    .or(z.literal('')), // Allow empty string
     contactNumber: z.string().optional(),
 
-    // Shipper Information
-    shipperFirstName: z
-    .string({ required_error: 'Shipper first name is required' })
-    .min(1, 'Shipper first name is required')
-    .max(255, 'Shipper first name must not exceed 255 characters'),
-    shipperLastName: z
-    .string({ required_error: 'Shipper last name is required' })
-    .min(1, 'Shipper last name is required')
-    .max(255, 'Shipper last name must not exceed 255 characters'),
-    shipperContact: z.string().optional(),
+    // Shipper Information (now optional)
+    shipperFirstName: z.string().optional().nullable(),
+    shipperLastName: z.string().optional().nullable(),
+    shipperContact: z.string().optional().nullable(),
 
-    // Consignee Information
-    consigneeFirstName: z
-    .string({ required_error: 'Consignee first name is required' })
-    .min(1, 'Consignee first name is required')
-    .max(255, 'Consignee first name must not exceed 255 characters'),
-    consigneeLastName: z
-    .string({ required_error: 'Consignee last name is required' })
-    .min(1, 'Consignee last name is required')
-    .max(255, 'Consignee last name must not exceed 255 characters'),
-    consigneeContact: z.string().optional(),
+    // Consignee Information (now optional)
+    consigneeFirstName: z.string().optional().nullable(),
+    consigneeLastName: z.string().optional().nullable(),
+    consigneeContact: z.string().optional().nullable(),
 
     // Shipping Details
     modeOfService: z
@@ -103,8 +87,8 @@ export const quoteSchema = z.object({
     .nullable(),
 
     // Dates
-    departureDate: z.union([z.date(), z.null()]).optional(),
-    deliveryDate: z.union([z.date(), z.null()]).optional(),
+    departureDate: z.union([z.date(), z.string(), z.null()]).optional(),
+    deliveryDate: z.union([z.date(), z.string(), z.null()]).optional(),
 
     // Locations
     pickupLocation: z.object({
@@ -134,7 +118,9 @@ export const quoteSchema = z.object({
 }).refine((data) => {
     // Validate that delivery date is after departure date if provided
     if (data.deliveryDate && data.departureDate) {
-        return data.deliveryDate >= data.departureDate;
+        const delivery = data.deliveryDate instanceof Date ? data.deliveryDate : new Date(data.deliveryDate);
+        const departure = data.departureDate instanceof Date ? data.departureDate : new Date(data.departureDate);
+        return delivery >= departure;
     }
     return true;
 }, {
@@ -197,14 +183,14 @@ export const defaultQuoteValues = {
 export const quoteApiSchema = z.object({
     first_name: z.string(),
     last_name: z.string(),
-    email: z.string().email(),
-    contact_number: z.string().optional(),
-    shipper_first_name: z.string(),
-    shipper_last_name: z.string(),
-    shipper_contact: z.string().optional(),
-    consignee_first_name: z.string(),
-    consignee_last_name: z.string(),
-    consignee_contact: z.string().optional(),
+    email: z.string().email().optional(),
+    contact_number: z.string().optional().nullable(),
+    shipper_first_name: z.string().optional().nullable(),
+    shipper_last_name: z.string().optional().nullable(),
+    shipper_contact: z.string().optional().nullable(),
+    consignee_first_name: z.string().optional().nullable(),
+    consignee_last_name: z.string().optional().nullable(),
+    consignee_contact: z.string().optional().nullable(),
     mode_of_service: z.string(),
     container_size_id: z.number(),
     container_quantity: z.number().min(1),
@@ -239,17 +225,25 @@ export const quoteApiSchema = z.object({
 
 // Helper function to transform frontend data to API format
 export const transformQuoteToApi = (data) => {
+    // Helper function to safely format dates
+    const formatDate = (date) => {
+        if (!date) return null;
+        if (typeof date === 'string') return date;
+        if (date instanceof Date) return date.toISOString().split("T")[0];
+        return null;
+    };
+
     return {
-        first_name: data.firstName,
-        last_name: data.lastName,
-        email: data.email,
-        contact_number: data.contactNumber || null,
-        shipper_first_name: data.shipperFirstName,
-        shipper_last_name: data.shipperLastName,
-        shipper_contact: data.shipperContact || null,
-        consignee_first_name: data.consigneeFirstName,
-        consignee_last_name: data.consigneeLastName,
-        consignee_contact: data.consigneeContact || null,
+        first_name: data.firstName || '',
+        last_name: data.lastName || '',
+        email: data.email || '',
+        contact_number: data.contactNumber || '',
+        shipper_first_name: data.shipperFirstName || '',
+        shipper_last_name: data.shipperLastName || '',
+        shipper_contact: data.shipperContact || '',
+        consignee_first_name: data.consigneeFirstName || '',
+        consignee_last_name: data.consigneeLastName || '',
+        consignee_contact: data.consigneeContact || '',
         mode_of_service: data.modeOfService.value,
         container_size_id: data.containerSize.value,
         container_quantity: data.containerQuantity,
@@ -257,12 +251,8 @@ export const transformQuoteToApi = (data) => {
         destination_id: data.destination.value,
         shipping_line_id: data.shippingLine?.value || null,
         truck_comp_id: data.truckCompany?.value || null,
-        departure_date: data.departureDate
-            ? data.departureDate.toISOString().split("T")[0]
-            : null,
-        delivery_date: data.deliveryDate
-            ? data.deliveryDate.toISOString().split("T")[0]
-            : null,
+        departure_date: formatDate(data.departureDate),
+        delivery_date: formatDate(data.deliveryDate),
         terms: data.terms,
         pickup_location: data.pickupLocation || null,
         delivery_location: data.deliveryLocation || null,
