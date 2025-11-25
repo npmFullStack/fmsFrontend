@@ -27,18 +27,40 @@ import {
   BadgeCheck
 } from 'lucide-react';
 import { formatDate, formatCurrency } from '../../utils/formatters';
+import PayBooking from '../modals/PayBooking'; // Import the PayBooking modal
 
 const CustomerBookingsTable = ({ 
   data = [],
-  onPay,
   onDownloadStatement,
   isLoading = false,
   getChargesBreakdown
 }) => {
   const [expandedCards, setExpandedCards] = useState([]);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [isPayModalOpen, setIsPayModalOpen] = useState(false);
 
   const toggleCard = (id) => {
     setExpandedCards(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  // Handle pay button click
+  const handlePayClick = (booking) => {
+    setSelectedBooking(booking);
+    setIsPayModalOpen(true);
+  };
+
+  // Handle payment success
+  const handlePaymentSuccess = () => {
+    setIsPayModalOpen(false);
+    setSelectedBooking(null);
+    // You can add any additional logic here, like refreshing the data
+    // For example: if (onPaymentSuccess) onPaymentSuccess();
+  };
+
+  // Handle modal close
+  const handlePayModalClose = () => {
+    setIsPayModalOpen(false);
+    setSelectedBooking(null);
   };
 
   // Get the main display status that considers both approval and shipping status
@@ -241,476 +263,487 @@ const CustomerBookingsTable = ({
   );
 
   return (
-    <div className="space-y-4">
-      {data.map((item, index) => {
-        const totalWeight = calculateTotalWeight(item.items);
-        const totalItems = calculateTotalItems(item.items);
-        const isExpanded = expandedCards[item.id || index];
-        const displayStatus = getDisplayStatus(item);
-        const fullyPaid = isFullyPaid(item);
-        const canPay = hasOutstandingPayment(item);
-        const totalPaymentDue = getTotalPaymentDue(item);
-        const hasPayment = hasPaymentData(item);
-        const paymentPending = isPaymentPending(item);
-        const dueDate = getDueDate(item);
-        const isOverdue = isPaymentOverdue(item);
-        const isDelivered = displayStatus === 'Delivered';
-        const hasARRecord = !!item.accounts_receivable;
-        const isApproved = item.status === 'approved';
+    <>
+      <div className="space-y-4">
+        {data.map((item, index) => {
+          const totalWeight = calculateTotalWeight(item.items);
+          const totalItems = calculateTotalItems(item.items);
+          const isExpanded = expandedCards[item.id || index];
+          const displayStatus = getDisplayStatus(item);
+          const fullyPaid = isFullyPaid(item);
+          const canPay = hasOutstandingPayment(item);
+          const totalPaymentDue = getTotalPaymentDue(item);
+          const hasPayment = hasPaymentData(item);
+          const paymentPending = isPaymentPending(item);
+          const dueDate = getDueDate(item);
+          const isOverdue = isPaymentOverdue(item);
+          const isDelivered = displayStatus === 'Delivered';
+          const hasARRecord = !!item.accounts_receivable;
+          const isApproved = item.status === 'approved';
 
-        // Get simplified charges breakdown using the function passed from parent
-        const chargesBreakdown = getChargesBreakdown ? getChargesBreakdown(item.id) : null;
+          // Get simplified charges breakdown using the function passed from parent
+          const chargesBreakdown = getChargesBreakdown ? getChargesBreakdown(item.id) : null;
 
-        return (
-          <div
-            key={item.id || index}
-            className="bg-surface rounded-lg border border-main overflow-hidden hover:shadow-md transition-shadow"
-          >
-            <div className="p-4">
-              {/* Header with Total Amount Prominently Displayed */}
-              <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4 mb-3">
-                <div className="flex flex-col gap-2 flex-1">
-                  <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-muted" />
-                    <span className="font-semibold text-heading">{item.first_name} {item.last_name}</span>
+          return (
+            <div
+              key={item.id || index}
+              className="bg-surface rounded-lg border border-main overflow-hidden hover:shadow-md transition-shadow"
+            >
+              <div className="p-4">
+                {/* Header with Total Amount Prominently Displayed */}
+                <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4 mb-3">
+                  <div className="flex flex-col gap-2 flex-1">
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-muted" />
+                      <span className="font-semibold text-heading">{item.first_name} {item.last_name}</span>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 ml-4">
+                      {item.booking_number && (
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs font-bold text-muted">BOOKING #:</span>
+                          <span className="text-content font-mono font-semibold">{item.booking_number}</span>
+                        </div>
+                      )}
+                      {item.hwb_number && (
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs font-bold text-muted">HWB #:</span>
+                          <span className="text-content font-mono font-semibold">{item.hwb_number}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 ml-4">
-                    {item.booking_number && (
+                  <div className="flex flex-col items-start lg:items-end gap-2">
+                    {/* Total Amount Display - Only show for approved bookings with payment data */}
+                    {isApproved && hasPayment && (
+                      <div className="text-right">
+                        <div className="text-xs font-bold text-muted mb-1 uppercase">TOTAL AMOUNT</div>
+                        <div className="text-xl font-bold text-content">
+                          {formatCurrency(item.accounts_receivable.total_payment)}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Single Status Badge */}
+                    <span className={`px-3 py-1 text-sm font-medium rounded-full border ${getBookingStatusBadge(displayStatus, fullyPaid)} flex items-center gap-2`}>
+                      {getBookingStatusIcon(displayStatus, fullyPaid)}
+                      {displayStatus}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-xs text-muted flex items-center gap-1 mb-3">
+                  <Calendar className="w-3 h-3"/>
+                  Booked on {formatDate(item.created_at)}
+                </div>
+
+                {/* Compact Grid with Icons on Data - Responsive */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm mb-3 border-t border-b border-main py-3">
+                  {/* Route */}
+                  <div>
+                    <div className="text-xs font-bold text-muted mb-1 uppercase">ROUTE:</div>
+                    <div className="flex items-center gap-1 text-content">
+                      <MapPin className="w-3 h-3 text-muted" />
+                      <span className="truncate">{item.origin?.route_name || item.origin?.name || 'N/A'}</span>
+                      <ArrowRight className="w-3 h-3 text-muted" />
+                      <MapPin className="w-3 h-3 text-muted" />
+                      <span className="truncate">{item.destination?.route_name || item.destination?.name || 'N/A'}</span>
+                    </div>
+                  </div>
+
+                  {/* Container with VAN # */}
+                  <div>
+                    <div className="text-xs font-bold text-muted mb-1 uppercase">CONTAINER:</div>
+                    <div className="text-content">
                       <div className="flex items-center gap-1">
-                        <span className="text-xs font-bold text-muted">BOOKING #:</span>
-                        <span className="text-content font-mono font-semibold">{item.booking_number}</span>
+                        <Container className="w-3 h-3 text-muted" />
+                        {item.container_quantity} x {item.container_size?.size || item.container_size?.name}
                       </div>
-                    )}
-                    {item.hwb_number && (
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs font-bold text-muted">HWB #:</span>
-                        <span className="text-content font-mono font-semibold">{item.hwb_number}</span>
+                      {item.van_number && (
+                        <div className="text-sm font-mono text-content mt-1 flex items-center gap-1">
+                          <Box className="w-3 h-3" />
+                          VAN #: {item.van_number}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Items */}
+                  <div>
+                    <div className="text-xs font-bold text-muted mb-1 uppercase">ITEMS:</div>
+                    <div className="flex flex-col gap-1">
+                      <div className="text-content flex items-center gap-1">
+                        <Package className="w-3 h-3 text-muted"/>
+                        {item.items?.length || 0} types, {totalItems} units
                       </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-col items-start lg:items-end gap-2">
-                  {/* Total Amount Display - Only show for approved bookings with payment data */}
-                  {isApproved && hasPayment && (
-                    <div className="text-right">
-                      <div className="text-xs font-bold text-muted mb-1 uppercase">TOTAL AMOUNT</div>
-                      <div className="text-xl font-bold text-content">
-                        {formatCurrency(item.accounts_receivable.total_payment)}
+                      <div className="text-xs text-muted flex items-center gap-1">
+                        <Weight className="w-3 h-3"/>
+                        {formatWeight(totalWeight)} total
                       </div>
                     </div>
-                  )}
-                  
-                  {/* Single Status Badge */}
-                  <span className={`px-3 py-1 text-sm font-medium rounded-full border ${getBookingStatusBadge(displayStatus, fullyPaid)} flex items-center gap-2`}>
-                    {getBookingStatusIcon(displayStatus, fullyPaid)}
-                    {displayStatus}
-                  </span>
-                </div>
-              </div>
-
-              <div className="text-xs text-muted flex items-center gap-1 mb-3">
-                <Calendar className="w-3 h-3"/>
-                Booked on {formatDate(item.created_at)}
-              </div>
-
-              {/* Compact Grid with Icons on Data - Responsive */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm mb-3 border-t border-b border-main py-3">
-                {/* Route */}
-                <div>
-                  <div className="text-xs font-bold text-muted mb-1 uppercase">ROUTE:</div>
-                  <div className="flex items-center gap-1 text-content">
-                    <MapPin className="w-3 h-3 text-muted" />
-                    <span className="truncate">{item.origin?.route_name || item.origin?.name || 'N/A'}</span>
-                    <ArrowRight className="w-3 h-3 text-muted" />
-                    <MapPin className="w-3 h-3 text-muted" />
-                    <span className="truncate">{item.destination?.route_name || item.destination?.name || 'N/A'}</span>
                   </div>
                 </div>
 
-                {/* Container with VAN # */}
-                <div>
-                  <div className="text-xs font-bold text-muted mb-1 uppercase">CONTAINER:</div>
-                  <div className="text-content">
-                    <div className="flex items-center gap-1">
-                      <Container className="w-3 h-3 text-muted" />
-                      {item.container_quantity} x {item.container_size?.size || item.container_size?.name}
-                    </div>
-                    {item.van_number && (
-                      <div className="text-sm font-mono text-content mt-1 flex items-center gap-1">
-                        <Box className="w-3 h-3" />
-                        VAN #: {item.van_number}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Items */}
-                <div>
-                  <div className="text-xs font-bold text-muted mb-1 uppercase">ITEMS:</div>
-                  <div className="flex flex-col gap-1">
-                    <div className="text-content flex items-center gap-1">
-                      <Package className="w-3 h-3 text-muted"/>
-                      {item.items?.length || 0} types, {totalItems} units
-                    </div>
-                    <div className="text-xs text-muted flex items-center gap-1">
-                      <Weight className="w-3 h-3"/>
-                      {formatWeight(totalWeight)} total
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Status Notice - Single message based on approval and payment status */}
-              {!isApproved ? (
-                // Not approved yet
-                <div className="email-notice border-yellow-600 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-900">
-                  <div className="flex items-start gap-4 pl-4">
-                    <Clock className="email-notice-icon text-yellow-600 dark:text-yellow-100" />
-                    <div className="flex-1">
-                      <p className="email-notice-text text-yellow-700 dark:text-yellow-200">
-                        <strong className="email-notice-heading text-yellow-600 dark:text-yellow-100">
-                          Waiting for Approval
-                        </strong>{' '}
-                        Your booking request is pending admin approval. Once approved, you'll be able to view payment details and track your shipment.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : hasARRecord ? (
-                // Approved and has AR record
-                fullyPaid ? (
-                  <div className="email-notice border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-900">
+                {/* Status Notice - Single message based on approval and payment status */}
+                {!isApproved ? (
+                  // Not approved yet
+                  <div className="email-notice border-yellow-600 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-900">
                     <div className="flex items-start gap-4 pl-4">
-                      <BadgeCheck className="email-notice-icon text-green-600 dark:text-green-100" />
+                      <Clock className="email-notice-icon text-yellow-600 dark:text-yellow-100" />
                       <div className="flex-1">
-                        <p className="email-notice-text text-green-700 dark:text-green-200">
-                          <strong className="email-notice-heading text-green-600 dark:text-green-100">
-                            Payment Complete
+                        <p className="email-notice-text text-yellow-700 dark:text-yellow-200">
+                          <strong className="email-notice-heading text-yellow-600 dark:text-yellow-100">
+                            Waiting for Approval
                           </strong>{' '}
-                          This booking is fully paid. Thank you for your payment!
+                          Your booking request is pending admin approval. Once approved, you'll be able to view payment details and track your shipment.
                         </p>
                       </div>
                     </div>
                   </div>
-                ) : hasOutstandingPayment(item) && (
-                  <div className={`email-notice ${
-                    isOverdue
-                      ? 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900'
-                      : 'border-blue-600 bg-white dark:border-blue-700 dark:bg-blue-900'
-                  }`}>
-                    <div className="flex items-start gap-4 pl-4">
-                      <AlertCircle className={`email-notice-icon ${
-                        isOverdue
-                          ? 'text-red-600 dark:text-red-100'
-                          : 'text-blue-600 dark:text-blue-100'
-                      }`} />
-                      <div className="flex-1">
-                        <p className={`email-notice-text ${
+                ) : hasARRecord ? (
+                  // Approved and has AR record
+                  // In the status notice section, replace the fully paid message:
+fullyPaid ? (
+  <div className="email-notice border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-900">
+    <div className="flex items-start gap-4 pl-4">
+      <BadgeCheck className="email-notice-icon text-green-600 dark:text-green-100" />
+      <div className="flex-1">
+        <p className="email-notice-text text-green-700 dark:text-green-200">
+          <strong className="email-notice-heading text-green-600 dark:text-green-100">
+            Payment Complete
+          </strong>{' '}
+          Thank you for your payment! Your booking is now fully paid and being processed.
+        </p>
+      </div>
+    </div>
+  </div>
+) : hasOutstandingPayment(item) && (
+                    <div className={`email-notice ${
+                      isOverdue
+                        ? 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900'
+                        : 'border-blue-600 bg-white dark:border-blue-700 dark:bg-blue-900'
+                    }`}>
+                      <div className="flex items-start gap-4 pl-4">
+                        <AlertCircle className={`email-notice-icon ${
                           isOverdue
-                            ? 'text-red-700 dark:text-red-200'
-                            : 'text-black dark:text-blue-200'
-                        }`}>
-                          <strong className={`email-notice-heading ${
+                            ? 'text-red-600 dark:text-red-100'
+                            : 'text-blue-600 dark:text-blue-100'
+                        }`} />
+                        <div className="flex-1">
+                          <p className={`email-notice-text ${
                             isOverdue
-                              ? 'text-red-600 dark:text-red-100'
-                              : 'text-blue-600 dark:text-blue-100'
+                              ? 'text-red-700 dark:text-red-200'
+                              : 'text-black dark:text-blue-200'
                           }`}>
-                            {isDelivered ? 'Payment Required - Shipment Delivered' : 'Outstanding Balance'}
-                          </strong>{' '}
-                          {isDelivered ? (
-                            <>
-                              Your shipment has been successfully delivered. You can pay your balance of <span className="font-bold">{formatCurrency(totalPaymentDue)}</span> today.
-                              {dueDate ? (
-                                <>
-                                  Payment is due by {formatDate(dueDate)}.
-                                  {isOverdue && (
-                                    <span className="font-medium ml-1">This payment is now overdue.</span>
-                                  )}
-                                </>
-                              ) : (
-                                'Payment due date will be calculated after delivery.'
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              You can pay your balance of <span className="font-bold">{formatCurrency(totalPaymentDue)}</span> today.
-                              {dueDate ? (
-                                <>
-                                  Payment is due by {formatDate(dueDate)}.
-                                  {isOverdue && (
-                                    <span className="font-medium ml-1">This payment is now overdue.</span>
-                                  )}
-                                </>
-                              ) : (
-                                'Payment due date will be calculated after delivery.'
-                              )}
-                            </>
+                            <strong className={`email-notice-heading ${
+                              isOverdue
+                                ? 'text-red-600 dark:text-red-100'
+                                : 'text-blue-600 dark:text-blue-100'
+                            }`}>
+                              {isDelivered ? 'Payment Required - Shipment Delivered' : 'Outstanding Balance'}
+                            </strong>{' '}
+                            {isDelivered ? (
+                              <>
+                                Your shipment has been successfully delivered. You can pay your balance of <span className="font-bold">{formatCurrency(totalPaymentDue)}</span> today.
+                                {dueDate ? (
+                                  <>
+                                    Payment is due by {formatDate(dueDate)}.
+                                    {isOverdue && (
+                                      <span className="font-medium ml-1">This payment is now overdue.</span>
+                                    )}
+                                  </>
+                                ) : (
+                                  'Payment due date will be calculated after delivery.'
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                You can pay your balance of <span className="font-bold">{formatCurrency(totalPaymentDue)}</span> today.
+                                {dueDate ? (
+                                  <>
+                                    Payment is due by {formatDate(dueDate)}.
+                                    {isOverdue && (
+                                      <span className="font-medium ml-1">This payment is now overdue.</span>
+                                    )}
+                                  </>
+                                ) : (
+                                  'Payment due date will be calculated after delivery.'
+                                )}
+                              </>
+                            )}
+                          </p>
+                          {isOverdue && (
+                            <div className="mt-2 p-2 bg-red-900 border border-red-700 rounded text-red-100 text-xs">
+                              <p className="font-medium">Your payment is overdue. Please pay right away to avoid restrictions in availing our services.</p>
+                              <p className="mt-1">Note: We still accept overdue payments and do not impose additional fees.</p>
+                            </div>
                           )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                ) : (
+                  // Approved but no AR record yet
+                  <div className="email-notice border-blue-600 bg-white dark:border-blue-700 dark:bg-blue-900">
+                    <div className="flex items-start gap-4 pl-4">
+                      <AlertCircle className="email-notice-icon text-blue-600 dark:text-blue-100" />
+                      <div className="flex-1">
+                        <p className="email-notice-text text-black dark:text-blue-200">
+                          <strong className="email-notice-heading text-blue-600 dark:text-blue-100">
+                            Payment Information Pending
+                          </strong>{' '}
+                          Your payment amount is being calculated by our admin team. Once the amount is set, you'll be able to view the charges breakdown and make payments here.
                         </p>
-                        {isOverdue && (
-                          <div className="mt-2 p-2 bg-red-900 border border-red-700 rounded text-red-100 text-xs">
-                            <p className="font-medium">Your payment is overdue. Please pay right away to avoid restrictions in availing our services.</p>
-                            <p className="mt-1">Note: We still accept overdue payments and do not impose additional fees.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Extra Info (Toggle) */}
+                <button
+                  onClick={() => toggleCard(item.id || index)}
+                  className="w-full text-left mt-2 pt-2 border-t border-main text-sm flex items-center gap-1 font-semibold text-heading hover:text-heading"
+                >
+                  {isExpanded ? (
+                    <> <ChevronUp className="w-4 h-4" /> Hide Details </>
+                  ) : (
+                    <> <ChevronDown className="w-4 h-4" /> View All Details </>
+                  )}
+                </button>
+
+                {isExpanded && (
+                  <div className="mt-3 text-xs space-y-4 border-t pt-3">
+                    {/* Two Horizontal Sections: Booking Details and Charges Breakdown */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      
+                      {/* Booking Details with Items */}
+                      <div className="space-y-4">
+                        <h4 className="font-semibold text-heading text-sm flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          Booking Details
+                        </h4>
+                        
+                        {/* Payment Terms - Only show for approved bookings */}
+                        {isApproved && item.terms !== undefined && (
+                          <div>
+                            <div className="text-xs font-bold text-muted mb-1 uppercase">PAYMENT TERMS:</div>
+                            <div className="text-content flex items-center gap-1">
+                              <CreditCard className="w-3 h-3 text-muted" />
+                              {item.terms === 0 ? 'Immediate' : `${item.terms} days`}
+                              {dueDate ? (
+                                <span className="text-muted ml-2">
+                                  (Due: {formatDate(dueDate)})
+                                  {isOverdue && <span className="text-red-600 ml-1">• Overdue</span>}
+                                </span>
+                              ) : (
+                                <span className="text-muted ml-2">
+                                  (Due date will be set after delivery)
+                                </span>
+                              )}
+                            </div>
                           </div>
                         )}
+
+                        <div className="space-y-3">
+                          {/* Shipping Line */}
+                          <div>
+                            <div className="text-xs font-bold text-muted mb-1 uppercase">SHIPPING LINE:</div>
+                            <div className="text-content flex items-center gap-1">
+                              <Ship className="w-3 h-3 text-muted" />
+                              {item.shipping_line?.name || 'Not specified'}
+                            </div>
+                          </div>
+                          
+                          {/* Trucking */}
+                          <div>
+                            <div className="text-xs font-bold text-muted mb-1 uppercase">TRUCKING:</div>
+                            <div className="text-content flex items-center gap-1">
+                              <Truck className="w-3 h-3 text-muted" />
+                              {item.truck_comp?.name || 'Not specified'}
+                            </div>
+                          </div>
+                          
+                          {/* Parties */}
+                          <div>
+                            <div className="text-xs font-bold text-muted mb-1 uppercase">PARTIES:</div>
+                            <div className="text-content space-y-1">
+                              <div className="flex items-center gap-1">
+                                <UserCheck className="w-3 h-3 text-muted" />
+                                <span className="font-semibold">Shipper: </span>
+                                {item.shipper_first_name} {item.shipper_last_name}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <UserCog className="w-3 h-3 text-muted" />
+                                <span className="font-semibold">Consignee: </span>
+                                {item.consignee_first_name} {item.consignee_last_name}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Schedule Information */}
+                        {(item.departure_date || item.delivery_date) && (
+                          <div className="space-y-2">
+                            {item.departure_date && (
+                              <div>
+                                <div className="text-xs font-bold text-muted mb-1 uppercase">PREFERRED DEPARTURE:</div>
+                                <div className="text-content flex items-center gap-1">
+                                  <Calendar className="w-3 h-3 text-muted"/>
+                                  {formatDate(item.departure_date)}
+                                </div>
+                              </div>
+                            )}
+                            {item.delivery_date && (
+                              <div>
+                                <div className="text-xs font-bold text-muted mb-1 uppercase">PREFERRED DELIVERY:</div>
+                                <div className="text-content flex items-center gap-1">
+                                  <Calendar className="w-3 h-3 text-muted"/>
+                                  {formatDate(item.delivery_date)}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Items List */}
+                        <div>
+                          <div className="font-bold text-muted mb-2 uppercase">ITEMS {item.items.length}:</div>
+                          <div className="space-y-2 pl-3 border-l-2 border-main">
+                            {item.items.map((i, idx) => (
+                              <div key={idx} className="flex items-center gap-2">
+                                <Package className="w-3 h-3 text-muted" />
+                                <div>
+                                  <div className="font-medium text-heading">{i.name}</div>
+                                  <div className="text-muted text-xs">{i.category} | {i.quantity} units | {i.weight} kg each</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
+
+                      {/* Charges Breakdown - Only show if approved and has AR record */}
+                      {isApproved && hasARRecord && (
+                        <div className="space-y-4">
+                          <h4 className="font-semibold text-heading text-sm flex items-center gap-2">
+                            <Calculator className="w-4 h-4" />
+                            Charges Breakdown
+                          </h4>
+
+                          {hasPayment ? (
+                            <div className="space-y-3">
+                              {/* Individual Charges */}
+                              {(() => {
+                                const chargesFromBreakdown = chargesBreakdown?.charges && 
+                                                        Array.isArray(chargesBreakdown.charges) && 
+                                                        chargesBreakdown.charges.length > 0 ? 
+                                                        chargesBreakdown.charges : null;
+                                
+                                const chargesFromAR = item.accounts_receivable?.charges && 
+                                                Array.isArray(item.accounts_receivable.charges) && 
+                                                item.accounts_receivable.charges.length > 0 ? 
+                                                item.accounts_receivable.charges : null;
+                                
+                                const chargesToDisplay = chargesFromBreakdown || chargesFromAR;
+
+                                return chargesToDisplay ? (
+                                  <div className="space-y-2">
+                                    <div className="text-xs font-bold text-muted uppercase">CHARGES BREAKDOWN:</div>
+                                    {chargesToDisplay.map((charge, idx) => (
+                                      <div key={idx} className="flex justify-between items-start py-2 border-b border-main/20">
+                                        <div className="flex-1">
+                                          <div className="font-medium text-heading">{charge.description}</div>
+                                        </div>
+                                        <div className="font-semibold text-heading text-right min-w-[100px]">
+                                          {formatCurrency(charge.total)}
+                                        </div>
+                                      </div>
+                                    ))}
+                                    
+                                    {/* Total Amount and Balance Due at Bottom */}
+                                    <div className="space-y-2 pt-2 border-t border-main/30">
+                                      <div className="flex justify-between items-center font-bold text-heading text-sm">
+                                        <div>Total Amount:</div>
+                                        <div>{formatCurrency(item.accounts_receivable.total_payment)}</div>
+                                      </div>
+                                      {item.accounts_receivable.collectible_amount > 0 && (
+                                        <div className="flex justify-between items-center font-bold text-orange-600 text-sm">
+                                          <div>Balance Due:</div>
+                                          <div>{formatCurrency(item.accounts_receivable.collectible_amount)}</div>
+                                        </div>
+                                      )}
+                                      {fullyPaid && (
+                                        <div className="flex justify-between items-center font-bold text-green-600 text-sm">
+                                          <div>Status:</div>
+                                          <div>Fully Paid</div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="text-center py-4 text-muted bg-main/30 rounded-lg">
+                                    <AlertCircle className="w-6 h-6 mx-auto mb-2 opacity-50" />
+                                    <p className="text-sm font-medium">Detailed charges not available</p>
+                                    <p className="text-xs mt-1">Contact admin for charges breakdown</p>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-muted bg-main/30 rounded-lg">
+                              <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                              <p className="text-sm font-medium">Payment calculation in progress</p>
+                              <p className="text-xs mt-1">The admin is currently calculating your total payment amount.</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
-                )
-              ) : (
-                // Approved but no AR record yet
-                <div className="email-notice border-blue-600 bg-white dark:border-blue-700 dark:bg-blue-900">
-                  <div className="flex items-start gap-4 pl-4">
-                    <AlertCircle className="email-notice-icon text-blue-600 dark:text-blue-100" />
-                    <div className="flex-1">
-                      <p className="email-notice-text text-black dark:text-blue-200">
-                        <strong className="email-notice-heading text-blue-600 dark:text-blue-100">
-                          Payment Information Pending
-                        </strong>{' '}
-                        Your payment amount is being calculated by our admin team. Once the amount is set, you'll be able to view the charges breakdown and make payments here.
-                      </p>
-                    </div>
-                  </div>
+                )}
+              </div>
+
+              {/* Pay Action - Only show for approved bookings with outstanding payment */}
+              {isApproved && canPay && (
+                <div className="bg-surface px-4 py-3 border-t border-main flex flex-col sm:flex-row justify-between items-center gap-3">
+                  <button
+                    onClick={() => handleDownloadStatement(item)}
+                    className="w-full sm:w-auto bg-gray-600 text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download Billing Statement
+                  </button>
+                  <button
+                    onClick={() => handlePayClick(item)}
+                    className="w-full sm:w-auto bg-primary text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    Pay {formatCurrency(totalPaymentDue)}
+                  </button>
                 </div>
               )}
 
-              {/* Extra Info (Toggle) */}
-              <button
-                onClick={() => toggleCard(item.id || index)}
-                className="w-full text-left mt-2 pt-2 border-t border-main text-sm flex items-center gap-1 font-semibold text-heading hover:text-heading"
-              >
-                {isExpanded ? (
-                  <> <ChevronUp className="w-4 h-4" /> Hide Details </>
-                ) : (
-                  <> <ChevronDown className="w-4 h-4" /> View All Details </>
-                )}
-              </button>
-
-              {isExpanded && (
-                <div className="mt-3 text-xs space-y-4 border-t pt-3">
-                  {/* Two Horizontal Sections: Booking Details and Charges Breakdown */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    
-                    {/* Booking Details with Items */}
-                    <div className="space-y-4">
-                      <h4 className="font-semibold text-heading text-sm flex items-center gap-2">
-                        <FileText className="w-4 h-4" />
-                        Booking Details
-                      </h4>
-                      
-                      {/* Payment Terms - Only show for approved bookings */}
-                      {isApproved && item.terms !== undefined && (
-                        <div>
-                          <div className="text-xs font-bold text-muted mb-1 uppercase">PAYMENT TERMS:</div>
-                          <div className="text-content flex items-center gap-1">
-                            <CreditCard className="w-3 h-3 text-muted" />
-                            {item.terms === 0 ? 'Immediate' : `${item.terms} days`}
-                            {dueDate ? (
-                              <span className="text-muted ml-2">
-                                (Due: {formatDate(dueDate)})
-                                {isOverdue && <span className="text-red-600 ml-1">• Overdue</span>}
-                              </span>
-                            ) : (
-                              <span className="text-muted ml-2">
-                                (Due date will be set after delivery)
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="space-y-3">
-                        {/* Shipping Line */}
-                        <div>
-                          <div className="text-xs font-bold text-muted mb-1 uppercase">SHIPPING LINE:</div>
-                          <div className="text-content flex items-center gap-1">
-                            <Ship className="w-3 h-3 text-muted" />
-                            {item.shipping_line?.name || 'Not specified'}
-                          </div>
-                        </div>
-                        
-                        {/* Trucking */}
-                        <div>
-                          <div className="text-xs font-bold text-muted mb-1 uppercase">TRUCKING:</div>
-                          <div className="text-content flex items-center gap-1">
-                            <Truck className="w-3 h-3 text-muted" />
-                            {item.truck_comp?.name || 'Not specified'}
-                          </div>
-                        </div>
-                        
-                        {/* Parties */}
-                        <div>
-                          <div className="text-xs font-bold text-muted mb-1 uppercase">PARTIES:</div>
-                          <div className="text-content space-y-1">
-                            <div className="flex items-center gap-1">
-                              <UserCheck className="w-3 h-3 text-muted" />
-                              <span className="font-semibold">Shipper: </span>
-                              {item.shipper_first_name} {item.shipper_last_name}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <UserCog className="w-3 h-3 text-muted" />
-                              <span className="font-semibold">Consignee: </span>
-                              {item.consignee_first_name} {item.consignee_last_name}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Schedule Information */}
-                      {(item.departure_date || item.delivery_date) && (
-                        <div className="space-y-2">
-                          {item.departure_date && (
-                            <div>
-                              <div className="text-xs font-bold text-muted mb-1 uppercase">PREFERRED DEPARTURE:</div>
-                              <div className="text-content flex items-center gap-1">
-                                <Calendar className="w-3 h-3 text-muted"/>
-                                {formatDate(item.departure_date)}
-                              </div>
-                            </div>
-                          )}
-                          {item.delivery_date && (
-                            <div>
-                              <div className="text-xs font-bold text-muted mb-1 uppercase">PREFERRED DELIVERY:</div>
-                              <div className="text-content flex items-center gap-1">
-                                <Calendar className="w-3 h-3 text-muted"/>
-                                {formatDate(item.delivery_date)}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Items List */}
-                      <div>
-                        <div className="font-bold text-muted mb-2 uppercase">ITEMS {item.items.length}:</div>
-                        <div className="space-y-2 pl-3 border-l-2 border-main">
-                          {item.items.map((i, idx) => (
-                            <div key={idx} className="flex items-center gap-2">
-                              <Package className="w-3 h-3 text-muted" />
-                              <div>
-                                <div className="font-medium text-heading">{i.name}</div>
-                                <div className="text-muted text-xs">{i.category} | {i.quantity} units | {i.weight} kg each</div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Charges Breakdown - Only show if approved and has AR record */}
-                    {isApproved && hasARRecord && (
-                      <div className="space-y-4">
-                        <h4 className="font-semibold text-heading text-sm flex items-center gap-2">
-                          <Calculator className="w-4 h-4" />
-                          Charges Breakdown
-                        </h4>
-
-                        {hasPayment ? (
-                          <div className="space-y-3">
-                            {/* Individual Charges */}
-                            {(() => {
-                              const chargesFromBreakdown = chargesBreakdown?.charges && 
-                                                      Array.isArray(chargesBreakdown.charges) && 
-                                                      chargesBreakdown.charges.length > 0 ? 
-                                                      chargesBreakdown.charges : null;
-                              
-                              const chargesFromAR = item.accounts_receivable?.charges && 
-                                              Array.isArray(item.accounts_receivable.charges) && 
-                                              item.accounts_receivable.charges.length > 0 ? 
-                                              item.accounts_receivable.charges : null;
-                              
-                              const chargesToDisplay = chargesFromBreakdown || chargesFromAR;
-
-                              return chargesToDisplay ? (
-                                <div className="space-y-2">
-                                  <div className="text-xs font-bold text-muted uppercase">CHARGES BREAKDOWN:</div>
-                                  {chargesToDisplay.map((charge, idx) => (
-                                    <div key={idx} className="flex justify-between items-start py-2 border-b border-main/20">
-                                      <div className="flex-1">
-                                        <div className="font-medium text-heading">{charge.description}</div>
-                                      </div>
-                                      <div className="font-semibold text-heading text-right min-w-[100px]">
-                                        {formatCurrency(charge.total)}
-                                      </div>
-                                    </div>
-                                  ))}
-                                  
-                                  {/* Total Amount and Balance Due at Bottom */}
-                                  <div className="space-y-2 pt-2 border-t border-main/30">
-                                    <div className="flex justify-between items-center font-bold text-heading text-sm">
-                                      <div>Total Amount:</div>
-                                      <div>{formatCurrency(item.accounts_receivable.total_payment)}</div>
-                                    </div>
-                                    {item.accounts_receivable.collectible_amount > 0 && (
-                                      <div className="flex justify-between items-center font-bold text-orange-600 text-sm">
-                                        <div>Balance Due:</div>
-                                        <div>{formatCurrency(item.accounts_receivable.collectible_amount)}</div>
-                                      </div>
-                                    )}
-                                    {fullyPaid && (
-                                      <div className="flex justify-between items-center font-bold text-green-600 text-sm">
-                                        <div>Status:</div>
-                                        <div>Fully Paid</div>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="text-center py-4 text-muted bg-main/30 rounded-lg">
-                                  <AlertCircle className="w-6 h-6 mx-auto mb-2 opacity-50" />
-                                  <p className="text-sm font-medium">Detailed charges not available</p>
-                                  <p className="text-xs mt-1">Contact admin for charges breakdown</p>
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-muted bg-main/30 rounded-lg">
-                            <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm font-medium">Payment calculation in progress</p>
-                            <p className="text-xs mt-1">The admin is currently calculating your total payment amount.</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
+              {/* Fully Paid Status - Only show for approved bookings */}
+              {isApproved && fullyPaid && (
+                <div className="bg-green-50 px-4 py-3 border-t border-green-200 flex items-center justify-center">
+                  <div className="flex items-center gap-2 text-green-700">
+                    <BadgeCheck className="w-5 h-5" />
+                    <span className="font-semibold">Fully Paid</span>
                   </div>
                 </div>
               )}
             </div>
+          );
+        })}
+      </div>
 
-            {/* Pay Action - Only show for approved bookings with outstanding payment */}
-            {isApproved && canPay && (
-              <div className="bg-surface px-4 py-3 border-t border-main flex flex-col sm:flex-row justify-between items-center gap-3">
-                <button
-                  onClick={() => handleDownloadStatement(item)}
-                  className="w-full sm:w-auto bg-gray-600 text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
-                >
-                  <Download className="w-4 h-4" />
-                  Download Billing Statement
-                </button>
-                <button
-                  onClick={() => onPay(item)}
-                  className="w-full sm:w-auto bg-primary text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 shadow-sm"
-                >
-                  <CreditCard className="w-4 h-4" />
-                  Pay {formatCurrency(totalPaymentDue)}
-                </button>
-              </div>
-            )}
-
-            {/* Fully Paid Status - Only show for approved bookings */}
-            {isApproved && fullyPaid && (
-              <div className="bg-green-50 px-4 py-3 border-t border-green-200 flex items-center justify-center">
-                <div className="flex items-center gap-2 text-green-700">
-                  <BadgeCheck className="w-5 h-5" />
-                  <span className="font-semibold">Fully Paid</span>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
+      {/* PayBooking Modal */}
+      <PayBooking
+        isOpen={isPayModalOpen}
+        onClose={handlePayModalClose}
+        booking={selectedBooking}
+        onPaymentSuccess={handlePaymentSuccess}
+      />
+    </>
   );
 };
 
