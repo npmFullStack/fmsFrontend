@@ -35,40 +35,35 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
   const user = userQuery.data?.user;
   const userRole = user?.role;
 
- // Professional menu labels with icons
-const menuItems = {
-  dashboard: { icon: BarChart3, label: 'Dashboard', path: '/dashboard' },
-  userManagement: { icon: Users, label: 'User Management', path: '/users' },
-  category: { icon: List, label: 'Category Management', path: '/categories' },
-  container: { icon: Container, label: 'Container Types', path: '/container-types' },
-  ports: { icon: MapPin, label: 'Port Management', path: '/ports' },
-  trucking: { icon: Truck, label: 'Trucking Partners', path: '/truck-comp' },
-  shipping: { icon: Ship, label: 'Shipping Partners', path: '/shipping-line' },
-  booking: { icon: FileText, label: 'Booking Management', path: '/booking' },
-  quoteRequest: { icon: ClipboardCheck, label: 'Quote Requests', path: '/quote-request' },
-  bookingRequest: { icon: ClipboardCheck, label: 'Booking Requests', path: '/booking-request' },
-  cargoMonitoring: { icon: Monitor, label: 'Cargo Monitoring', path: '/cargo-monitoring' },
-  profile: { icon: User, label: 'User Profile', path: '/profile' },
-  accountsPayable: { icon: Receipt, label: 'Accounts Payable', path:
-  '/accounts-payable' },
-  payCharges: { icon: CreditCard, label: 'Pay Charges', path:
-  '/pay-charges' },
-  accountsReceivable: { icon: Receipt, label: 'Accounts Receivable', path:
-  '/accounts-receivable' },
-  customerBookings: { icon: Clipboard, label: 'Manage Bookings', path:
-  '/customer-bookings' },
-};
+  // Professional menu labels with icons
+  const menuItems = {
+    dashboard: { icon: BarChart3, label: 'Dashboard', path: '/dashboard' },
+    userManagement: { icon: Users, label: 'User Management', path: '/users' },
+    category: { icon: List, label: 'Category Management', path: '/categories' },
+    container: { icon: Container, label: 'Container Types', path: '/container-types' },
+    ports: { icon: MapPin, label: 'Port Management', path: '/ports' },
+    trucking: { icon: Truck, label: 'Trucking Partners', path: '/truck-comp' },
+    shipping: { icon: Ship, label: 'Shipping Partners', path: '/shipping-line' },
+    booking: { icon: FileText, label: 'Booking Management', path: '/booking' },
+    quoteRequest: { icon: ClipboardCheck, label: 'Quote Requests', path: '/quote-request' },
+    bookingRequest: { icon: ClipboardCheck, label: 'Booking Requests', path: '/booking-request' },
+    cargoMonitoring: { icon: Monitor, label: 'Cargo Monitoring', path: '/cargo-monitoring' },
+    profile: { icon: User, label: 'User Profile', path: '/profile' },
+    accountsPayable: { icon: Receipt, label: 'Accounts Payable', path: '/accounts-payable' },
+    payCharges: { icon: CreditCard, label: 'Pay Charges', path: '/pay-charges' },
+    accountsReceivable: { icon: Receipt, label: 'Accounts Receivable', path: '/accounts-receivable' },
+    customerBookings: { icon: Clipboard, label: 'Manage Bookings', path: '/customer-bookings' },
+  };
 
   // Role-based menu configuration
   const getMenuSections = () => {
-    const generalManagerSections = [
+    // Customer menu sections
+    const customerSections = [
       {
         label: 'MAIN',
         items: [
           menuItems.dashboard,
-          menuItems.quoteRequest,
-          menuItems.bookingRequest,
-          menuItems.userManagement,
+          menuItems.customerBookings,
         ]
       },
       {
@@ -79,6 +74,27 @@ const menuItems = {
       }
     ];
 
+    // General Manager sections
+    const generalManagerSections = [
+      {
+        label: 'MAIN',
+        items: [
+          menuItems.dashboard,
+          menuItems.quoteRequest,
+          menuItems.bookingRequest,
+          menuItems.userManagement,
+          menuItems.payCharges, // Pay Charges moved to GM
+        ]
+      },
+      {
+        label: 'ACCOUNT',
+        items: [
+          menuItems.profile,
+        ]
+      }
+    ];
+
+    // Admin sections
     const adminSections = [
       {
         label: 'MAIN',
@@ -97,7 +113,7 @@ const menuItems = {
           menuItems.booking,
           menuItems.cargoMonitoring,
           menuItems.accountsPayable,
-          menuItems.payCharges,
+          // Pay Charges removed from admin and moved to GM
           menuItems.accountsReceivable,
           menuItems.customerBookings
         ]
@@ -110,8 +126,17 @@ const menuItems = {
       }
     ];
 
-    // Default to admin sections if no role or unknown role
-    return userRole === 'general_manager' ? generalManagerSections : adminSections;
+    // Return appropriate sections based on user role
+    switch (userRole) {
+      case 'customer':
+        return customerSections;
+      case 'general_manager':
+        return generalManagerSections;
+      case 'admin':
+        return adminSections;
+      default:
+        return adminSections; // Default to admin sections if no role or unknown role
+    }
   };
 
   const menuSections = getMenuSections();
@@ -267,6 +292,7 @@ const menuItems = {
                     <p className="text-xs text-muted truncate mt-0.5" title={user.email}>
                       {user.email}
                     </p>
+
                   </div>
                   <button 
                     onClick={handleLogout}

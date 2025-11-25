@@ -37,15 +37,16 @@ const quoteApi = {
     return data;
   },
 
-  send: async ({ id, ...payload }) => {
-    const { data } = await retryWithBackoff(
-      () => api.post(`/quotes/${id}/send`, payload),
-      2,
-      1000,
-      45000 // Longer timeout for email sending
-    );
-    return data;
-  },
+
+send: async ({ id, ...payload }) => {
+  const { data } = await retryWithBackoff(
+    () => api.post(`/quotes/${id}/send`, payload, { timeout: 120000 }), // 120 seconds
+    2,
+    1000,
+    120000
+  );
+  return data;
+},
 
   delete: async (id) => {
     const { data } = await retryWithBackoff(

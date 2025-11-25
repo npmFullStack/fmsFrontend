@@ -448,7 +448,7 @@ const isSectionComplete = (section) => {
               <div className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <label className="modal-label">First Name (Optional)</label>
+                    <label className="modal-label">First Name  </label>
                     <input
                       className={`modal-input ${formErrors.firstName ? 'border-red-500' : ''}`}
                       value={formData.firstName}
@@ -461,7 +461,7 @@ const isSectionComplete = (section) => {
                     )}
                   </div>
                   <div>
-                    <label className="modal-label">Last Name (Optional)</label>
+                    <label className="modal-label">Last Name  </label>
                     <input
                       className={`modal-input ${formErrors.lastName ? 'border-red-500' : ''}`}
                       value={formData.lastName}
@@ -523,7 +523,7 @@ const isSectionComplete = (section) => {
               </h2>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <label className="modal-label">Shipper First Name (Optional)</label>
+                  <label className="modal-label">Shipper First Name </label>
                   <input
                     className={`modal-input ${formErrors.shipperFirstName ? 'border-red-500' : ''}`}
                     value={formData.shipperFirstName}
@@ -536,7 +536,7 @@ const isSectionComplete = (section) => {
                   )}
                 </div>
                 <div>
-                  <label className="modal-label">Shipper Last Name (Optional)</label>
+                  <label className="modal-label">Shipper Last Name  </label>
                   <input
                     className={`modal-input ${formErrors.shipperLastName ? 'border-red-500' : ''}`}
                     value={formData.shipperLastName}
@@ -549,7 +549,7 @@ const isSectionComplete = (section) => {
                   )}
                 </div>
                 <div>
-                  <label className="modal-label">Contact Number (Optional)</label>
+                  <label className="modal-label">Contact Number (Optional) </label>
                   <input
                     className="modal-input"
                     value={formData.shipperContact}
@@ -568,7 +568,7 @@ const isSectionComplete = (section) => {
               </h2>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <label className="modal-label">Consignee First Name (Optional)</label>
+                  <label className="modal-label">Consignee First Name  </label>
                   <input
                     className={`modal-input ${formErrors.consigneeFirstName ? 'border-red-500' : ''}`}
                     value={formData.consigneeFirstName}
@@ -581,7 +581,7 @@ const isSectionComplete = (section) => {
                   )}
                 </div>
                 <div>
-                  <label className="modal-label">Consignee Last Name (Optional)</label>
+                  <label className="modal-label">Consignee Last Name  </label>
                   <input
                     className={`modal-input ${formErrors.consigneeLastName ? 'border-red-500' : ''}`}
                     value={formData.consigneeLastName}
