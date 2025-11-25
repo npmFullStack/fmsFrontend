@@ -15,10 +15,22 @@ const Login = () => {
   const navigate = useNavigate();
   const { loginMutation, isAuthenticated, userQuery } = useAuth();
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated - FIXED VERSION
   useEffect(() => {
     if (isAuthenticated() && userQuery.data) {
-      navigate('/dashboard');
+      const userRole = userQuery.data.user.role;
+      switch (userRole) {
+        case 'customer':
+          navigate('/customer-bookings');
+          break;
+        case 'general_manager':
+          navigate('/gm-dashboard');
+          break;
+        case 'admin':
+          navigate('/admin-dashboard');
+          break;
+        // Removed default case - no fallback route
+      }
     }
   }, [isAuthenticated, userQuery.data, navigate]);
 
@@ -35,11 +47,24 @@ const Login = () => {
 
   const onSubmit = async (data) => {
     try {
-      await loginMutation.mutateAsync(data);
+      const result = await loginMutation.mutateAsync(data);
       toast.success('Login successful!');
-      navigate('/dashboard');
+      
+      // Redirect based on user role
+      const userRole = result.user.role;
+      switch (userRole) {
+        case 'customer':
+          navigate('/customer-bookings');
+          break;
+        case 'general_manager':
+          navigate('/gm-dashboard');
+          break;
+        case 'admin':
+          navigate('/admin-dashboard');
+          break;
+        // Removed default case - no fallback route
+      }
     } catch (error) {
-      // Set form errors based on API response
       const errorMessage = error.response?.data?.message || 'Login failed. Please try again.';
       if (error.response?.data?.errors?.email) {
         setError('email', { message: error.response.data.errors.email[0] });

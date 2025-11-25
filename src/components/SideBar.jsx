@@ -40,6 +40,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
     dashboard: { icon: BarChart3, label: 'Dashboard', path: '/dashboard' },
     gmDashboard: { icon: BarChart3, label: 'Dashboard', path: '/gm-dashboard' },
     adminDashboard: { icon: BarChart3, label: 'Dashboard', path: '/admin-dashboard' },
+    customerDashboard: { icon: BarChart3, label: 'Dashboard', path: '/customer-dashboard' },
     userManagement: { icon: Users, label: 'User Management', path: '/users' },
     category: { icon: List, label: 'Category Management', path: '/categories' },
     container: { icon: Container, label: 'Container Types', path: '/container-types' },
@@ -64,7 +65,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
       {
         label: 'MAIN',
         items: [
-          menuItems.dashboard,
+          menuItems.customerDashboard,
           menuItems.customerBookings,
         ]
       },
@@ -127,16 +128,16 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
     ];
 
     // Return appropriate sections based on user role
-    switch (userRole) {
-      case 'customers':
-        return customerSections;
-      case 'general_manager':
-        return generalManagerSections;
-      case 'admin':
-        return adminSections;
-      default:
-        return adminSections;
-    }
+switch (userRole) {
+  case 'customer': 
+    return customerSections;
+  case 'general_manager':
+    return generalManagerSections;
+  case 'admin':
+    return adminSections;
+  default:
+    return customerSections; 
+}
   };
 
   const menuSections = getMenuSections();

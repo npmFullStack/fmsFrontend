@@ -1,64 +1,90 @@
 import React, { useState, useEffect } from 'react';
-import { Ship, Truck, Users, Package } from 'lucide-react';
+import { Package, Clock, Truck, CheckCircle, AlertCircle, MapPin, Users, Ship } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
 import api from '../api';
 
-const AdminDashboard = () => {
-  const [dashboardData, setDashboardData] = useState(null);
+const StatusBadge = ({ status }) => {
+  const getStatusConfig = (status) => {
+    const configs = {
+      'pending': { color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: Clock },
+      'in_transit': { color: 'bg-blue-100 text-blue-800 border-blue-200', icon: Truck },
+      'delivered': { color: 'bg-green-100 text-green-800 border-green-200', icon: CheckCircle },
+      'picked_up': { color: 'bg-purple-100 text-purple-800 border-purple-200', icon: Package },
+      'origin_port': { color: 'bg-indigo-100 text-indigo-800 border-indigo-200', icon: MapPin },
+      'destination_port': { color: 'bg-cyan-100 text-cyan-800 border-cyan-200', icon: MapPin },
+      'out_for_delivery': { color: 'bg-orange-100 text-orange-800 border-orange-200', icon: Truck }
+    };
+    
+    return configs[status] || { color: 'bg-gray-100 text-gray-800 border-gray-200', icon: AlertCircle };
+  };
+
+  const config = getStatusConfig(status);
+  const Icon = config.icon;
+
+  return (
+    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium border ${config.color}`}>
+      <Icon className="w-4 h-4" />
+      {status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+    </span>
+  );
+};
+
+const CustomerDashboard = () => {
+  const [bookings, setBookings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch dashboard data directly
+  // Fetch customer bookings directly
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchCustomerBookings = async () => {
       try {
         setIsLoading(true);
         setError(null);
-        const { data } = await api.get('/dashboard-data');
-        setDashboardData(data);
+        const { data } = await api.get('/customer/bookings');
+        setBookings(data.data || []);
       } catch (err) {
-        console.error('Failed to fetch dashboard data:', err);
-        setError(err.response?.data || { message: 'Failed to load dashboard data' });
+        console.error('Failed to fetch customer bookings:', err);
+        setError(err.response?.data || { message: 'Failed to load bookings' });
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchDashboardData();
+    fetchCustomerBookings();
   }, []);
 
-  // Calculate metrics from dashboard data
+  // Calculate metrics from customer's bookings
   const calculateMetrics = () => {
-    if (!dashboardData) {
+    if (!bookings || bookings.length === 0) {
       return {
         totalBookings: 0,
-        activeCustomers: 0,
+        pendingBookings: 0,
         pickedUpBookings: 0,
         originPortBookings: 0,
         inTransitBookings: 0,
         destinationPortBookings: 0,
         outForDeliveryBookings: 0,
         deliveredBookings: 0,
-        totalUsers: 0,
-        activeShipments: 0
+        seaFreightBookings: 0,
+        landTransportBookings: 0
       };
     }
 
-    const bookings = dashboardData.bookings || [];
-    const users = dashboardData.users || [];
-    const cargoData = dashboardData.cargo_monitoring || [];
-
     return {
-      totalBookings: bookings.length || 0,
-      activeCustomers: users.filter(user => user.role === 'customer').length || 0,
-      pickedUpBookings: bookings.filter(booking => booking.booking_status === 'picked_up').length || 0,
-      originPortBookings: bookings.filter(booking => booking.booking_status === 'origin_port').length || 0,
-      inTransitBookings: bookings.filter(booking => booking.booking_status === 'in_transit').length || 0,
-      destinationPortBookings: bookings.filter(booking => booking.booking_status === 'destination_port').length || 0,
-      outForDeliveryBookings: bookings.filter(booking => booking.booking_status === 'out_for_delivery').length || 0,
-      deliveredBookings: bookings.filter(booking => booking.booking_status === 'delivered').length || 0,
-      totalUsers: users.length || 0,
-      activeShipments: cargoData.length || 0
+      totalBookings: bookings.length,
+      pendingBookings: bookings.filter(booking => booking.booking_status === 'pending').length,
+      pickedUpBookings: bookings.filter(booking => booking.booking_status === 'picked_up').length,
+      originPortBookings: bookings.filter(booking => booking.booking_status === 'origin_port').length,
+      inTransitBookings: bookings.filter(booking => booking.booking_status === 'in_transit').length,
+      destinationPortBookings: bookings.filter(booking => booking.booking_status === 'destination_port').length,
+      outForDeliveryBookings: bookings.filter(booking => booking.booking_status === 'out_for_delivery').length,
+      deliveredBookings: bookings.filter(booking => booking.booking_status === 'delivered').length,
+      seaFreightBookings: bookings.filter(booking => 
+        booking.mode_of_service?.toLowerCase().includes('sea')
+      ).length,
+      landTransportBookings: bookings.filter(booking => 
+        booking.mode_of_service?.toLowerCase().includes('land')
+      ).length
     };
   };
 
@@ -66,10 +92,8 @@ const AdminDashboard = () => {
 
   // Prepare booking trend data for last 6 months
   const prepareBookingData = () => {
-    if (!dashboardData?.bookings) return [];
+    if (!bookings || bookings.length === 0) return [];
 
-    const bookings = dashboardData.bookings;
-    
     // Get last 6 months
     const months = [];
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -109,29 +133,20 @@ const AdminDashboard = () => {
 
   const bookingData = prepareBookingData();
 
-  // Prepare service distribution from cargo monitoring
+  // Prepare service distribution
   const prepareServiceDistribution = () => {
-    if (!dashboardData?.cargo_monitoring) return [];
-
-    const cargoData = dashboardData.cargo_monitoring;
-    const seaCount = cargoData.filter(item => 
-      item.booking?.mode_of_service?.toLowerCase().includes('sea')
-    ).length;
-    const landCount = cargoData.filter(item => 
-      item.booking?.mode_of_service?.toLowerCase().includes('land')
-    ).length;
-    const total = seaCount + landCount;
+    const total = metrics.seaFreightBookings + metrics.landTransportBookings;
 
     return [
-      { service: 'Sea Freight', percentage: total > 0 ? Math.round((seaCount / total) * 100) : 0 },
-      { service: 'Land Transport', percentage: total > 0 ? Math.round((landCount / total) * 100) : 0 },
+      { service: 'Sea Freight', percentage: total > 0 ? Math.round((metrics.seaFreightBookings / total) * 100) : 0 },
+      { service: 'Land Transport', percentage: total > 0 ? Math.round((metrics.landTransportBookings / total) * 100) : 0 },
     ];
   };
 
   const serviceDistribution = prepareServiceDistribution();
 
-  // Operational metrics cards (removed change percentages)
-  const operationalMetrics = [
+  // Customer metrics cards
+  const customerMetrics = [
     {
       label: 'Total Bookings',
       value: metrics.totalBookings,
@@ -139,29 +154,30 @@ const AdminDashboard = () => {
       color: 'text-purple-500'
     },
     {
-      label: 'Active Customers',
-      value: metrics.activeCustomers,
-      icon: Users,
-      color: 'text-orange-500'
-    },
-    {
-      label: 'Active Shipments',
-      value: metrics.activeShipments,
+      label: 'In Transit',
+      value: metrics.inTransitBookings,
       icon: Truck,
       color: 'text-blue-500'
     },
     {
-      label: 'Total Users',
-      value: metrics.totalUsers,
-      icon: Users,
+      label: 'Delivered',
+      value: metrics.deliveredBookings,
+      icon: CheckCircle,
       color: 'text-green-500'
+    },
+    {
+      label: 'Pending',
+      value: metrics.pendingBookings,
+      icon: Clock,
+      color: 'text-yellow-500'
     },
   ];
 
-  // Booking status distribution (all statuses from your controller)
+  // Booking status distribution
   const bookingStatusData = [
-    { status: 'Picked Up', value: metrics.pickedUpBookings, color: '#f59e0b' },
-    { status: 'Origin Port', value: metrics.originPortBookings, color: '#8b5cf6' },
+    { status: 'Pending', value: metrics.pendingBookings, color: '#f59e0b' },
+    { status: 'Picked Up', value: metrics.pickedUpBookings, color: '#8b5cf6' },
+    { status: 'Origin Port', value: metrics.originPortBookings, color: '#6366f1' },
     { status: 'In Transit', value: metrics.inTransitBookings, color: '#3b82f6' },
     { status: 'Destination Port', value: metrics.destinationPortBookings, color: '#06b6d4' },
     { status: 'Out for Delivery', value: metrics.outForDeliveryBookings, color: '#f97316' },
@@ -173,13 +189,22 @@ const AdminDashboard = () => {
     return new Intl.NumberFormat('en-PH').format(number);
   };
 
-  // Single loading state
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Not set';
+    return new Date(dateString).toLocaleDateString('en-PH', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  // Loading state
   if (isLoading) {
     return (
       <div className="page-container p-6">
         <div className="page-header mb-8">
-          <h1 className="page-title text-3xl font-bold text-heading">Admin Dashboard</h1>
-          <p className="page-subtitle text-muted mt-2">Loading dashboard data...</p>
+          <h1 className="page-title text-3xl font-bold text-heading">My Dashboard</h1>
+          <p className="page-subtitle text-muted mt-2">Loading your bookings...</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (
@@ -198,7 +223,7 @@ const AdminDashboard = () => {
     return (
       <div className="page-container p-6">
         <div className="page-header mb-8">
-          <h1 className="page-title text-3xl font-bold text-heading">Admin Dashboard</h1>
+          <h1 className="page-title text-3xl font-bold text-heading">My Dashboard</h1>
           <p className="page-subtitle text-muted mt-2">Failed to load dashboard data</p>
         </div>
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -218,15 +243,15 @@ const AdminDashboard = () => {
     <div className="page-container p-4 sm:p-6">
       {/* Page Header */}
       <div className="page-header mb-6 sm:mb-8">
-        <h1 className="page-title text-2xl sm:text-3xl font-bold text-heading">Admin Dashboard</h1>
+        <h1 className="page-title text-2xl sm:text-3xl font-bold text-heading">My Dashboard</h1>
         <p className="page-subtitle text-sm sm:text-base text-muted mt-2">
-          Overview of logistics operations and customer management
+          Overview of your shipments and booking status
         </p>
       </div>
 
-      {/* Operational Metrics Grid */}
+      {/* Customer Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-        {operationalMetrics.map((metric, index) => (
+        {customerMetrics.map((metric, index) => (
           <div key={index} className="bg-surface rounded-xl border border-main p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -249,8 +274,8 @@ const AdminDashboard = () => {
         <div className="lg:col-span-2 bg-surface rounded-xl border border-main p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-4 sm:mb-6 gap-4">
             <div>
-              <h2 className="text-lg sm:text-xl font-semibold text-heading">Booking Trends</h2>
-              <p className="text-muted text-sm mt-1">Last 6 months booking performance</p>
+              <h2 className="text-lg sm:text-xl font-semibold text-heading">My Booking Trends</h2>
+              <p className="text-muted text-sm mt-1">Last 6 months of your bookings</p>
             </div>
           </div>
 
@@ -280,7 +305,7 @@ const AdminDashboard = () => {
                   dataKey="bookings" 
                   fill="#3b82f6" 
                   radius={[4, 4, 0, 0]}
-                  name="Bookings"
+                  name="My Bookings"
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -289,7 +314,7 @@ const AdminDashboard = () => {
 
         {/* Booking Status Distribution */}
         <div className="bg-surface rounded-xl border border-main p-4 sm:p-6">
-          <h3 className="text-base sm:text-lg font-semibold text-heading mb-4 sm:mb-6">Booking Status</h3>
+          <h3 className="text-base sm:text-lg font-semibold text-heading mb-4 sm:mb-6">My Booking Status</h3>
           
           <div className="h-48 sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -364,66 +389,60 @@ const AdminDashboard = () => {
 
           <div className="mt-6 pt-4 border-t border-main">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted">Total Active Shipments</span>
+              <span className="text-muted">Total Bookings</span>
               <span className="font-semibold text-heading">
-                {formatNumber(metrics.activeShipments)}
+                {formatNumber(metrics.totalBookings)}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Quick Stats */}
-        <div className="lg:col-span-2 bg-surface rounded-xl border border-main p-4 sm:p-6">
-          <h3 className="text-base sm:text-lg font-semibold text-heading mb-4 sm:mb-6">Quick Stats</h3>
+        {/* Recent Bookings */}
+        <div className="lg:col-span-3 bg-surface rounded-xl border border-main p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-heading mb-4 sm:mb-6">Recent Bookings</h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="space-y-4">
-              <div className="flex justify-between items-center p-3 bg-surface rounded-lg border border-main">
-                <span className="text-sm text-content">Total Users</span>
-                <span className="text-sm font-semibold text-heading">
-                  {formatNumber(metrics.totalUsers)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-surface rounded-lg border border-main">
-                <span className="text-sm text-content">Picked Up</span>
-                <span className="text-sm font-semibold text-yellow-500">
-                  {formatNumber(metrics.pickedUpBookings)}
-                </span>
-              </div>
+          {bookings.length === 0 ? (
+            <div className="text-center py-8">
+              <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-muted">No bookings found</p>
             </div>
+          ) : (
             <div className="space-y-4">
-              <div className="flex justify-between items-center p-3 bg-surface rounded-lg border border-main">
-                <span className="text-sm text-content">In Transit</span>
-                <span className="text-sm font-semibold text-blue-500">
-                  {formatNumber(metrics.inTransitBookings)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-surface rounded-lg border border-main">
-                <span className="text-sm text-content">Out for Delivery</span>
-                <span className="text-sm font-semibold text-orange-500">
-                  {formatNumber(metrics.outForDeliveryBookings)}
-                </span>
-              </div>
+              {bookings.slice(0, 5).map((booking) => (
+                <div key={booking.id} className="flex items-center justify-between p-4 bg-surface rounded-lg border border-main">
+                  <div className="flex items-center gap-4">
+                    <div className={`p-2 rounded-lg ${
+                      booking.mode_of_service?.includes('sea') 
+                        ? 'bg-blue-100 text-blue-600' 
+                        : 'bg-green-100 text-green-600'
+                    }`}>
+                      {booking.mode_of_service?.includes('sea') ? (
+                        <Ship className="w-5 h-5" />
+                      ) : (
+                        <Truck className="w-5 h-5" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-heading">Booking #{booking.booking_number}</p>
+                      <p className="text-sm text-muted">
+                        {booking.origin?.name} → {booking.destination?.name}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <StatusBadge status={booking.booking_status} />
+                    <span className="text-sm text-muted">
+                      {formatDate(booking.created_at)}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center p-3 bg-surface rounded-lg border border-main">
-                <span className="text-sm text-content">Delivered</span>
-                <span className="text-sm font-semibold text-green-500">
-                  {formatNumber(metrics.deliveredBookings)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-surface rounded-lg border border-main">
-                <span className="text-sm text-content">Active Customers</span>
-                <span className="text-sm font-semibold text-heading">
-                  {formatNumber(metrics.activeCustomers)}
-                </span>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-export default AdminDashboard;
+export default CustomerDashboard;

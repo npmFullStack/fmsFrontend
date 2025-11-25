@@ -1,6 +1,6 @@
 // src/components/NavBar.jsx
 import React from 'react';
-import { Bell, User, Menu, Sun, Moon } from 'lucide-react';
+import { User, Menu, Sun, Moon } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
 const NavBar = ({ onMenuClick }) => {
@@ -30,16 +30,7 @@ const NavBar = ({ onMenuClick }) => {
           {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </button>
 
-        {/* Notifications */}
-        <button className="p-2 hover-surface rounded-lg transition-colors relative">
-          <Bell className="w-5 h-5 text-content" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-500 rounded-full"></span>
-        </button>
-
-        {/* User Icon */}
-        <button className="p-2 hover-surface rounded-lg transition-colors">
-          <User className="w-5 h-5 text-content" />
-        </button>
+   
       </div>
     </header>
   );
