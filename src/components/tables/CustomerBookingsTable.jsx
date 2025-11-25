@@ -41,33 +41,44 @@ const CustomerBookingsTable = ({
     setExpandedCards(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-const getDisplayStatus = (booking) => {
-  if (booking.cargo_monitoring && booking.cargo_monitoring.current_status) {
-    return booking.cargo_monitoring.current_status;
-  }
-  
-  // Complete status mapping
-  const statusMap = {
-    'pending': 'Pending',
-    'picked_up': 'Picked Up',
-    'origin_port': 'Origin Port', 
-    'in_transit': 'In Transit',
-    'destination_port': 'Destination Port',
-    'out_for_delivery': 'Out for Delivery',
-    'delivered': 'Delivered'
+  // Get the main display status that considers both approval and shipping status
+  const getDisplayStatus = (booking) => {
+    // First check if booking is approved
+    if (booking.status === 'pending') {
+      return 'Pending Approval';
+    }
+    
+    // If approved, show shipping/cargo status
+    if (booking.cargo_monitoring && booking.cargo_monitoring.current_status) {
+      return booking.cargo_monitoring.current_status;
+    }
+    
+    // Fallback to booking_status if no cargo monitoring
+    const statusMap = {
+      'pending': 'Pending',
+      'picked_up': 'Picked Up',
+      'origin_port': 'Origin Port', 
+      'in_transit': 'In Transit',
+      'destination_port': 'Destination Port',
+      'out_for_delivery': 'Out for Delivery',
+      'delivered': 'Delivered'
+    };
+    
+    return statusMap[booking.booking_status] || 'Processing';
   };
-  
-  return statusMap[booking.booking_status] || 'Pending';
-};
 
-  // Status badge configuration - updated with payment status
+  // Status badge configuration - updated to handle approval status
   const getBookingStatusBadge = (status, isFullyPaid = false) => {
+    if (status === 'Pending Approval') {
+      return 'bg-yellow-500 text-white border-yellow-600';
+    }
     if (isFullyPaid) {
       return 'bg-green-500 text-white border-green-600';
     }
     
     const statusConfig = {
       'Pending': 'bg-gray-500 text-white border-gray-600',
+      'Processing': 'bg-blue-500 text-white border-blue-600',
       'Picked Up': 'bg-blue-500 text-white border-blue-600',
       'Origin Port': 'bg-purple-500 text-white border-purple-600',
       'In Transit': 'bg-orange-500 text-white border-orange-600',
@@ -79,12 +90,16 @@ const getDisplayStatus = (booking) => {
   };
 
   const getBookingStatusIcon = (status, isFullyPaid = false) => {
+    if (status === 'Pending Approval') {
+      return <Clock className="w-4 h-4" />;
+    }
     if (isFullyPaid) {
       return <BadgeCheck className="w-4 h-4" />;
     }
     
     const iconConfig = {
       'Pending': <Clock className="w-4 h-4" />,
+      'Processing': <Clock className="w-4 h-4" />,
       'Picked Up': <Truck className="w-4 h-4" />,
       'Origin Port': <Ship className="w-4 h-4" />,
       'In Transit': <Ship className="w-4 h-4" />,
@@ -241,6 +256,7 @@ const getDisplayStatus = (booking) => {
         const isOverdue = isPaymentOverdue(item);
         const isDelivered = displayStatus === 'Delivered';
         const hasARRecord = !!item.accounts_receivable;
+        const isApproved = item.status === 'approved';
 
         // Get simplified charges breakdown using the function passed from parent
         const chargesBreakdown = getChargesBreakdown ? getChargesBreakdown(item.id) : null;
@@ -274,8 +290,8 @@ const getDisplayStatus = (booking) => {
                   </div>
                 </div>
                 <div className="flex flex-col items-start lg:items-end gap-2">
-                  {/* Total Amount Display */}
-                  {hasPayment && (
+                  {/* Total Amount Display - Only show for approved bookings with payment data */}
+                  {isApproved && hasPayment && (
                     <div className="text-right">
                       <div className="text-xs font-bold text-muted mb-1 uppercase">TOTAL AMOUNT</div>
                       <div className="text-xl font-bold text-content">
@@ -283,16 +299,11 @@ const getDisplayStatus = (booking) => {
                       </div>
                     </div>
                   )}
-                  {paymentPending && (
-                    <div className="flex items-center gap-2 px-3 py-1 bg-blue-600 text-white rounded-full border border-blue-700">
-                      <AlertCircle className="w-3 h-3" />
-                      <span className="text-sm font-medium">Calculating</span>
-                    </div>
-                  )}
-                  {/* Booking Status */}
+                  
+                  {/* Single Status Badge */}
                   <span className={`px-3 py-1 text-sm font-medium rounded-full border ${getBookingStatusBadge(displayStatus, fullyPaid)} flex items-center gap-2`}>
                     {getBookingStatusIcon(displayStatus, fullyPaid)}
-                    {fullyPaid ? 'Fully Paid' : displayStatus}
+                    {displayStatus}
                   </span>
                 </div>
               </div>
@@ -349,8 +360,24 @@ const getDisplayStatus = (booking) => {
                 </div>
               </div>
 
-              {/* Payment Notice - Different messages based on AR record status */}
-              {hasARRecord ? (
+              {/* Status Notice - Single message based on approval and payment status */}
+              {!isApproved ? (
+                // Not approved yet
+                <div className="email-notice border-yellow-600 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-900">
+                  <div className="flex items-start gap-4 pl-4">
+                    <Clock className="email-notice-icon text-yellow-600 dark:text-yellow-100" />
+                    <div className="flex-1">
+                      <p className="email-notice-text text-yellow-700 dark:text-yellow-200">
+                        <strong className="email-notice-heading text-yellow-600 dark:text-yellow-100">
+                          Waiting for Approval
+                        </strong>{' '}
+                        Your booking request is pending admin approval. Once approved, you'll be able to view payment details and track your shipment.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : hasARRecord ? (
+                // Approved and has AR record
                 fullyPaid ? (
                   <div className="email-notice border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-900">
                     <div className="flex items-start gap-4 pl-4">
@@ -431,7 +458,7 @@ const getDisplayStatus = (booking) => {
                   </div>
                 )
               ) : (
-                // No AR record yet
+                // Approved but no AR record yet
                 <div className="email-notice border-blue-600 bg-white dark:border-blue-700 dark:bg-blue-900">
                   <div className="flex items-start gap-4 pl-4">
                     <AlertCircle className="email-notice-icon text-blue-600 dark:text-blue-100" />
@@ -471,8 +498,8 @@ const getDisplayStatus = (booking) => {
                         Booking Details
                       </h4>
                       
-                      {/* Payment Terms */}
-                      {item.terms !== undefined && (
+                      {/* Payment Terms - Only show for approved bookings */}
+                      {isApproved && item.terms !== undefined && (
                         <div>
                           <div className="text-xs font-bold text-muted mb-1 uppercase">PAYMENT TERMS:</div>
                           <div className="text-content flex items-center gap-1">
@@ -553,7 +580,7 @@ const getDisplayStatus = (booking) => {
                         </div>
                       )}
 
-                      {/* Items List - Moved to Booking Details section */}
+                      {/* Items List */}
                       <div>
                         <div className="font-bold text-muted mb-2 uppercase">ITEMS {item.items.length}:</div>
                         <div className="space-y-2 pl-3 border-l-2 border-main">
@@ -570,8 +597,8 @@ const getDisplayStatus = (booking) => {
                       </div>
                     </div>
 
-                    {/* Charges Breakdown - Only show if AR record exists */}
-                    {hasARRecord && (
+                    {/* Charges Breakdown - Only show if approved and has AR record */}
+                    {isApproved && hasARRecord && (
                       <div className="space-y-4">
                         <h4 className="font-semibold text-heading text-sm flex items-center gap-2">
                           <Calculator className="w-4 h-4" />
@@ -582,7 +609,6 @@ const getDisplayStatus = (booking) => {
                           <div className="space-y-3">
                             {/* Individual Charges */}
                             {(() => {
-                              // Check multiple sources for charges data
                               const chargesFromBreakdown = chargesBreakdown?.charges && 
                                                       Array.isArray(chargesBreakdown.charges) && 
                                                       chargesBreakdown.charges.length > 0 ? 
@@ -602,7 +628,6 @@ const getDisplayStatus = (booking) => {
                                     <div key={idx} className="flex justify-between items-start py-2 border-b border-main/20">
                                       <div className="flex-1">
                                         <div className="font-medium text-heading">{charge.description}</div>
-
                                       </div>
                                       <div className="font-semibold text-heading text-right min-w-[100px]">
                                         {formatCurrency(charge.total)}
@@ -631,7 +656,6 @@ const getDisplayStatus = (booking) => {
                                   </div>
                                 </div>
                               ) : (
-                                // Fallback when no detailed charges but we have payment data
                                 <div className="text-center py-4 text-muted bg-main/30 rounded-lg">
                                   <AlertCircle className="w-6 h-6 mx-auto mb-2 opacity-50" />
                                   <p className="text-sm font-medium">Detailed charges not available</p>
@@ -654,8 +678,8 @@ const getDisplayStatus = (booking) => {
               )}
             </div>
 
-            {/* Pay Action with Download Statement - Show for any booking with outstanding payment */}
-            {canPay && (
+            {/* Pay Action - Only show for approved bookings with outstanding payment */}
+            {isApproved && canPay && (
               <div className="bg-surface px-4 py-3 border-t border-main flex flex-col sm:flex-row justify-between items-center gap-3">
                 <button
                   onClick={() => handleDownloadStatement(item)}
@@ -674,8 +698,8 @@ const getDisplayStatus = (booking) => {
               </div>
             )}
 
-            {/* Fully Paid Status */}
-            {fullyPaid && (
+            {/* Fully Paid Status - Only show for approved bookings */}
+            {isApproved && fullyPaid && (
               <div className="bg-green-50 px-4 py-3 border-t border-green-200 flex items-center justify-center">
                 <div className="flex items-center gap-2 text-green-700">
                   <BadgeCheck className="w-5 h-5" />

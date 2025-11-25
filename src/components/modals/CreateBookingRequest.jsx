@@ -1,19 +1,18 @@
-// src/components/modals/CustomerAddBooking.jsx
+// src/components/modals/CreateBookingRequest.jsx
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Select from 'react-select';
 import DateTime from 'react-datetime';
 import 'react-datetime/css/react-datetime.css';
-import { Calendar, X, ChevronUp, ChevronDown, Loader2, AlertCircle } from 'lucide-react';
+import { Calendar, X, ChevronUp, ChevronDown, Loader2, AlertCircle, User } from 'lucide-react';
 import SharedModal from '../ui/SharedModal';
 import { bookingSchema, defaultBookingValues, transformBookingToApi } from '../../schemas/bookingSchema';
-import { useAuth } from '../../hooks/useAuth';
-import { useQuery } from '@tanstack/react-query';
 import LocationFields from '../LocationFields';
+import { useQuery } from '@tanstack/react-query';
 import api from '../../api';
 
-const CustomerAddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
+const CreateBookingRequest = ({ isOpen, onClose, onSave, isLoading = false, currentUser }) => {
   const [items, setItems] = useState([
     { id: 1, name: "", weight: "", quantity: "", category: "", customCategory: "" },
   ]);
@@ -25,29 +24,27 @@ const CustomerAddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
   const [deliveryLocation, setDeliveryLocation] = useState({});
   const [formTouched, setFormTouched] = useState(false);
 
-  // Use useAuth to get current logged-in user
-  const { userQuery } = useAuth();
-  const user = userQuery.data;
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    trigger,
-    formState: { errors },
-  } = useForm({
-    resolver: zodResolver(bookingSchema),
-    mode: 'onBlur',
-    defaultValues: {
-      ...defaultBookingValues,
-      containerQuantity: 1,
-      terms: 1,
-    },
-    shouldFocusError: false,
-    shouldUseNativeValidation: false,
-  });
+const {
+  register,
+  handleSubmit,
+  reset,
+  setValue,
+  watch,
+  trigger,
+  formState: { errors },
+} = useForm({
+  resolver: zodResolver(bookingSchema),
+  mode: 'onBlur',
+  defaultValues: {
+    ...defaultBookingValues,
+    containerQuantity: 1,
+    terms: 1,
+    userId: currentUser?.id || null, // ← ADD THIS LINE
+  },
+  shouldFocusError: false,
+  shouldUseNativeValidation: false,
+});
 
   const formData = watch();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -147,51 +144,49 @@ const CustomerAddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
     { value: "door-to-port", label: "Door to Port" },
   ];
 
-  // Reset form when modal opens/closes - FIXED: Set userId from current user
-  useEffect(() => {
-    if (isOpen && user) {
-      const defaultValuesWithUser = {
-        ...defaultBookingValues,
-        containerQuantity: 1,
-        terms: 1,
-        userId: user.id, // Set userId from current logged-in user
-      };
+// In CreateBookingRequest.jsx - update the useEffect
+useEffect(() => {
+  if (isOpen && currentUser?.id) {
+    reset({
+      ...defaultBookingValues,
+      containerQuantity: 1,
+      terms: 1,
+      userId: currentUser.id, // ← ADD THIS LINE
+    }, {
+      keepErrors: false,
+      keepDirty: false,
+      keepIsSubmitted: false,
+      keepTouched: false,
+      keepIsValid: false,
+      keepSubmitCount: false,
+    });
 
-      reset(defaultValuesWithUser, {
-        keepErrors: false,
-        keepDirty: false,
-        keepIsSubmitted: false,
-        keepTouched: false,
-        keepIsValid: false,
-        keepSubmitCount: false,
-      });
+    setItems([{
+      id: 1,
+      name: "",
+      weight: "",
+      quantity: "",
+      category: "",
+      customCategory: ""
+    }]);
+    setDepartureDate(null);
+    setDeliveryDate(null);
+    setContainerQuantity(1);
+    setPickupLocation({});
+    setDeliveryLocation({});
+    setWeightValidation({ isValid: true, message: "" });
+    setFormTouched(false);
 
-      setItems([{
-        id: 1,
-        name: "",
-        weight: "",
-        quantity: "",
-        category: "",
-        customCategory: ""
-      }]);
-      setDepartureDate(null);
-      setDeliveryDate(null);
-      setContainerQuantity(1);
-      setPickupLocation({});
-      setDeliveryLocation({});
-      setWeightValidation({ isValid: true, message: "" });
-      setFormTouched(false);
-
-      // Force set userId from current user
-      console.log('Setting user ID:', user.id);
-      setValue('userId', user.id, { shouldValidate: true });
-      
-      // Force trigger validation after a short delay
-      setTimeout(() => {
-        trigger('userId');
-      }, 200);
-    }
-  }, [isOpen, reset, setValue, user, trigger]);
+    setValue('containerQuantity', 1);
+    setValue('terms', 1);
+    setValue('modeOfService', null);
+    setValue('origin', null);
+    setValue('destination', null);
+    setValue('shippingLine', null);
+    setValue('truckCompany', null);
+    setValue('userId', currentUser.id); // ← ADD THIS LINE TOO
+  }
+}, [isOpen, reset, setValue, currentUser]);
 
   // Handle form field changes to set touched state
   const handleFieldChange = (field, value, options = {}) => {
@@ -299,56 +294,31 @@ const CustomerAddBooking = ({ isOpen, onClose, onSave, isLoading = false }) => {
   const showPickup = modeValue === "door-to-door" || modeValue === "door-to-port";
   const showDelivery = modeValue === "door-to-door" || modeValue === "port-to-door";
 
-// FIXED: Simplified form validation
-const isFormValid = () => {
-  // Basic required fields check
-  const hasRequiredFields = 
-    formData.shipperFirstName &&
-    formData.shipperLastName &&
-    formData.consigneeFirstName &&
-    formData.consigneeLastName &&
-    formData.modeOfService?.value &&
-    formData.containerSize?.value &&
-    formData.origin?.value &&
-    formData.destination?.value &&
-    formData.terms &&
-    Number(formData.terms) > 0 &&
-    items.length > 0;
+  // Check if form is valid for submission
+  const isFormValid = () => {
+    const hasRequiredFields =
+      formData.shipperFirstName &&
+      formData.shipperLastName &&
+      formData.consigneeFirstName &&
+      formData.consigneeLastName &&
+      formData.modeOfService?.value &&
+      formData.containerSize?.value &&
+      formData.origin?.value &&
+      formData.destination?.value &&
+      (Number.isInteger(formData.terms) ? formData.terms > 0 : formData.terms) &&
+      items.length > 0;
 
-  // Check if user is logged in (userId will be set in onSubmit)
-  const hasUser = !!user?.id;
+    const itemsValid = items.every(item => {
+      const hasCategory = item.category && (item.category !== "other" || item.customCategory);
+      const hasWeight = item.weight !== "" && !isNaN(parseFloat(item.weight)) && parseFloat(item.weight) > 0;
+      const hasQuantity = item.quantity !== "" && !isNaN(parseInt(item.quantity)) && parseInt(item.quantity) > 0;
+      return item.name && hasWeight && hasQuantity && hasCategory;
+    });
 
-  // Items validation - simplified
-  const itemsValid = items.every(item => {
-    return item.name && 
-           item.weight && 
-           parseFloat(item.weight) > 0 &&
-           item.quantity && 
-           parseInt(item.quantity) > 0 &&
-           item.category &&
-           (item.category !== "other" ? true : !!item.customCategory);
-  });
+    const weightValid = weightValidation.isValid;
 
-  // Weight validation
-  const weightValid = weightValidation.isValid;
-
-  console.log('Validation Debug:', {
-    hasRequiredFields,
-    hasUser,
-    itemsValid,
-    weightValid,
-    items: items.map(item => ({
-      name: item.name,
-      weight: item.weight,
-      quantity: item.quantity,
-      category: item.category,
-      customCategory: item.customCategory,
-      valid: !!(item.name && item.weight && item.quantity && item.category && (item.category !== "other" ? true : !!item.customCategory))
-    }))
-  });
-
-  return hasRequiredFields && hasUser && itemsValid && weightValid;
-};
+    return hasRequiredFields && itemsValid && weightValid;
+  };
 
   // Custom DateTime input
   const DateTimeInput = (props) => (
@@ -412,23 +382,12 @@ const isFormValid = () => {
     </div>
   );
 
-// FIXED: onSubmit function - Use current user's ID
-const onSubmit = async (data) => {
+  const onSubmit = async (data) => {
   try {
     setIsSubmitting(true);
 
-    // Always use current logged-in user's ID
-    const finalUserId = user?.id;
-    
-    if (!finalUserId) {
-      toast.error('User ID is required. Please make sure you are logged in.');
-      setIsSubmitting(false);
-      return;
-    }
-
-    const finalData = {
+    const bookingData = {
       ...data,
-      userId: finalUserId, // Use current user's ID
       containerQuantity,
       departureDate: departureDate ?? null,
       deliveryDate: deliveryDate ?? null,
@@ -443,24 +402,30 @@ const onSubmit = async (data) => {
       })),
     };
 
-    console.log('Final data before validation:', finalData);
+    console.log('🛠️ Booking data before validation:', bookingData);
 
-    // Validate with schema
-    const validatedData = bookingSchema.parse(finalData);
+    const validatedData = bookingSchema.parse(bookingData);
     const apiData = transformBookingToApi(validatedData);
     
-    // This will call the mutation that should use /customer/bookings endpoint
-    await onSave(apiData);
+    // CRITICAL: Add user_id for customer booking
+    const finalApiData = {
+      ...apiData,
+      user_id: currentUser.id // This was missing!
+    };
+
+    console.log('📤 Final API data with user_id:', finalApiData);
+    await onSave(finalApiData);
 
   } catch (error) {
-    console.error('Submission error:', error);
+    console.error('❌ Submission error:', error);
+    
     if (error?.errors && Array.isArray(error.errors)) {
       const errorMessages = error.errors.map(err => err.message);
-      toast.error(`Validation error: ${errorMessages.join(', ')}`);
+      alert(`Validation error: ${errorMessages.join(', ')}`);
     } else if (error?.response) {
-      toast.error(`API Error: ${error.response.data.message || 'Failed to create booking'}`);
+      alert(`API Error: ${error.response.data.message || 'Failed to create booking'}`);
     } else {
-      toast.error(`Error: ${error.message || 'An unexpected error occurred. Please try again.'}`);
+      alert('An unexpected error occurred. Please check the console for details.');
     }
   } finally {
     setIsSubmitting(false);
@@ -470,34 +435,23 @@ const onSubmit = async (data) => {
   const responsiveGrid = "grid grid-cols-1 md:grid-cols-2 gap-4";
 
   return (
-    <SharedModal isOpen={isOpen} onClose={onClose} title="Submit Booking Request" size="md">
+    <SharedModal isOpen={isOpen} onClose={onClose} title="Create Booking Request" size="md">
       <div className="space-y-6 max-h-[80vh] overflow-y-auto">
-        {/* Customer Information - Auto-filled from current user */}
+        {/* Current User Information */}
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-heading">Customer Information</h3>
-          {user ? (
+          <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
+            Customer Information
+          </h3>
+          {currentUser && (
             <div className="email-notice border border-blue-700 bg-blue-900">
               <div className="flex items-start gap-4 pl-4">
-                <AlertCircle className="email-notice-icon text-blue-100" />
+                <User className="email-notice-icon text-blue-100" />
                 <div className="email-notice-text text-blue-200">
-                  <p><strong>Customer:</strong> {user.first_name} {user.last_name}</p>
-                  <p><strong>Email:</strong> {user.email}</p>
-                  <p><strong>User ID:</strong> {user.id}</p>
-                  {user.contact_number && (
-                    <p><strong>Contact:</strong> {user.contact_number}</p>
+                  <p><strong>Customer:</strong> {currentUser.first_name} {currentUser.last_name}</p>
+                  <p><strong>Email:</strong> {currentUser.email}</p>
+                  {currentUser.contact_number && (
+                    <p><strong>Contact:</strong> {currentUser.contact_number}</p>
                   )}
-                  <p className="mt-2 font-semibold">
-                    📝 <strong>Note:</strong> This booking will require admin approval.
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="email-notice border border-red-300 bg-red-50">
-              <div className="flex items-start gap-4 pl-4">
-                <AlertCircle className="email-notice-icon text-red-600" />
-                <div className="email-notice-text text-red-700">
-                  <p><strong>Warning:</strong> No user information found. Please make sure you are logged in.</p>
                 </div>
               </div>
             </div>
@@ -590,7 +544,7 @@ const onSubmit = async (data) => {
           </div>
         </div>
 
-        {/* Items Section */}
+        {/* Items */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-heading border-b border-main pb-2">
             Item / Commodity Information
@@ -806,10 +760,10 @@ const onSubmit = async (data) => {
 
           {/* Schedule Information */}
           <div className="space-y-4">
-            <h4 className="font-semibold text-heading">Schedule</h4>
+            <h4 className="font-semibold text-heading">Schedule (Optional)</h4>
             <div className={responsiveGrid}>
               <div>
-                <label className="modal-label">Preferred Departure Date (Optional)</label>
+                <label className="modal-label">Preferred Departure Date</label>
                 <DateTime
                   value={departureDate}
                   onChange={(date) => {
@@ -824,7 +778,7 @@ const onSubmit = async (data) => {
                 />
               </div>
               <div>
-                <label className="modal-label">Preferred Delivery Date (Optional)</label>
+                <label className="modal-label">Preferred Delivery Date</label>
                 <DateTime
                   value={deliveryDate}
                   onChange={(date) => {
@@ -843,7 +797,7 @@ const onSubmit = async (data) => {
 
           {/* Service Providers */}
           <div className="space-y-4">
-            <h4 className="font-semibold text-heading">Service Providers</h4>
+            <h4 className="font-semibold text-heading">Service Providers (Optional)</h4>
             <div className={responsiveGrid}>
               <div>
                 <label className="modal-label">Preferred Shipping Line</label>
@@ -851,7 +805,7 @@ const onSubmit = async (data) => {
                   options={shippingLineOptions}
                   value={formData.shippingLine}
                   onChange={(s) => handleFieldChange("shippingLine", s, { setValue: true })}
-                  className={`react-select-container ${formTouched && errors.shippingLine ? 'border-red-500' : ''}`}
+                  className="react-select-container"
                   classNamePrefix="react-select"
                   placeholder="Select shipping line"
                   isLoading={shippingLinesLoading}
@@ -863,7 +817,7 @@ const onSubmit = async (data) => {
                   options={truckCompanyOptions}
                   value={formData.truckCompany}
                   onChange={(s) => handleFieldChange("truckCompany", s, { setValue: true })}
-                  className={`react-select-container ${formTouched && errors.truckCompany ? 'border-red-500' : ''}`}
+                  className="react-select-container"
                   classNamePrefix="react-select"
                   placeholder="Select trucking company"
                   isLoading={truckCompsLoading}
@@ -906,37 +860,55 @@ const onSubmit = async (data) => {
           )}
         </div>
 
-{/* Buttons */}
-<div className="flex justify-end gap-3 pt-6 border-t border-main">
-  <button
-    type="button"
-    onClick={onClose}
-    className={`modal-btn-cancel ${isSubmitting ? 'modal-btn-disabled' : ''}`}
-    disabled={isSubmitting}
-  >
-    Cancel
-  </button>
+        {/* Buttons */}
+        <div className="flex justify-end gap-3 pt-6 border-t border-main">
+          <button
+            type="button"
+            onClick={onClose}
+            className={`modal-btn-cancel ${isSubmitting ? 'modal-btn-disabled' : ''}`}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </button>
 
-  {/* FIXED: Use handleSubmit instead of manual onSubmit call */}
-  <button
-    type="button"
-    onClick={handleSubmit(onSubmit)} // This will trigger form validation first
-    className={`modal-btn-primary ${(!isFormValid() || isSubmitting) ? 'modal-btn-disabled' : ''}`}
-    disabled={!isFormValid() || isSubmitting}
-  >
-    {isSubmitting ? (
-      <>
-        <Loader2 className="w-4 h-4 animate-spin" />
-        Submitting...
-      </>
-    ) : (
-      'Submit Booking Request'
-    )}
-  </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const formData = watch();
+              const bookingData = {
+                ...formData,
+                containerQuantity,
+                departureDate: departureDate ?? null,
+                deliveryDate: deliveryDate ?? null,
+                pickupLocation: showPickup && Object.keys(pickupLocation).length > 0 ? pickupLocation : null,
+                deliveryLocation: showDelivery && Object.keys(deliveryLocation).length > 0 ? deliveryLocation : null,
+                terms: parseInt(formData.terms) || 1,
+                items: items.map(item => ({
+                  name: item.name,
+                  weight: parseFloat(item.weight),
+                  quantity: parseInt(item.quantity),
+                  category: item.category === "other" ? item.customCategory : item.category,
+                })),
+              };
+              
+              onSubmit(bookingData);
+            }}
+            className={`modal-btn-primary ${(!isFormValid() || isSubmitting) ? 'modal-btn-disabled' : ''}`}
+            disabled={!isFormValid() || isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              'Submit Booking Request'
+            )}
+          </button>
+        </div>
       </div>
     </SharedModal>
   );
 };
 
-export default CustomerAddBooking;
+export default CreateBookingRequest;

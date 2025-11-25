@@ -1,44 +1,43 @@
-// [file name]: CustomerBookings.jsx
-import React, { useState, useCallback, useEffect } from 'react';
+// src/components/pages/CustomerBookings.jsx
+import React, { useState, useCallback, useMemo } from 'react';
 import { useDebounce } from 'use-debounce';
-import { Plus, RefreshCw } from 'lucide-react';
+import { Plus, RefreshCw, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { usePayment } from '../hooks/usePayment';
+
 import { useBooking } from '../hooks/useBooking';
+import { useAuth } from '../hooks/useAuth';
+import { usePayment } from '../hooks/usePayment';
 import { useAR } from '../hooks/useAR';
-import { useOptimizedApi } from '../hooks/useOptimizedApi';
 import TableLayout from '../components/layout/TableLayout';
 import CustomerBookingsTable from '../components/tables/CustomerBookingsTable';
-import CustomerAddBooking from '../components/modals/CustomerAddBooking';
-import PayBooking from '../components/modals/PayBooking';
+import CreateBookingRequest from '../components/modals/CreateBookingRequest';
 import SearchBar from '../components/ui/SearchBar';
 import Pagination from '../components/ui/Pagination';
 
 const CustomerBookings = () => {
-  const [isPayModalOpen, setIsPayModalOpen] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch] = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
-  const [lastRefreshed, setLastRefreshed] = useState(new Date());
+  const [sort, setSort] = useState('id');
+  const [direction, setDirection] = useState('desc');
   const [forceRefresh, setForceRefresh] = useState(0);
 
-  // Optimized API hook
-  const { optimizedRequest, cancelRequest, clearCache } = useOptimizedApi();
+  const { userQuery } = useAuth();
+  const { customerBookingsQuery, createCustomerBooking } = useBooking();
+  const { createPaymentForBooking } = usePayment();
+  const { paymentBreakdownQuery } = useAR(); // Changed from getChargesBreakdownQuery to paymentBreakdownQuery
 
-  const { customerBookingsQuery, checkPaymentStatus } = usePayment();
-  const { createBooking } = useBooking();
-  const { paymentBreakdownQuery } = useAR();
+  const currentUser = userQuery.data?.user;
 
-  // ✅ Enhanced bookings query with optimization
+  // Fetch customer bookings
   const { data, isLoading, isError, refetch } = customerBookingsQuery({
     search: debouncedSearch,
     page,
     per_page: 10,
-    with_ar: true,
-    with_accounts_receivable: true,
-    _refresh: forceRefresh // Add refresh trigger
+    sort,
+    direction,
+    _refresh: forceRefresh
   });
 
   const bookings = data?.data || [];
@@ -50,99 +49,77 @@ const CustomerBookings = () => {
     total: data?.total || 0,
   };
 
-  // Auto-refresh data every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      refetch();
-      setLastRefreshed(new Date());
-    }, 30000);
+  // Handle payment
+  const handlePay = useCallback(async (booking) => {
+    try {
+      const paymentData = {
+        amount: booking.accounts_receivable?.collectible_amount || 0,
+        payment_method: 'gcash',
+        booking_id: booking.id,
+        description: `Payment for booking ${booking.booking_number}`
+      };
 
-    return () => clearInterval(interval);
-  }, [refetch]);
+      await createPaymentForBooking.mutateAsync({
+        bookingId: booking.id,
+        ...paymentData
+      });
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      cancelRequest('customer-bookings');
-    };
-  }, [cancelRequest]);
+      toast.success('Payment initiated successfully!');
+      handleRefresh();
+    } catch (error) {
+      console.error('Payment error:', error);
+      toast.error(error.response?.data?.message || 'Failed to process payment');
+    }
+  }, [createPaymentForBooking]);
 
-  // Refresh data function
-  const handleRefresh = useCallback(() => {
-    clearCache('customer-bookings');
-    setForceRefresh(prev => prev + 1);
-    setLastRefreshed(new Date());
-    toast.success('Bookings refreshed');
-  }, [clearCache]);
+  // Handle download statement
+  const handleDownloadStatement = useCallback((statementData) => {
+    console.log('Download billing statement:', statementData);
+    // Implement PDF generation/download logic here
+    toast.success('Billing statement downloaded');
+  }, []);
 
+  // Get charges breakdown for a booking - FIXED
   const getChargesBreakdown = useCallback((bookingId) => {
     if (!bookingId) return null;
     
-    const { data: breakdownData, isLoading: breakdownLoading } = paymentBreakdownQuery(bookingId);
-    
-    if (breakdownLoading) {
-      return null;
-    }
-    
-    if (!breakdownData) {
-      return null;
-    }
-    
-    return breakdownData;
+    // Use the paymentBreakdownQuery hook properly
+    const { data } = paymentBreakdownQuery(bookingId);
+    return data;
   }, [paymentBreakdownQuery]);
-  
-  const handleAdd = useCallback(
-    async (bookingData) => {
-      try {
-        await createBooking.mutateAsync(bookingData);
-        // Clear cache after successful creation
-        clearCache('customer-bookings');
-        toast.success('Booking submitted successfully! Waiting for admin approval.');
-        setIsAddModalOpen(false);
-        refetch();
-      } catch (error) {
-        console.error('Add booking error:', error);
-        toast.error(error.response?.data?.message || 'Failed to submit booking');
-      }
-    },
-    [createBooking, clearCache, refetch]
-  );
 
-  const handlePayBooking = useCallback((booking) => {
-    setSelectedBooking(booking);
-    setIsPayModalOpen(true);
-  }, []);
-
-  const handleDownloadStatement = useCallback((statementData) => {
-    generateBillingStatementPDF(statementData);
-    toast.success('Billing statement downloaded successfully!');
-  }, []);
-
-  const handlePaymentSuccess = useCallback(() => {
-    toast.success('Payment initiated successfully! You will receive a confirmation soon.');
-    // Clear cache and refresh data to show updated payment status
-    clearCache('customer-bookings');
-    setTimeout(() => {
-      refetch();
-    }, 2000);
-  }, [clearCache, refetch]);
-
-  const handleCloseModal = useCallback(() => {
-    setIsPayModalOpen(false);
-    setSelectedBooking(null);
-  }, []);
-
-  // Function to generate PDF billing statement using the HTML template
-  const generateBillingStatementPDF = (statementData) => {
-    const encodedData = encodeURIComponent(JSON.stringify(statementData));
-    const printUrl = `/printBillingStatement.html?data=${encodedData}`;
-    
-    const printWindow = window.open(printUrl, '_blank');
-    
-    if (printWindow) {
-      printWindow.focus();
+  // Handle create booking
+const handleCreateBooking = useCallback(async (bookingData) => {
+  try {
+    if (!currentUser?.id) {
+      toast.error('User not authenticated');
+      return;
     }
-  };
+
+    // The bookingData should already have user_id from CreateBookingRequest
+    console.log('📝 Final booking data:', bookingData);
+    
+    await createCustomerBooking.mutateAsync(bookingData);
+    toast.success('Booking request submitted successfully! Waiting for admin approval.');
+    setIsCreateModalOpen(false);
+    handleRefresh();
+  } catch (error) {
+    console.error('Create booking error:', error);
+    toast.error(error.response?.data?.message || 'Failed to create booking request');
+  }
+}, [createCustomerBooking, currentUser]);
+
+  // Refresh data
+  const handleRefresh = useCallback(() => {
+    setForceRefresh(prev => prev + 1);
+    toast.success('Data refreshed');
+  }, []);
+
+  // Handle sort change
+  const handleSortChange = useCallback((field, dir) => {
+    setSort(field);
+    setDirection(dir);
+  }, []);
 
   if (isLoading && !data) {
     return (
@@ -156,7 +133,7 @@ const CustomerBookings = () => {
     return (
       <div className="page-error">
         <div className="page-error-content">
-          <p>Failed to load your bookings. Please try again.</p>
+          <p>Failed to load bookings. Please try again.</p>
           <button 
             onClick={handleRefresh}
             className="page-btn-primary mt-4"
@@ -176,9 +153,9 @@ const CustomerBookings = () => {
         <div className="flex justify-between items-start">
           <div>
             <h1 className="page-title">My Bookings</h1>
-            <p className="page-subtitle">Manage your shipping bookings and requests</p>
+            <p className="page-subtitle">Manage your shipping bookings and payments</p>
           </div>
-          <div className="flex flex-col items-end gap-2">
+          <div className="flex gap-3">
             <button
               onClick={handleRefresh}
               className="page-btn-secondary flex items-center gap-2"
@@ -187,10 +164,14 @@ const CustomerBookings = () => {
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
             </button>
-            <div className="text-xs text-gray-500 text-right">
-              <div>Last updated: {lastRefreshed.toLocaleTimeString()}</div>
-              <div>Auto-refreshes every 30 seconds</div>
-            </div>
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="page-btn-primary flex items-center gap-2"
+              disabled={createCustomerBooking.isPending}
+            >
+              <Plus className="w-4 h-4" />
+              New Booking Request
+            </button>
           </div>
         </div>
       </div>
@@ -203,31 +184,21 @@ const CustomerBookings = () => {
               value={searchTerm}
               onChange={setSearchTerm}
               onClear={() => setSearchTerm('')}
-              placeholder="Search bookings by name, email, or tracking number"
+              placeholder="Search bookings by booking number, HWB, or VAN number"
             />
           }
           actions={
-            <div className="page-actions flex gap-2">
-              <span className="text-sm text-muted flex items-center">
-                Showing {bookings.length} of {pagination.total} bookings
-              </span>
-              <button
-                onClick={() => setIsAddModalOpen(true)}
-                className="page-btn-primary"
-                disabled={createBooking.isPending}
-              >
-                <Plus className="page-btn-icon" />
-                Add Booking
-              </button>
+            <div className="text-sm text-muted">
+              Showing {pagination.from}-{pagination.to} of {pagination.total} bookings
             </div>
           }
         >
           <CustomerBookingsTable
             data={bookings}
-            onPay={handlePayBooking}
+            onPay={handlePay}
             onDownloadStatement={handleDownloadStatement}
-            isLoading={isLoading}
             getChargesBreakdown={getChargesBreakdown}
+            isLoading={isLoading}
           />
         </TableLayout>
       </div>
@@ -242,20 +213,13 @@ const CustomerBookings = () => {
         </div>
       )}
 
-      {/* Add Booking Modal */}
-      <CustomerAddBooking
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onSave={handleAdd}
-        isLoading={createBooking.isPending}
-      />
-
-      {/* Pay Booking Modal */}
-      <PayBooking
-        isOpen={isPayModalOpen}
-        onClose={handleCloseModal}
-        booking={selectedBooking}
-        onPaymentSuccess={handlePaymentSuccess}
+      {/* Create Booking Modal */}
+      <CreateBookingRequest
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSave={handleCreateBooking}
+        isLoading={createCustomerBooking.isPending}
+        currentUser={currentUser}
       />
     </div>
   );

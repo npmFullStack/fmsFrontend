@@ -197,9 +197,9 @@
         <tr>
             <td id="qty">-</td>
             <td>
-                <span id="container-desc">-</span><br>
-                <span id="commodity">-</span><br>
-                <span id="route">-</span>
+                <div id="container-desc">-</div>
+                <div id="commodity">-</div>
+                <div id="route">-</div>
             </td>
             <td id="amount">-</td>
         </tr>
@@ -239,21 +239,17 @@
             try {
                 const data = JSON.parse(decodeURIComponent(dataParam));
                 
-                // Determine mode based on mode_of_service
-                let mode = 'PORT TO PORT';
-                if (data.mode && data.mode.toLowerCase().includes('door')) {
-                    mode = 'DOOR TO DOOR';
-                }
+                console.log('Received billing data:', data);
                 
-                // Populate all template elements
-                document.getElementById('hwb-number').textContent = data.hwbNumber || '-';
-                document.getElementById('date').textContent = new Date().toLocaleDateString();
-                document.getElementById('customer').textContent = data.customerName || '-';
-                document.getElementById('qty').textContent = data.totalItems || '-';
-                document.getElementById('amount').textContent = formatCurrency(data.totalAmount);
-                document.getElementById('total').textContent = formatCurrency(data.totalAmount);
-                document.getElementById('mode').textContent = mode;
-                document.getElementById('hwb-detail').textContent = data.hwbNumber || '-';
+                // Populate all template elements with proper fallbacks
+                document.getElementById('hwb-number').textContent = data.hwbNumber || data.bookingNumber || 'N/A';
+                document.getElementById('date').textContent = data.bookingDate || new Date().toLocaleDateString();
+                document.getElementById('customer').textContent = data.customerName || 'Customer Name Not Available';
+                document.getElementById('qty').textContent = data.totalItems || '1';
+                document.getElementById('amount').textContent = formatCurrency(data.totalAmount || 0);
+                document.getElementById('total').textContent = formatCurrency(data.totalAmount || 0);
+                document.getElementById('mode').textContent = data.mode || 'PORT TO PORT';
+                document.getElementById('hwb-detail').textContent = data.hwbNumber || data.bookingNumber || 'N/A';
                 
                 // Container info
                 const containerInfo = data.containerInfo || '1 x 20FT';
@@ -262,24 +258,24 @@
                 document.getElementById('container-desc').textContent = containerInfo + vanNumber;
                 
                 document.getElementById('commodity').textContent = data.commodity || 'General Cargo';
-                document.getElementById('route').textContent = data.route || '-';
+                document.getElementById('route').textContent = data.route || 'Route information not available';
                 
                 // Auto-print after a short delay
                 setTimeout(() => {
                     window.print();
-                }, 1000);
+                }, 500);
                 
             } catch (error) {
                 console.error('Error parsing data:', error);
-                document.body.innerHTML = '<div style="text-align: center; padding: 50px;">Error loading billing statement data</div>';
+                document.body.innerHTML = '<div style="text-align: center; padding: 50px; color: red;">Error loading billing statement data</div>';
             }
         } else {
-            document.body.innerHTML = '<div style="text-align: center; padding: 50px;">No data provided for billing statement</div>';
+            document.body.innerHTML = '<div style="text-align: center; padding: 50px; color: red;">No data provided for billing statement</div>';
         }
     }
     
     function formatCurrency(amount) {
-        if (!amount) return '0.00';
+        if (!amount && amount !== 0) return '0.00';
         return new Intl.NumberFormat('en-US', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2

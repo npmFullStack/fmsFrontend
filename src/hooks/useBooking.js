@@ -1,12 +1,14 @@
-// src/hooks/useBooking.js
+// src/hooks/useBooking.js - UPDATED VERSION
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { retryWithBackoff } from '../utils/retry';
 import api from '../api';
 
 const BOOKING_KEY = ['bookings'];
+const CUSTOMER_BOOKING_KEY = ['customer-bookings'];
 
 // Enhanced API functions with retry and timeout handling
 const bookingApi = {
+  // ADMIN BOOKING METHODS
   getAll: async (params = {}, signal) => {
     const { data } = await retryWithBackoff(
       () => api.get('/bookings', { params, signal }),
@@ -31,15 +33,6 @@ const bookingApi = {
       2, // Fewer retries for mutations
       1000,
       45000 // Longer timeout for creation
-    );
-    return data;
-  },
-  quote: async (payload) => {
-    const { data } = await retryWithBackoff(
-      () => api.post('/bookings/quote', payload),
-      2,
-      1000,
-      45000
     );
     return data;
   },
@@ -106,36 +99,73 @@ const bookingApi = {
     );
     return data;
   },
+
+  // CUSTOMER BOOKING METHODS
+  getCustomerBookings: async (params = {}, signal) => {
+    const { data } = await retryWithBackoff(
+      () => api.get('/customer/bookings', { params, signal }),
+      3,
+      1000,
+      30000
+    );
+    return data;
+  },
+  createCustomerBooking: async (payload) => {
+    const { data } = await retryWithBackoff(
+      () => api.post('/customer/bookings', payload),
+      2,
+      1000,
+      45000
+    );
+    return data;
+  },
+  getCustomerBooking: async (id, signal) => {
+    const { data } = await retryWithBackoff(
+      () => api.get(`/customer/bookings/${id}`, { signal }),
+      3,
+      1000,
+      30000
+    );
+    return data;
+  },
+
+  // QUOTE METHODS
+  quote: async (payload) => {
+    const { data } = await retryWithBackoff(
+      () => api.post('/bookings/quote', payload),
+      2,
+      1000,
+      45000
+    );
+    return data;
+  },
 };
 
 // Hook
 export const useBooking = () => {
   const queryClient = useQueryClient();
 
-  // Fetch all bookings with enhanced options
+  // ADMIN QUERIES
   const bookingsQuery = (params = {}) => useQuery({
     queryKey: [...BOOKING_KEY, params],
     queryFn: ({ signal }) => bookingApi.getAll(params, signal),
     staleTime: 2 * 60 * 1000, // 2 minutes - data stays fresh for 2 mins
     gcTime: 10 * 60 * 1000, // 10 minutes - cache time
     retry: (failureCount, error) => {
-      // Don't retry on 4xx errors (client errors)
       if (error.response?.status >= 400 && error.response?.status < 500) {
         return false;
       }
-      // Retry up to 2 times for server errors
       return failureCount < 2;
     },
-    refetchOnWindowFocus: false, // Don't refetch when window gains focus
+    refetchOnWindowFocus: false,
   });
 
-  // Fetch single booking with enhanced options
   const bookingQuery = (id) => useQuery({
     queryKey: [...BOOKING_KEY, id],
     queryFn: ({ signal }) => bookingApi.getOne(id, signal),
     enabled: !!id,
-    staleTime: 5 * 60 * 1000, // 5 minutes for single booking
-    gcTime: 15 * 60 * 1000, // 15 minutes cache
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     retry: (failureCount, error) => {
       if (error.response?.status >= 400 && error.response?.status < 500) {
         return false;
@@ -144,30 +174,45 @@ export const useBooking = () => {
     },
   });
 
-  // Enhanced mutations with better error handling
-  const createBooking = useMutation({
-    mutationFn: bookingApi.create,
-    onSuccess: (data) => {
-      // Invalidate and refetch bookings
-      queryClient.invalidateQueries({ queryKey: BOOKING_KEY });
-      console.log('✅ Booking created successfully', data);
-      return data;
+  // CUSTOMER QUERIES
+  const customerBookingsQuery = (params = {}) => useQuery({
+    queryKey: [...CUSTOMER_BOOKING_KEY, params],
+    queryFn: ({ signal }) => bookingApi.getCustomerBookings(params, signal),
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: (failureCount, error) => {
+      if (error.response?.status >= 400 && error.response?.status < 500) {
+        return false;
+      }
+      return failureCount < 2;
     },
-    onError: (error) => {
-      console.error('❌ Create booking error:', error.response?.data || error.message);
-      throw error;
+    refetchOnWindowFocus: false,
+  });
+
+  const customerBookingQuery = (id) => useQuery({
+    queryKey: [...CUSTOMER_BOOKING_KEY, id],
+    queryFn: ({ signal }) => bookingApi.getCustomerBooking(id, signal),
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    retry: (failureCount, error) => {
+      if (error.response?.status >= 400 && error.response?.status < 500) {
+        return false;
+      }
+      return failureCount < 2;
     },
   });
 
-  const createQuote = useMutation({
-    mutationFn: bookingApi.quote,
+  // ADMIN MUTATIONS
+  const createBooking = useMutation({
+    mutationFn: bookingApi.create,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: BOOKING_KEY });
-      console.log('✅ Quote created successfully', data);
+      console.log('✅ Admin booking created successfully', data);
       return data;
     },
     onError: (error) => {
-      console.error('❌ Create quote error:', error.response?.data || error.message);
+      console.error('❌ Create admin booking error:', error.response?.data || error.message);
       throw error;
     },
   });
@@ -175,7 +220,6 @@ export const useBooking = () => {
   const updateBooking = useMutation({
     mutationFn: bookingApi.update,
     onSuccess: (data) => {
-      // Invalidate specific booking and all bookings
       queryClient.invalidateQueries({ queryKey: BOOKING_KEY });
       if (data?.id) {
         queryClient.invalidateQueries({ queryKey: [...BOOKING_KEY, data.id] });
@@ -263,13 +307,45 @@ export const useBooking = () => {
     },
   });
 
+  // CUSTOMER MUTATIONS
+  const createCustomerBooking = useMutation({
+    mutationFn: bookingApi.createCustomerBooking,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: CUSTOMER_BOOKING_KEY });
+      console.log('✅ Customer booking submitted successfully (pending approval)', data);
+      return data;
+    },
+    onError: (error) => {
+      console.error('❌ Create customer booking error:', error.response?.data || error.message);
+      throw error;
+    },
+  });
+
+  // QUOTE MUTATIONS
+  const createQuote = useMutation({
+    mutationFn: bookingApi.quote,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: BOOKING_KEY });
+      console.log('✅ Quote created successfully', data);
+      return data;
+    },
+    onError: (error) => {
+      console.error('❌ Create quote error:', error.response?.data || error.message);
+      throw error;
+    },
+  });
+
   return {
-    // Queries
+    // ADMIN QUERIES
     bookingsQuery,
     bookingQuery,
-    // Mutations
+    
+    // CUSTOMER QUERIES
+    customerBookingsQuery,
+    customerBookingQuery,
+    
+    // ADMIN MUTATIONS
     createBooking,
-    createQuote,
     updateBooking,
     deleteBooking,
     bulkDeleteBookings,
@@ -277,6 +353,12 @@ export const useBooking = () => {
     updateBookingStatus,
     updateBookingShippingStatus,
     approveBooking,
+    
+    // CUSTOMER MUTATIONS
+    createCustomerBooking,
+    
+    // QUOTE MUTATIONS
+    createQuote,
   };
 };
 
@@ -287,7 +369,7 @@ export const useCreateQuote = () => {
   return useMutation({
     mutationFn: bookingApi.quote,
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: BOOKING_KEY });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
       console.log('✅ Quote created successfully', data);
       return data;
     },
@@ -305,14 +387,11 @@ export const useOptimisticBooking = () => {
   const optimisticUpdate = useMutation({
     mutationFn: bookingApi.update,
     onMutate: async (variables) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: BOOKING_KEY });
+      await queryClient.cancelQueries({ queryKey: ['bookings'] });
       
-      // Snapshot the previous value
-      const previousBookings = queryClient.getQueryData(BOOKING_KEY);
+      const previousBookings = queryClient.getQueryData(['bookings']);
       
-      // Optimistically update to the new value
-      queryClient.setQueryData(BOOKING_KEY, (old) => {
+      queryClient.setQueryData(['bookings'], (old) => {
         if (!old?.data) return old;
         return {
           ...old,
@@ -324,18 +403,15 @@ export const useOptimisticBooking = () => {
         };
       });
       
-      // Return context with the snapshotted value
       return { previousBookings };
     },
     onError: (err, variables, context) => {
-      // Rollback on error
       if (context?.previousBookings) {
-        queryClient.setQueryData(BOOKING_KEY, context.previousBookings);
+        queryClient.setQueryData(['bookings'], context.previousBookings);
       }
     },
     onSettled: () => {
-      // Always refetch after error or success
-      queryClient.invalidateQueries({ queryKey: BOOKING_KEY });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
     },
   });
   
