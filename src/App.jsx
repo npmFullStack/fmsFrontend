@@ -22,9 +22,7 @@ const Home = lazyWithRetry(() => import('./pages/Home'));
 const Login = lazyWithRetry(() => import('./pages/Login'));
 const Register = lazyWithRetry(() => import('./pages/Register'));
 const Quote = lazyWithRetry(() => import('./pages/Quote'));
-const GMDashboard = lazyWithRetry(() => import('./pages/GMDashboard'));
-const AdminDashboard = lazyWithRetry(() => import('./pages/AdminDashboard'));
-const CustomerDashboard = lazyWithRetry(() => import('./pages/CustomerDashboard'));
+const Dashboard = lazyWithRetry(() => import('./pages/Dashboard'));
 const Category = lazyWithRetry(() => import('./pages/Category'));
 const ContainerType = lazyWithRetry(() => import('./pages/ContainerType'));
 const Port = lazyWithRetry(() => import('./pages/Port'));
@@ -39,8 +37,6 @@ const AccountsPayable = lazyWithRetry(() => import('./pages/AccountsPayable'));
 const AccountsReceivable = lazyWithRetry(() => import('./pages/AccountsReceivable'));
 const PayCharges = lazyWithRetry(() => import('./pages/PayCharges'));
 const CustomerBookings = lazyWithRetry(() => import('./pages/CustomerBookings'));
-
-
 
 function App() {
   const { initializeAuth } = useAuth();
@@ -63,9 +59,7 @@ function App() {
           
           {/* Authenticated Routes */}
           <Route element={<Layout />}>
-            <Route path="/gm-dashboard" element={<GMDashboard />} />
-            <Route path="/admin-dashboard" element={<AdminDashboard />} />
-            <Route path="/customer-dashboard" element={<CustomerDashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/categories" element={<Category />} />
             <Route path="/container-types" element={<ContainerType />} />
             <Route path="/ports" element={<Port />} />
@@ -78,8 +72,7 @@ function App() {
             <Route path="/cargo-monitoring" element={<CargoMonitoring />} />
             <Route path="/accounts-payable" element={<AccountsPayable />} />
             <Route path="/pay-charges" element={<PayCharges />} />
-            <Route path="/customer-bookings"
-                        element={<CustomerBookings />} />
+            <Route path="/customer-bookings" element={<CustomerBookings />} />
             <Route path="/accounts-receivable" element={<AccountsReceivable />} />
           </Route>
         </Routes>

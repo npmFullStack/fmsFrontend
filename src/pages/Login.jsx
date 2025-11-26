@@ -15,22 +15,10 @@ const Login = () => {
   const navigate = useNavigate();
   const { loginMutation, isAuthenticated, userQuery } = useAuth();
 
-  // Redirect if already authenticated - FIXED VERSION
+  // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated() && userQuery.data) {
-      const userRole = userQuery.data.user.role;
-      switch (userRole) {
-        case 'customer':
-          navigate('/customer-bookings');
-          break;
-        case 'general_manager':
-          navigate('/gm-dashboard');
-          break;
-        case 'admin':
-          navigate('/admin-dashboard');
-          break;
-        // Removed default case - no fallback route
-      }
+      navigate('/dashboard');
     }
   }, [isAuthenticated, userQuery.data, navigate]);
 
@@ -47,23 +35,9 @@ const Login = () => {
 
   const onSubmit = async (data) => {
     try {
-      const result = await loginMutation.mutateAsync(data);
+      await loginMutation.mutateAsync(data);
       toast.success('Login successful!');
-      
-      // Redirect based on user role
-      const userRole = result.user.role;
-      switch (userRole) {
-        case 'customer':
-          navigate('/customer-bookings');
-          break;
-        case 'general_manager':
-          navigate('/gm-dashboard');
-          break;
-        case 'admin':
-          navigate('/admin-dashboard');
-          break;
-        // Removed default case - no fallback route
-      }
+      navigate('/dashboard');
     } catch (error) {
       const errorMessage = error.response?.data?.message || 'Login failed. Please try again.';
       if (error.response?.data?.errors?.email) {

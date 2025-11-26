@@ -38,9 +38,6 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
   // Professional menu labels with icons
   const menuItems = {
     dashboard: { icon: BarChart3, label: 'Dashboard', path: '/dashboard' },
-    gmDashboard: { icon: BarChart3, label: 'Dashboard', path: '/gm-dashboard' },
-    adminDashboard: { icon: BarChart3, label: 'Dashboard', path: '/admin-dashboard' },
-    customerDashboard: { icon: BarChart3, label: 'Dashboard', path: '/customer-dashboard' },
     userManagement: { icon: Users, label: 'User Management', path: '/users' },
     category: { icon: List, label: 'Category Management', path: '/categories' },
     container: { icon: Container, label: 'Container Types', path: '/container-types' },
@@ -65,7 +62,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
       {
         label: 'MAIN',
         items: [
-          menuItems.customerDashboard,
+          menuItems.dashboard,
           menuItems.customerBookings,
         ]
       },
@@ -82,11 +79,11 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
       {
         label: 'MAIN',
         items: [
-          menuItems.gmDashboard,
+          menuItems.dashboard,
           menuItems.quoteRequest,
           menuItems.bookingRequest,
           menuItems.userManagement,
-          menuItems.payCharges, // Pay Charges moved to GM
+          menuItems.payCharges,
         ]
       },
       {
@@ -102,7 +99,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
       {
         label: 'MAIN',
         items: [
-          menuItems.adminDashboard,
+          menuItems.dashboard,
         ]
       },
       {
@@ -128,16 +125,16 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
     ];
 
     // Return appropriate sections based on user role
-switch (userRole) {
-  case 'customer': 
-    return customerSections;
-  case 'general_manager':
-    return generalManagerSections;
-  case 'admin':
-    return adminSections;
-  default:
-    return customerSections; 
-}
+    switch (userRole) {
+      case 'customer': 
+        return customerSections;
+      case 'general_manager':
+        return generalManagerSections;
+      case 'admin':
+        return adminSections;
+      default:
+        return customerSections; 
+    }
   };
 
   const menuSections = getMenuSections();
@@ -248,7 +245,7 @@ switch (userRole) {
                   <p className="text-xs text-muted truncate leading-4" title={user.email}>
                     {user.email}
                   </p>
-
+                  <p className="text-xs text-muted capitalize">{user.role?.replace('_', ' ')}</p>
                 </div>
 
                 <ChevronDown className={`w-4 h-4 text-muted transition-transform flex-shrink-0 ml-2 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
@@ -293,7 +290,7 @@ switch (userRole) {
                     <p className="text-xs text-muted truncate mt-0.5" title={user.email}>
                       {user.email}
                     </p>
-
+                    <p className="text-xs text-muted capitalize">{user.role?.replace('_', ' ')}</p>
                   </div>
                   <button 
                     onClick={handleLogout}
@@ -383,6 +380,7 @@ switch (userRole) {
                         <p className="text-xs text-muted truncate mt-0.5" title={user.email}>
                           {user.email}
                         </p>
+                        <p className="text-xs text-muted capitalize">{user.role?.replace('_', ' ')}</p>
                       </div>
                     </div>
                     <ChevronDown className={`w-4 h-4 text-muted transition-transform flex-shrink-0 ml-2 ${isUserMenuOpen ? 'rotate-180' : ''}`} />

@@ -82,54 +82,39 @@ const PayBooking = ({
     }, 30 * 60 * 1000);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!booking || isFullyPaid) return;
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!booking || isFullyPaid) return;
 
-    setIsSubmitting(true);
+  setIsSubmitting(true);
 
-    try {
-      console.log('💰 Starting payment for booking:', booking.id);
+  try {
+    console.log('💰 Starting MOCK payment for booking:', booking.id);
+    
+    // TEMPORARY: Use mock payment endpoint
+    const result = await createPaymentForBooking.mutateAsync({
+      bookingId: booking.id,
+      payment_method: 'gcash',
+      amount: actualAmountDue
+    });
+
+    console.log('🔍 MOCK PAYMENT RESPONSE:', result);
+
+    if (result?.checkout_url) {
+      toast.success('Redirecting to mock payment checkout...');
       
-      const result = await createPaymentForBooking.mutateAsync({
-        bookingId: booking.id,
-        payment_method: paymentMethod,
-        amount: actualAmountDue
-      });
-
-      console.log('🔍 PAYMENT RESPONSE DATA:', result);
-
-      // Handle checkout redirect
-      if (result?.checkout_url) {
-        toast.success(`Redirecting to ${selectedPaymentMethod?.label} checkout...`);
-        
-        // Open checkout in new tab
-        const newWindow = window.open(result.checkout_url, '_blank', 'noopener,noreferrer');
-        
-        if (newWindow) {
-          // Start polling for payment status
-          if (result.payment_id) {
-            startPaymentStatusPolling(result.payment_id);
-          }
-          
-          // Focus on the new window
-          newWindow.focus();
-        } else {
-          toast.error('Please allow popups for this site to complete payment');
-        }
-        
-        onClose();
-      } else {
-        toast.error('No checkout URL received from server');
-      }
-    } catch (error) {
-      console.error('❌ Payment error:', error);
-      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to process payment';
-      toast.error(errorMessage);
-    } finally {
-      setIsSubmitting(false);
+      // Open mock checkout in new tab
+      window.open(result.checkout_url, '_blank', 'noopener,noreferrer');
+      
+      onClose();
     }
-  };
+  } catch (error) {
+    console.error('❌ Mock payment error:', error);
+    toast.error(error.response?.data?.message || 'Failed to create payment');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const handleClose = () => {
     setPaymentMethod('gcash');

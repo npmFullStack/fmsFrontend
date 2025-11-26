@@ -13,16 +13,14 @@ import {
   Mail,
 } from 'lucide-react';
 import playstore from '../assets/images/playstore.png';
-import loudSound from '../assets/sounds/moan.mp3';
 import CardTilt from '../components/CardTilt';
 import TextShine from '../components/TextShine';
 
 const Home = () => {
   const navigate = useNavigate();
-  const audio = new Audio(loudSound);
 
   const handleDownloadClick = () => {
-    audio.play();
+    window.open('https://xtramile.com', '_blank');
   };
 
   const services = [
@@ -105,12 +103,12 @@ const Home = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-<button
-  onClick={() => navigate('/quote')}
-  className="px-8 py-4 bg-primary hover:bg-blue-800 text-white text-lg font-semibold rounded-lg transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
->
-  Get a Quote Now
-</button>
+            <button
+              onClick={() => navigate('/quote')}
+              className="px-8 py-4 bg-primary hover:bg-blue-800 text-white text-lg font-semibold rounded-lg transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+            >
+              Get a Quote Now
+            </button>
 
             <button
               onClick={handleDownloadClick}
