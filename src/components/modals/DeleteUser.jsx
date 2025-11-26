@@ -1,24 +1,18 @@
 import React from 'react';
 import SharedModal from '../ui/SharedModal';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle, Loader2, UserCheck, UserX } from 'lucide-react';
 
 const DeleteUser = ({ 
     isOpen,
     onClose,
     onDelete,
     user,
-    users,
-    isLoading = false
+    isLoading = false,
+    isRestore = false // Add this prop
 }) => {
-    // Check if we have either single or bulk delete
-    if (user && users) return null;
+    const displayName = user ? `${user.first_name} ${user.last_name}` : '';
 
-    const isBulk = users && users.length > 0;
-    const displayName = isBulk
-        ? `${users.length} users`
-        : `${user?.first_name} ${user?.last_name}`;
-
-    const handleDelete = () => {
+    const handleAction = () => {
         onDelete();
     };
 
@@ -26,27 +20,43 @@ const DeleteUser = ({
         <SharedModal
             isOpen={isOpen}
             onClose={onClose}
-            title={isBulk ? "Delete Users" : "Delete User"}
+            title={isRestore ? "Unrestrict User" : "Restrict User"}
             size="sm"
         >
             <div className="flex flex-col items-center text-center py-2">
                 {/* Icon */}
-                <div className="w-16 h-16 bg-red-500 bg-opacity-20 rounded-full flex items-center justify-center mb-4">
-                    <AlertTriangle className="w-8 h-8 text-red-500" />
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
+                    isRestore 
+                        ? 'bg-green-500 bg-opacity-20' 
+                        : 'bg-orange-500 bg-opacity-20'
+                }`}>
+                    {isRestore ? (
+                        <UserCheck className="w-8 h-8 text-green-500" />
+                    ) : (
+                        <UserX className="w-8 h-8 text-orange-500" />
+                    )}
                 </div>
 
                 {/* Message */}
                 <div className="text-content mb-6">
                     <p className="text-base">
-                        Are you sure you want to delete{' '}
-                        <span className="font-semibold text-red-400">
-                            {isBulk ? displayName : `"${displayName}"`}
+                        {isRestore 
+                            ? `Are you sure you want to unrestrict `
+                            : `Are you sure you want to restrict `
+                        }
+                        <span className={`font-semibold ${
+                            isRestore ? 'text-green-400' : 'text-orange-400'
+                        }`}>
+                            "{displayName}"
                         </span>?
                     </p>
                     <p className="text-sm text-muted mt-2">
-                        This action cannot be undone.
+                        {isRestore 
+                            ? "Unrestricted users will be able to access the system again."
+                            : "Restricted users will not be able to access the system."
+                        }
                     </p>
-                    {!isBulk && user?.email && (
+                    {user?.email && (
                         <p className="text-sm text-muted mt-1">
                             Email: <span className="font-medium">{user.email}</span>
                         </p>
@@ -65,17 +75,17 @@ const DeleteUser = ({
                     </button>
                     <button
                         type="button"
-                        onClick={handleDelete}
-                        className={`modal-btn-danger ${isLoading ? 'modal-btn-disabled' : ''}`}
+                        onClick={handleAction}
+                        className={`${isRestore ? 'modal-btn-success' : 'modal-btn-warning'} ${isLoading ? 'modal-btn-disabled' : ''}`}
                         disabled={isLoading}
                     >
                         {isLoading ? (
                             <>
                                 <Loader2 className="w-4 h-4 animate-spin" />
-                                Deleting...
+                                {isRestore ? 'Unrestricting...' : 'Restricting...'}
                             </>
                         ) : (
-                            'Delete'
+                            isRestore ? 'Unrestrict' : 'Restrict'
                         )}
                     </button>
                 </div>

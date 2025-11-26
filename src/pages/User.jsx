@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useDebounce } from 'use-debounce';
-import { Plus, RefreshCw } from 'lucide-react';
+import { Plus, RefreshCw, UserPlus, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { useUser } from '../hooks/useUser';
@@ -9,17 +9,15 @@ import TableLayout from '../components/layout/TableLayout';
 import UserTable from '../components/tables/UserTable';
 import AddUser from '../components/modals/AddUser';
 import DeleteUser from '../components/modals/DeleteUser';
-import PromoteUser from '../components/modals/PromoteUser';
 import SearchBar from '../components/ui/SearchBar';
 import Pagination from '../components/ui/Pagination';
 
 const User = () => {
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
+    const [isAddAdminModalOpen, setIsAddAdminModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
     const [deletingUser, setDeletingUser] = useState(null);
-    const [deletingUsers, setDeletingUsers] = useState([]);
-    const [promotingUser, setPromotingUser] = useState(null);
+    const [restoringUser, setRestoringUser] = useState(null); // Add this state
     const [searchTerm, setSearchTerm] = useState("");
     const [debouncedSearch] = useDebounce(searchTerm, 500);
     const [page, setPage] = useState(1);
@@ -34,10 +32,8 @@ const User = () => {
     const {
         usersQuery,
         createUser,
-        updateUser,
         deleteUser,
-        bulkDeleteUsers,
-        promoteUser,
+        restoreUser, // You'll need to add this to useUser hook
     } = useUser();
 
     // Fetch users with optimization
@@ -47,26 +43,10 @@ const User = () => {
         per_page: 10,
         sort,
         direction,
-        _refresh: forceRefresh // Add refresh trigger
+        _refresh: forceRefresh
     });
 
-    // Client-side sorting (fallback if server-side sorting isn't working)
-    const sortedUsers = useMemo(() => {
-        if (!data?.data) return [];
-        return [...data.data].sort((a, b) => {
-            let aVal = a[sort];
-            let bVal = b[sort];
-
-            if (typeof aVal === 'string') {
-                aVal = aVal.toLowerCase();
-                bVal = bVal.toLowerCase();
-            }
-
-            return direction === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
-        });
-    }, [data?.data, sort, direction]);
-
-    const users = sortedUsers;
+    const users = data?.data || [];
     const pagination = {
         current_page: data?.current_page || 1,
         last_page: data?.last_page || 1,
@@ -82,7 +62,7 @@ const User = () => {
 
     // Refresh data function
     const handleRefresh = useCallback(() => {
-        clearCache('users'); // Clear cache for fresh data
+        clearCache('users');
         setForceRefresh(prev => prev + 1);
         toast.success('Data refreshed');
     }, [clearCache]);
@@ -97,105 +77,75 @@ const User = () => {
     /* ==========================
      * CRUD ACTIONS
      * ========================== */
-    const handleAdd = useCallback(async (userData) => {
+    const handleAddCustomer = useCallback(async (userData) => {
         try {
             await createUser.mutateAsync(userData);
-            
-            // Clear cache after successful creation
             clearCache('users');
-            toast.success('User added successfully');
-            setIsAddModalOpen(false);
+            toast.success('Customer added successfully');
+            setIsAddCustomerModalOpen(false);
         } catch (error) {
-            console.error('Add user error:', error);
-            toast.error(error.response?.data?.message || 'Failed to add user');
+            console.error('Add customer error:', error);
+            toast.error(error.response?.data?.message || 'Failed to add customer');
         }
     }, [createUser, clearCache]);
 
-    const handleUpdate = useCallback(async (id, userData) => {
+    const handleAddAdmin = useCallback(async (userData) => {
         try {
-            await updateUser.mutateAsync({ id, ...userData });
-            
-            // Clear cache after successful update
+            const adminData = { ...userData, role: 'admin' };
+            await createUser.mutateAsync(adminData);
             clearCache('users');
-            toast.success('User updated successfully');
+            toast.success('Admin added successfully');
+            setIsAddAdminModalOpen(false);
         } catch (error) {
-            console.error('Update user error:', error);
-            toast.error(error.response?.data?.message || 'Failed to update user');
+            console.error('Add admin error:', error);
+            toast.error(error.response?.data?.message || 'Failed to add admin');
         }
-    }, [updateUser, clearCache]);
+    }, [createUser, clearCache]);
 
     const handleDelete = useCallback(() => {
-        if (deletingUsers.length > 0) {
-            const ids = deletingUsers.map((user) => user.id);
-            bulkDeleteUsers.mutate(ids, {
-                onSuccess: (res) => {
-                    clearCache('users');
-                    toast.success(res?.message || 'Users deleted successfully');
-                    setIsDeleteModalOpen(false);
-                    setDeletingUser(null);
-                    setDeletingUsers([]);
-                },
-                onError: (error) => {
-                    console.error('Bulk delete error:', error);
-                    toast.error(error.response?.data?.message || 'Failed to delete users');
-                },
-            });
-        } else if (deletingUser) {
+        if (deletingUser) {
             deleteUser.mutate(deletingUser.id, {
                 onSuccess: () => {
                     clearCache('users');
-                    toast.success('User deleted successfully');
+                    toast.success('User restricted successfully');
                     setIsDeleteModalOpen(false);
                     setDeletingUser(null);
-                    setDeletingUsers([]);
                 },
                 onError: (error) => {
-                    console.error('Delete user error:', error);
-                    toast.error(error.response?.data?.message || 'Failed to delete user');
+                    console.error('Restrict user error:', error);
+                    toast.error(error.response?.data?.message || 'Failed to restrict user');
                 },
             });
-        } else {
-            setIsDeleteModalOpen(false);
-            setDeletingUser(null);
-            setDeletingUsers([]);
         }
-    }, [deleteUser, bulkDeleteUsers, deletingUser, deletingUsers, clearCache]);
+    }, [deleteUser, deletingUser, clearCache]);
 
-    const handlePromote = useCallback(() => {
-        if (!promotingUser) return;
-        
-        promoteUser.mutate(promotingUser.id, {
-            onSuccess: () => {
-                clearCache('users');
-                toast.success('User promoted to admin successfully');
-                setIsPromoteModalOpen(false);
-                setPromotingUser(null);
-            },
-            onError: (error) => {
-                console.error('Promote user error:', error);
-                toast.error(error.response?.data?.message || 'Failed to promote user');
-            },
-        });
-    }, [promoteUser, promotingUser, clearCache]);
-
-    const handleEditClick = useCallback((user) => {
-        handleUpdate(user.id, user);
-    }, [handleUpdate]);
-
-    const handleDeleteClick = useCallback((userOrUsers) => {
-        if (Array.isArray(userOrUsers)) {
-            setDeletingUsers(userOrUsers);
-            setDeletingUser(null);
-        } else {
-            setDeletingUser(userOrUsers);
-            setDeletingUsers([]);
+    const handleRestore = useCallback(() => {
+        if (restoringUser) {
+            restoreUser.mutate(restoringUser.id, {
+                onSuccess: () => {
+                    clearCache('users');
+                    toast.success('User unrestricted successfully');
+                    setIsDeleteModalOpen(false); // Reuse the same modal
+                    setRestoringUser(null);
+                },
+                onError: (error) => {
+                    console.error('Unrestrict user error:', error);
+                    toast.error(error.response?.data?.message || 'Failed to unrestrict user');
+                },
+            });
         }
+    }, [restoreUser, restoringUser, clearCache]);
+
+    const handleDeleteClick = useCallback((user) => {
+        setDeletingUser(user);
+        setRestoringUser(null);
         setIsDeleteModalOpen(true);
     }, []);
 
-    const handlePromoteClick = useCallback((user) => {
-        setPromotingUser(user);
-        setIsPromoteModalOpen(true);
+    const handleRestoreClick = useCallback((user) => {
+        setRestoringUser(user);
+        setDeletingUser(null);
+        setIsDeleteModalOpen(true);
     }, []);
 
     /* ===============================
@@ -261,29 +211,35 @@ const User = () => {
                         />
                     }
                     actions={
-                        <div className="page-actions">
+                        <div className="page-actions flex gap-2">
                             <button
-                                onClick={() => setIsAddModalOpen(true)}
-                                className="page-btn-primary"
+                                onClick={() => setIsAddCustomerModalOpen(true)}
+                                className="page-btn-primary flex items-center gap-2"
                                 disabled={createUser.isPending}
                             >
-                                <Plus className="page-btn-icon" />
-                                Add User
+                                <UserPlus className="w-4 h-4" />
+                                Add Customer
+                            </button>
+                            <button
+                                onClick={() => setIsAddAdminModalOpen(true)}
+                                className="page-btn-secondary flex items-center gap-2"
+                                disabled={createUser.isPending}
+                            >
+                                <Shield className="w-4 h-4" />
+                                Add Admin
                             </button>
                         </div>
                     }
                 >
-<UserTable
-    data={users}
-    onEdit={handleEditClick}
-    onDelete={handleDeleteClick} 
-    sortField={sort}
-    sortDirection={direction}
-    onSortChange={handleSortChange}
-    isLoading={isLoading}
-    currentUserRole={currentUser?.role} 
-/>
-               
+                    <UserTable
+                        data={users}
+                        onDelete={handleDeleteClick} 
+                        onRestore={handleRestoreClick} // Add this prop
+                        sortField={sort}
+                        sortDirection={direction}
+                        onSortChange={handleSortChange}
+                        isLoading={isLoading}
+                    />
                 </TableLayout>
             </div>
 
@@ -299,34 +255,33 @@ const User = () => {
 
             {/* Modals */}
             <AddUser
-                isOpen={isAddModalOpen}
-                onClose={() => setIsAddModalOpen(false)}
-                onSave={handleAdd}
+                isOpen={isAddCustomerModalOpen}
+                onClose={() => setIsAddCustomerModalOpen(false)}
+                onSave={handleAddCustomer}
                 isLoading={createUser.isPending}
+                title="Add Customer"
             />
 
+            <AddUser
+                isOpen={isAddAdminModalOpen}
+                onClose={() => setIsAddAdminModalOpen(false)}
+                onSave={handleAddAdmin}
+                isLoading={createUser.isPending}
+                title="Add Admin"
+            />
+
+            {/* Reuse DeleteUser modal for both restrict and unrestrict */}
             <DeleteUser
                 isOpen={isDeleteModalOpen}
                 onClose={() => {
                     setIsDeleteModalOpen(false);
                     setDeletingUser(null);
-                    setDeletingUsers([]);
+                    setRestoringUser(null);
                 }}
-                onDelete={handleDelete}
-                user={deletingUser}
-                users={deletingUsers}
-                isLoading={deleteUser.isPending || bulkDeleteUsers.isPending}
-            />
-
-            <PromoteUser
-                isOpen={isPromoteModalOpen}
-                onClose={() => {
-                    setIsPromoteModalOpen(false);
-                    setPromotingUser(null);
-                }}
-                onPromote={handlePromote}
-                user={promotingUser}
-                isLoading={promoteUser.isPending}
+                onDelete={deletingUser ? handleDelete : handleRestore}
+                user={deletingUser || restoringUser}
+                isLoading={deleteUser.isPending || restoreUser.isPending}
+                isRestore={!!restoringUser} // Add this prop to indicate unrestrict mode
             />
         </div>
     );
