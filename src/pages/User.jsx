@@ -273,16 +273,17 @@ const User = () => {
                         </div>
                     }
                 >
-                    <UserTable
-                        data={users}
-                        onEdit={handleEditClick}
-                        onDelete={handleDeleteClick}
-                        onPromote={handlePromoteClick}
-                        sortField={sort}
-                        sortDirection={direction}
-                        onSortChange={handleSortChange}
-                        isLoading={isLoading}
-                    />
+<UserTable
+    data={users}
+    onEdit={handleEditClick}
+    onDelete={handleDeleteClick} 
+    sortField={sort}
+    sortDirection={direction}
+    onSortChange={handleSortChange}
+    isLoading={isLoading}
+    currentUserRole={currentUser?.role} 
+/>
+               
                 </TableLayout>
             </div>
 

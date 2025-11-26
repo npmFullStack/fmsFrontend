@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import DataTable from '../ui/DataTable';
 import BulkActionBar from '../ui/BulkActionBar';
 import DeleteUser from '../modals/DeleteUser';
-import { ChevronUp, ChevronDown, Shield, User, Trash2, ArrowUp } from 'lucide-react';
+import { ChevronUp, ChevronDown, Shield, User, Trash2, UserX } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { toUpperCase } from '../../utils/formatters';
 
@@ -10,61 +10,71 @@ const UserTable = ({
     data = [],
     onEdit,
     onDelete,
-    onPromote,
+    onRestrict,
     onSortChange,
     sortField = 'id',
     sortDirection = 'asc',
     isLoading = false,
+    currentUserRole,
 }) => {
     const [selected, setSelected] = useState([]);
-    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-    const [deletingUsers, setDeletingUsers] = useState([]);
+    const [restrictModalOpen, setRestrictModalOpen] = useState(false);
+    const [restrictingUsers, setRestrictingUsers] = useState([]);
 
     useEffect(() => setSelected([]), [data]);
 
-    const handleBulkDelete = useCallback(() => {
+    const handleBulkRestrict = useCallback(() => {
         if (!selected.length) return;
-        const usersToDelete = data.filter((item) => selected.includes(item.id));
-        setDeletingUsers(usersToDelete);
-        setDeleteModalOpen(true);
-    }, [selected, data]);
-
-    const handleConfirmDelete = useCallback(async () => {
-        try {
-            onDelete(deletingUsers);
-            setDeleteModalOpen(false);
-            setDeletingUsers([]);
-        } catch (err) {
-            toast.error(err.message || 'Failed to delete users');
+        
+        // Check permissions for bulk restrict
+        if (currentUserRole !== 'admin' && currentUserRole !== 'general_manager') {
+            toast.error('You do not have permission to restrict users');
+            return;
         }
-    }, [deletingUsers, onDelete]);
+
+        const usersToRestrict = data.filter((item) => selected.includes(item.id));
+        
+        // Check if trying to restrict admin/general_manager without proper permissions
+        const hasRestrictedUsers = usersToRestrict.some(user => 
+            (user.role === 'admin' || user.role === 'general_manager') && 
+            currentUserRole !== 'general_manager'
+        );
+
+        if (hasRestrictedUsers) {
+            toast.error('Only general managers can restrict admin users');
+            return;
+        }
+
+        setRestrictingUsers(usersToRestrict);
+        setRestrictModalOpen(true);
+    }, [selected, data, currentUserRole]);
+
+    const handleConfirmRestrict = useCallback(async () => {
+        try {
+            onDelete(restrictingUsers); // Using onDelete for soft delete/restrict
+            setRestrictModalOpen(false);
+            setRestrictingUsers([]);
+        } catch (err) {
+            toast.error(err.message || 'Failed to restrict users');
+        }
+    }, [restrictingUsers, onDelete]);
 
     const handleBulkEdit = useCallback(() => {
         if (selected.length === 1) {
             const userToEdit = data.find((item) => item.id === selected[0]);
             if (userToEdit && onEdit) {
+                // Check permissions for editing admin/general_manager
+                if ((userToEdit.role === 'admin' || userToEdit.role === 'general_manager') && 
+                    currentUserRole !== 'general_manager') {
+                    toast.error('Only general managers can edit admin users');
+                    return;
+                }
                 onEdit(userToEdit);
             }
         } else {
             toast.error('Please select only one user to edit');
         }
-    }, [selected, data, onEdit]);
-
-    const handleBulkPromote = useCallback(() => {
-        if (selected.length === 1) {
-            const userToPromote = data.find((item) => item.id === selected[0]);
-            if (userToPromote && onPromote) {
-                // Only allow promoting customers
-                if (userToPromote.role === 'customer') {
-                    onPromote(userToPromote);
-                } else {
-                    toast.error('Only customers can be promoted to admin');
-                }
-            }
-        } else {
-            toast.error('Please select only one user to promote');
-        }
-    }, [selected, data, onPromote]);
+    }, [selected, data, onEdit, currentUserRole]);
 
     const handleBulkCancel = useCallback(() => setSelected([]), []);
 
@@ -98,10 +108,12 @@ const UserTable = ({
     const getRoleBadge = useCallback((role) => {
         const baseClass = "px-2 py-1 rounded-full text-xs font-medium flex items-center gap-2";
         switch (role) {
+            case 'general_manager':
+                return `${baseClass} bg-purple-600 text-white border border-purple-200`;
             case 'admin':
-                return `${baseClass} bg-blue-600 text-content border border-blue-200`;
+                return `${baseClass} bg-blue-600 text-white border border-blue-200`;
             case 'customer':
-                return `${baseClass} bg-gray-800 text-content border border-gray-200`;
+                return `${baseClass} bg-gray-800 text-white border border-gray-200`;
             default:
                 return `${baseClass} bg-gray-100 text-gray-800 border border-gray-200`;
         }
@@ -109,6 +121,8 @@ const UserTable = ({
 
     const getRoleIcon = useCallback((role) => {
         switch (role) {
+            case 'general_manager':
+                return <Shield className="w-3.5 h-3" />;
             case 'admin':
                 return <Shield className="w-3.5 h-3" />;
             case 'customer':
@@ -119,13 +133,37 @@ const UserTable = ({
     }, []);
 
     const formatRole = useCallback((role) => {
-        return role.charAt(0).toUpperCase() + role.slice(1);
+        return role.split('_').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ');
     }, []);
 
-    // Filter out general_manager users from display
+    // Filter out general_manager users from display for non-general managers
+    // Also filter out soft-deleted users (is_deleted = true)
     const filteredData = useMemo(() => {
-        return data.filter(user => user.role !== 'general_manager');
-    }, [data]);
+        let filtered = data.filter(user => !user.is_deleted); // Exclude soft-deleted users
+        
+        if (currentUserRole !== 'general_manager') {
+            filtered = filtered.filter(user => user.role !== 'general_manager');
+        }
+        return filtered;
+    }, [data, currentUserRole]);
+
+    const canRestrictUser = useCallback((user) => {
+        if (currentUserRole === 'general_manager') return true;
+        if (currentUserRole === 'admin') {
+            return user.role === 'customer'; // Admins can only restrict customers
+        }
+        return false; // Customers can't restrict anyone
+    }, [currentUserRole]);
+
+    const canEditUser = useCallback((user) => {
+        if (currentUserRole === 'general_manager') return true;
+        if (currentUserRole === 'admin') {
+            return user.role === 'customer'; // Admins can only edit customers
+        }
+        return false; // Customers can't edit anyone
+    }, [currentUserRole]);
 
     const columns = useMemo(
         () => [
@@ -212,37 +250,48 @@ const UserTable = ({
             {
                 id: 'actions',
                 header: () => <span className="table-header-button">ACTIONS</span>,
-                cell: ({ row }) => (
-                    <div className="flex items-center gap-2">
-                        {row.original.role === 'customer' && (
+                cell: ({ row }) => {
+                    const user = row.original;
+                    const canEdit = canEditUser(user);
+                    const canRestrict = canRestrictUser(user);
+
+                    return (
+                        <div className="flex items-center gap-2">
                             <button
-                                onClick={() => onPromote?.(row.original)}
-                                className="px-2 py-1 bg-blue-500 text-white
-                                rounded-lg text-xs font-medium hover:bg-blue-600
-                                transition-all duration-200 shadow-sm
-                                hover:shadow-md flex items-center gap-2 group"
-                                title="Promote to Admin"
+                                onClick={() => onEdit?.(user)}
+                                className={`px-2 py-1 rounded-lg text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2 group ${
+                                    canEdit 
+                                        ? 'bg-blue-500 text-white hover:bg-blue-600' 
+                                        : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                                }`}
+                                disabled={!canEdit}
+                                title={canEdit ? "Edit user" : "You don't have permission to edit this user"}
                             >
-                                <ArrowUp className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                                Promote
+                                Edit
                             </button>
-                        )}
-                        <button
-                            onClick={() => onDelete?.(row.original)}
-                            className="px-2 py-1 bg-red-500 text-white
-                            rounded-lg text-xs font-medium hover:bg-red-600
-                            transition-all duration-200 shadow-sm
-                            hover:shadow-md flex items-center gap-2 group"
-                        >
-                            <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                            Delete
-                        </button>
-                    </div>
-                ),
+                            <button
+                                onClick={() => onDelete?.(user)}
+                                className={`px-2 py-1 rounded-lg text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2 group ${
+                                    canRestrict 
+                                        ? 'bg-orange-500 text-white hover:bg-orange-600' 
+                                        : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                                }`}
+                                disabled={!canRestrict}
+                                title={canRestrict ? "Restrict user" : "You don't have permission to restrict this user"}
+                            >
+                                <UserX className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                Restrict
+                            </button>
+                        </div>
+                    );
+                },
                 meta: { headerClassName: 'w-40', cellClassName: 'w-40' },
             },
         ],
-        [sortField, sortDirection, handleSort, getSortIcon, getRoleBadge, getRoleIcon, formatRole, onEdit, onDelete, onPromote]
+        [
+            sortField, sortDirection, handleSort, getSortIcon, getRoleBadge, 
+            getRoleIcon, formatRole, onEdit, onDelete, canEditUser, canRestrictUser
+        ]
     );
 
     return (
@@ -255,25 +304,26 @@ const UserTable = ({
             />
 
             <DeleteUser
-                isOpen={deleteModalOpen}
+                isOpen={restrictModalOpen}
                 onClose={() => {
-                    setDeleteModalOpen(false);
-                    setDeletingUsers([]);
+                    setRestrictModalOpen(false);
+                    setRestrictingUsers([]);
                 }}
-                onDelete={handleConfirmDelete}
-                user={deletingUsers.length === 1 ? deletingUsers[0] : null}
-                users={deletingUsers.length > 1 ? deletingUsers : null}
+                onDelete={handleConfirmRestrict}
+                user={restrictingUsers.length === 1 ? restrictingUsers[0] : null}
+                users={restrictingUsers.length > 1 ? restrictingUsers : null}
                 isLoading={false}
+                actionType="restrict" // Add this prop to differentiate between delete and restrict
             />
 
             <BulkActionBar
                 selectedCount={selected.length}
                 onEdit={handleBulkEdit}
-                onDelete={handleBulkDelete}
-                onPromote={handleBulkPromote}
+                onDelete={handleBulkRestrict}
                 onCancel={handleBulkCancel}
                 disableEdit={selected.length !== 1}
-                disablePromote={selected.length !== 1}
+                disableDelete={selected.length === 0}
+                deleteLabel="Restrict" // Change the label to "Restrict"
             />
         </div>
     );
