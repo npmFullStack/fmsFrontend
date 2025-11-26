@@ -20,7 +20,7 @@ const Home = () => {
   const navigate = useNavigate();
 
   const handleDownloadClick = () => {
-    window.open('https://xtramile.com', '_blank');
+    window.open('https://drive.google.com/file/d/1Fl8QW8k0mOUpT1B4n6_5IlPbdIkrzWTn/view?usp=drivesdk', '_blank');
   };
 
   const services = [
