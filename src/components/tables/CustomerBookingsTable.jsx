@@ -27,13 +27,14 @@ import {
   BadgeCheck
 } from 'lucide-react';
 import { formatDate, formatCurrency } from '../../utils/formatters';
-import PayBooking from '../modals/PayBooking'; // Import the PayBooking modal
+import PayBooking from '../modals/PayBooking';
 
 const CustomerBookingsTable = ({ 
   data = [],
   onDownloadStatement,
   isLoading = false,
-  getChargesBreakdown
+  getChargesBreakdown,
+  getCargoMonitoringData // Add this prop
 }) => {
   const [expandedCards, setExpandedCards] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -53,8 +54,6 @@ const CustomerBookingsTable = ({
   const handlePaymentSuccess = () => {
     setIsPayModalOpen(false);
     setSelectedBooking(null);
-    // You can add any additional logic here, like refreshing the data
-    // For example: if (onPaymentSuccess) onPaymentSuccess();
   };
 
   // Handle modal close
@@ -65,17 +64,14 @@ const CustomerBookingsTable = ({
 
   // Get the main display status that considers both approval and shipping status
   const getDisplayStatus = (booking) => {
-    // First check if booking is approved
     if (booking.status === 'pending') {
       return 'Pending Approval';
     }
     
-    // If approved, show shipping/cargo status
     if (booking.cargo_monitoring && booking.cargo_monitoring.current_status) {
       return booking.cargo_monitoring.current_status;
     }
     
-    // Fallback to booking_status if no cargo monitoring
     const statusMap = {
       'pending': 'Pending',
       'picked_up': 'Picked Up',
@@ -89,7 +85,7 @@ const CustomerBookingsTable = ({
     return statusMap[booking.booking_status] || 'Processing';
   };
 
-  // Status badge configuration - updated to handle approval status
+  // Status badge configuration
   const getBookingStatusBadge = (status, isFullyPaid = false) => {
     if (status === 'Pending Approval') {
       return 'bg-yellow-500 text-white border-yellow-600';
@@ -127,6 +123,19 @@ const CustomerBookingsTable = ({
       'In Transit': <Ship className="w-4 h-4" />,
       'Destination Port': <MapPin className="w-4 h-4" />,
       'Out for Delivery': <Truck className="w-4 h-4" />,
+      'Delivered': <CheckCircle className="w-4 h-4" />
+    };
+    return iconConfig[status] || <Clock className="w-4 h-4" />;
+  };
+
+  // Status icon for timeline
+  const getStatusIcon = (status) => {
+    const iconConfig = {
+      'Pending': <Clock className="w-4 h-4" />,
+      'Picked Up': <Truck className="w-4 h-4" />,
+      'Origin Port': <Ship className="w-4 h-4" />,
+      'In Transit': <Ship className="w-4 h-4" />,
+      'Destination Port': <MapPin className="w-4 h-4" />,
       'Delivered': <CheckCircle className="w-4 h-4" />
     };
     return iconConfig[status] || <Clock className="w-4 h-4" />;
@@ -178,18 +187,14 @@ const CustomerBookingsTable = ({
   const getDueDate = (booking) => {
     if (!booking.accounts_receivable) return null;
     
-    // Use delivery date from cargo monitoring or booking
     let deliveryDate = null;
     
-    // Check cargo monitoring first
     if (booking.cargo_monitoring && booking.cargo_monitoring.delivered_at) {
       deliveryDate = new Date(booking.cargo_monitoring.delivered_at);
     } 
-    // Fallback to booking delivery date
     else if (booking.delivery_date) {
       deliveryDate = new Date(booking.delivery_date);
     }
-    // If no delivery date yet, no due date
     else {
       return null;
     }
@@ -281,7 +286,10 @@ const CustomerBookingsTable = ({
           const hasARRecord = !!item.accounts_receivable;
           const isApproved = item.status === 'approved';
 
-          // Get simplified charges breakdown using the function passed from parent
+          // Get cargo monitoring data
+          const cargoMonitoring = getCargoMonitoringData ? getCargoMonitoringData(item.id) : item.cargo_monitoring;
+          
+          // Get simplified charges breakdown
           const chargesBreakdown = getChargesBreakdown ? getChargesBreakdown(item.id) : null;
 
           return (
@@ -313,7 +321,6 @@ const CustomerBookingsTable = ({
                     </div>
                   </div>
                   <div className="flex flex-col items-start lg:items-end gap-2">
-                    {/* Total Amount Display - Only show for approved bookings with payment data */}
                     {isApproved && hasPayment && (
                       <div className="text-right">
                         <div className="text-xs font-bold text-muted mb-1 uppercase">TOTAL AMOUNT</div>
@@ -323,7 +330,6 @@ const CustomerBookingsTable = ({
                       </div>
                     )}
                     
-                    {/* Single Status Badge */}
                     <span className={`px-3 py-1 text-sm font-medium rounded-full border ${getBookingStatusBadge(displayStatus, fullyPaid)} flex items-center gap-2`}>
                       {getBookingStatusIcon(displayStatus, fullyPaid)}
                       {displayStatus}
@@ -383,9 +389,8 @@ const CustomerBookingsTable = ({
                   </div>
                 </div>
 
-                {/* Status Notice - Single message based on approval and payment status */}
+                {/* Status Notice */}
                 {!isApproved ? (
-                  // Not approved yet
                   <div className="email-notice border-yellow-600 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-900">
                     <div className="flex items-start gap-4 pl-4">
                       <Clock className="email-notice-icon text-yellow-600 dark:text-yellow-100" />
@@ -400,23 +405,21 @@ const CustomerBookingsTable = ({
                     </div>
                   </div>
                 ) : hasARRecord ? (
-                  // Approved and has AR record
-                  // In the status notice section, replace the fully paid message:
-fullyPaid ? (
-  <div className="email-notice border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-900">
-    <div className="flex items-start gap-4 pl-4">
-      <BadgeCheck className="email-notice-icon text-green-600 dark:text-green-100" />
-      <div className="flex-1">
-        <p className="email-notice-text text-green-700 dark:text-green-200">
-          <strong className="email-notice-heading text-green-600 dark:text-green-100">
-            Payment Complete
-          </strong>{' '}
-          Thank you for your payment! Your booking is now fully paid and being processed.
-        </p>
-      </div>
-    </div>
-  </div>
-) : hasOutstandingPayment(item) && (
+                  fullyPaid ? (
+                    <div className="email-notice border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-900">
+                      <div className="flex items-start gap-4 pl-4">
+                        <BadgeCheck className="email-notice-icon text-green-600 dark:text-green-100" />
+                        <div className="flex-1">
+                          <p className="email-notice-text text-green-700 dark:text-green-200">
+                            <strong className="email-notice-heading text-green-600 dark:text-green-100">
+                              Payment Complete
+                            </strong>{' '}
+                            Thank you for your payment! Your booking is now fully paid and being processed.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : hasOutstandingPayment(item) && (
                     <div className={`email-notice ${
                       isOverdue
                         ? 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900'
@@ -482,7 +485,6 @@ fullyPaid ? (
                     </div>
                   )
                 ) : (
-                  // Approved but no AR record yet
                   <div className="email-notice border-blue-600 bg-white dark:border-blue-700 dark:bg-blue-900">
                     <div className="flex items-start gap-4 pl-4">
                       <AlertCircle className="email-notice-icon text-blue-600 dark:text-blue-100" />
@@ -511,9 +513,9 @@ fullyPaid ? (
                 </button>
 
                 {isExpanded && (
-                  <div className="mt-3 text-xs space-y-4 border-t pt-3">
-                    {/* Two Horizontal Sections: Booking Details and Charges Breakdown */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="mt-3 text-xs space-y-6 border-t pt-3">
+                    {/* Three Horizontal Sections: Booking Details, Status Timeline, and Charges Breakdown */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                       
                       {/* Booking Details with Items */}
                       <div className="space-y-4">
@@ -522,7 +524,7 @@ fullyPaid ? (
                           Booking Details
                         </h4>
                         
-                        {/* Payment Terms - Only show for approved bookings */}
+                        {/* Payment Terms */}
                         {isApproved && item.terms !== undefined && (
                           <div>
                             <div className="text-xs font-bold text-muted mb-1 uppercase">PAYMENT TERMS:</div>
@@ -621,7 +623,97 @@ fullyPaid ? (
                         </div>
                       </div>
 
-                      {/* Charges Breakdown - Only show if approved and has AR record */}
+                      {/* Status Timeline - Middle Section */}
+                      <div className="space-y-4">
+                        <h4 className="font-semibold text-heading text-sm flex items-center gap-2">
+                          <Clock className="w-4 h-4" />
+                          Shipping Status Timeline
+                        </h4>
+
+                        {cargoMonitoring ? (
+                          <div className="space-y-2">
+                            <div className="text-xs font-bold text-muted mb-2 uppercase">STATUS TIMELINE:</div>
+                            <div className="space-y-1">
+                              {['Pending', 'Picked Up', 'Origin Port', 'In Transit', 'Destination Port', 'Delivered'].map((status, index) => {
+                                const dateField = `${status.toLowerCase().replace(' ', '_')}_at`;
+                                const date = cargoMonitoring[dateField];
+                                const isCurrent = cargoMonitoring.current_status === status;
+                                const isCompleted = date !== null;
+                                
+                                return (
+                                  <div 
+                                    key={status} 
+                                    className="relative flex items-center gap-3 py-2"
+                                  >
+                                    {/* Timeline dot */}
+                                    <div className={`
+                                      w-3 h-3 rounded-full z-10 flex-shrink-0
+                                      ${isCurrent 
+                                        ? 'bg-blue-500 ring-2 ring-blue-200' 
+                                        : isCompleted 
+                                          ? 'bg-green-500' 
+                                          : 'bg-gray-300'
+                                      }
+                                    `} />
+                                    
+                                    {/* Timeline connector (except for last item) */}
+                                    {index < 5 && (
+                                      <div className={`
+                                        absolute left-1.5 top-full w-0.5 h-4 -ml-px z-0
+                                        ${isCompleted ? 'bg-green-500' : 'bg-gray-300'}
+                                      `} />
+                                    )}
+                                    
+                                    {/* Status content */}
+                                    <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
+                                      <div className="flex items-center gap-2">
+                                        {getStatusIcon(status)}
+                                        <span className={`
+                                          font-medium text-sm
+                                          ${isCurrent 
+                                            ? 'text-blue-700 font-semibold' 
+                                            : isCompleted 
+                                              ? 'text-green-700' 
+                                              : 'text-gray-500'
+                                          }
+                                        `}>
+                                          {status}
+                                        </span>
+                                      </div>
+                                      
+                                      {date && (
+                                        <div className="flex items-center gap-1 text-xs text-muted ml-6 sm:ml-0">
+                                          <Clock className="w-3 h-3 flex-shrink-0" />
+                                          <span className="font-medium whitespace-nowrap text-xs">
+                                            {new Date(date).toLocaleString()}
+                                          </span>
+                                        </div>
+                                      )}
+                                      
+                                      {!date && (
+                                        <div className="flex items-center gap-1 text-xs text-gray-400 ml-6 sm:ml-0">
+                                          <Clock className="w-3 h-3 flex-shrink-0" />
+                                          <span className="italic whitespace-nowrap text-xs">
+                                            Not Set
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-muted bg-main/30 rounded-lg">
+                            <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm font-medium">Tracking not available</p>
+                            <p className="text-xs mt-1">Shipping status will appear once tracking begins.</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Charges Breakdown - Right Section */}
                       {isApproved && hasARRecord && (
                         <div className="space-y-4">
                           <h4 className="font-semibold text-heading text-sm flex items-center gap-2">
@@ -631,7 +723,6 @@ fullyPaid ? (
 
                           {hasPayment ? (
                             <div className="space-y-3">
-                              {/* Individual Charges */}
                               {(() => {
                                 const chargesFromBreakdown = chargesBreakdown?.charges && 
                                                         Array.isArray(chargesBreakdown.charges) && 
@@ -697,6 +788,23 @@ fullyPaid ? (
                           )}
                         </div>
                       )}
+                    </div>
+
+                    {/* Separator lines between sections for better visual separation */}
+                    <div className="border-t border-main/30 pt-4">
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="text-center text-xs text-muted">
+                          Booking & Item Details
+                        </div>
+                        <div className="text-center text-xs text-muted">
+                          Shipping Status Timeline
+                        </div>
+                        {isApproved && hasARRecord && (
+                          <div className="text-center text-xs text-muted">
+                            Payment & Charges
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}

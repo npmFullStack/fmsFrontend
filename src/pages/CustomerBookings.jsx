@@ -8,6 +8,7 @@ import { useBooking } from '../hooks/useBooking';
 import { useAuth } from '../hooks/useAuth';
 import { usePayment } from '../hooks/usePayment';
 import { useAR } from '../hooks/useAR';
+import { useCargoMonitoring } from '../hooks/useCargoMonitoring'; // Add this import
 import TableLayout from '../components/layout/TableLayout';
 import CustomerBookingsTable from '../components/tables/CustomerBookingsTable';
 import CreateBookingRequest from '../components/modals/CreateBookingRequest';
@@ -26,7 +27,8 @@ const CustomerBookings = () => {
   const { userQuery } = useAuth();
   const { customerBookingsQuery, createCustomerBooking } = useBooking();
   const { createPaymentForBooking } = usePayment();
-  const { paymentBreakdownQuery } = useAR(); // Changed from getChargesBreakdownQuery to paymentBreakdownQuery
+  const { paymentBreakdownQuery } = useAR();
+  const { cargoMonitoringByBookingQuery } = useCargoMonitoring(); // Add this
 
   const currentUser = userQuery.data?.user;
 
@@ -48,6 +50,13 @@ const CustomerBookings = () => {
     to: data?.to || 0,
     total: data?.total || 0,
   };
+
+  // Get cargo monitoring data for each booking
+  const getCargoMonitoringData = useCallback((bookingId) => {
+    if (!bookingId) return null;
+    const { data } = cargoMonitoringByBookingQuery(bookingId);
+    return data;
+  }, [cargoMonitoringByBookingQuery]);
 
   // Handle payment
   const handlePay = useCallback(async (booking) => {
@@ -79,35 +88,32 @@ const CustomerBookings = () => {
     toast.success('Billing statement downloaded');
   }, []);
 
-  // Get charges breakdown for a booking - FIXED
+  // Get charges breakdown for a booking
   const getChargesBreakdown = useCallback((bookingId) => {
     if (!bookingId) return null;
-    
-    // Use the paymentBreakdownQuery hook properly
     const { data } = paymentBreakdownQuery(bookingId);
     return data;
   }, [paymentBreakdownQuery]);
 
   // Handle create booking
-const handleCreateBooking = useCallback(async (bookingData) => {
-  try {
-    if (!currentUser?.id) {
-      toast.error('User not authenticated');
-      return;
-    }
+  const handleCreateBooking = useCallback(async (bookingData) => {
+    try {
+      if (!currentUser?.id) {
+        toast.error('User not authenticated');
+        return;
+      }
 
-    // The bookingData should already have user_id from CreateBookingRequest
-    console.log('📝 Final booking data:', bookingData);
-    
-    await createCustomerBooking.mutateAsync(bookingData);
-    toast.success('Booking request submitted successfully! Waiting for admin approval.');
-    setIsCreateModalOpen(false);
-    handleRefresh();
-  } catch (error) {
-    console.error('Create booking error:', error);
-    toast.error(error.response?.data?.message || 'Failed to create booking request');
-  }
-}, [createCustomerBooking, currentUser]);
+      console.log('📝 Final booking data:', bookingData);
+      
+      await createCustomerBooking.mutateAsync(bookingData);
+      toast.success('Booking request submitted successfully! Waiting for admin approval.');
+      setIsCreateModalOpen(false);
+      handleRefresh();
+    } catch (error) {
+      console.error('Create booking error:', error);
+      toast.error(error.response?.data?.message || 'Failed to create booking request');
+    }
+  }, [createCustomerBooking, currentUser]);
 
   // Refresh data
   const handleRefresh = useCallback(() => {
@@ -198,6 +204,7 @@ const handleCreateBooking = useCallback(async (bookingData) => {
             onPay={handlePay}
             onDownloadStatement={handleDownloadStatement}
             getChargesBreakdown={getChargesBreakdown}
+            getCargoMonitoringData={getCargoMonitoringData} // Add this prop
             isLoading={isLoading}
           />
         </TableLayout>
