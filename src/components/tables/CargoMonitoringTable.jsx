@@ -75,7 +75,6 @@ const CargoMonitoringTable = ({
       'Origin Port': 'bg-purple-500 text-white border-purple-600',
       'In Transit': 'bg-orange-500 text-white border-orange-600',
       'Destination Port': 'bg-indigo-500 text-white border-indigo-600',
-      'Out for Delivery': 'bg-yellow-500 text-black border-yellow-600',
       'Delivered': 'bg-green-500 text-white border-green-600'
     };
     return statusConfig[status] || 'bg-gray-500 text-white border-gray-600';
@@ -88,7 +87,6 @@ const CargoMonitoringTable = ({
       'Origin Port': <Ship className="w-4 h-4" />,
       'In Transit': <Ship className="w-4 h-4" />,
       'Destination Port': <MapPin className="w-4 h-4" />,
-      'Out for Delivery': <Truck className="w-4 h-4" />,
       'Delivered': <CheckCircle className="w-4 h-4" />
     };
     return iconConfig[status] || <Clock className="w-4 h-4" />;
@@ -287,7 +285,7 @@ const CargoMonitoringTable = ({
                 <div className="mt-3 text-xs space-y-2 border-t pt-3">
                   <div className="font-bold text-heading mb-2 text-sm uppercase">STATUS TIMELINE:</div>
                   <div className="space-y-1">
-                    {['Pending', 'Picked Up', 'Origin Port', 'In Transit', 'Destination Port', 'Out for Delivery', 'Delivered'].map((status, index) => {
+                    {['Pending', 'Picked Up', 'Origin Port', 'In Transit', 'Destination Port', 'Delivered'].map((status, index) => {
                       const dateField = `${status.toLowerCase().replace(' ', '_')}_at`;
                       const date = monitoring[dateField];
                       const isCurrent = monitoring.current_status === status;
@@ -310,7 +308,7 @@ const CargoMonitoringTable = ({
                           `} />
                           
                           {/* Timeline connector (except for last item) - FIXED COLOR LOGIC */}
-                          {index < 6 && (
+                          {index < 5 && (
                             <div className={`
                               absolute left-1.5 top-full w-0.5 h-4 -ml-px z-0
                               ${isCompleted ? 'bg-green-500' : 'bg-gray-300'}
