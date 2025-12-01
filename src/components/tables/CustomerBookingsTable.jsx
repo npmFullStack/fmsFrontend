@@ -146,13 +146,32 @@ const CustomerBookingsTable = ({
   const formatWeight = (w) => `${parseFloat(w).toFixed(2)} kg`;
 
   // Check if booking has outstanding payment using AR data
-  const hasOutstandingPayment = (booking) => {
+const hasOutstandingPayment = (booking) => {
     if (booking.accounts_receivable) {
-      const ar = booking.accounts_receivable;
-      return ar.collectible_amount > 0 && !ar.is_paid;
+        const ar = booking.accounts_receivable;
+        
+        // Check if it's COD (Cash on Delivery)
+        const isCOD = ar.payment_method === 'cod' || ar.cod_pending === true;
+        
+        // For COD, don't show Pay button (payment will be collected on delivery)
+        if (isCOD) {
+            return false;
+        }
+        
+        // For other payment methods, show Pay button if there's balance
+        return ar.collectible_amount > 0 && !ar.is_paid;
     }
     return false;
-  };
+};
+
+// Add a function to check if it's COD
+const isCOD = (booking) => {
+    if (booking.accounts_receivable) {
+        return booking.accounts_receivable.payment_method === 'cod' || 
+               booking.accounts_receivable.cod_pending === true;
+    }
+    return false;
+};
 
   // Check if booking is fully paid
   const isFullyPaid = (booking) => {
@@ -811,24 +830,43 @@ const CustomerBookingsTable = ({
               </div>
 
               {/* Pay Action - Only show for approved bookings with outstanding payment */}
-              {isApproved && canPay && (
-                <div className="bg-surface px-4 py-3 border-t border-main flex flex-col sm:flex-row justify-between items-center gap-3">
-                  <button
-                    onClick={() => handleDownloadStatement(item)}
-                    className="w-full sm:w-auto bg-gray-600 text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download Billing Statement
-                  </button>
-                  <button
-                    onClick={() => handlePayClick(item)}
-                    className="w-full sm:w-auto bg-primary text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 shadow-sm"
-                  >
-                    <CreditCard className="w-4 h-4" />
-                    Pay {formatCurrency(totalPaymentDue)}
-                  </button>
-                </div>
-              )}
+{isApproved && canPay && !isCOD(item) && (
+    <div className="bg-surface px-4 py-3 border-t border-main flex flex-col sm:flex-row justify-between items-center gap-3">
+        <button
+            onClick={() => handleDownloadStatement(item)}
+            className="w-full sm:w-auto bg-gray-600 text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
+        >
+            <Download className="w-4 h-4" />
+            Download Billing Statement
+        </button>
+        <button
+            onClick={() => handlePayClick(item)}
+            className="w-full sm:w-auto bg-primary text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 shadow-sm"
+        >
+            <CreditCard className="w-4 h-4" />
+            Pay {formatCurrency(totalPaymentDue)}
+        </button>
+    </div>
+)}
+
+{isApproved && isCOD(item) && (
+    <div className="bg-blue-50 px-4 py-3 border-t border-blue-200 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-blue-700">
+            <Truck className="w-5 h-5" />
+            <div>
+                <span className="font-semibold">Cash on Delivery</span>
+                <p className="text-sm text-blue-600">Payment will be collected upon delivery</p>
+            </div>
+        </div>
+        <button
+            onClick={() => handleDownloadStatement(item)}
+            className="bg-blue-600 text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+        >
+            <Download className="w-4 h-4" />
+            Download Billing Statement
+        </button>
+    </div>
+)}
 
               {/* Fully Paid Status - Only show for approved bookings */}
               {isApproved && fullyPaid && (
