@@ -11,7 +11,8 @@ import {
   ChevronDown,
   ChevronUp,
   Building,
-  ExternalLink
+  ExternalLink,
+  Truck
 } from 'lucide-react';
 import SharedModal from '../ui/SharedModal';
 import { formatCurrency } from '../../utils/formatters';
@@ -24,7 +25,7 @@ const PayBooking = ({
   booking,
   onPaymentSuccess 
 }) => {
-  const [paymentMethod, setPaymentMethod] = useState('gcash');
+  const [paymentMethod, setPaymentMethod] = useState('cod');
   const [showPaymentMethods, setShowPaymentMethods] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -35,22 +36,28 @@ const PayBooking = ({
   const totalPayment = booking?.accounts_receivable?.total_payment || 0;
   const isFullyPaid = actualAmountDue === 0;
 
-  // Simplified payment methods - only GCash via PayMongo
+  // Payment methods with Cash on Delivery as default
   const paymentMethods = [
+    {
+      value: 'cod',
+      label: 'Cash on Delivery',
+      description: 'Pay when you receive the shipment',
+      icon: Truck,
+      color: 'text-content'
+    },
     {
       value: 'gcash',
       label: 'GCash',
       description: 'Pay via GCash checkout',
       icon: Smartphone,
-      color: 'text-green-600'
+      color: 'text-content'
     }
-    // Remove other methods until you implement them
   ];
 
   // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen && booking) {
-      setPaymentMethod('gcash');
+      setPaymentMethod('cod');
       setShowPaymentMethods(false);
     }
   }, [isOpen, booking]);
@@ -82,42 +89,56 @@ const PayBooking = ({
     }, 30 * 60 * 1000);
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (!booking || isFullyPaid) return;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!booking || isFullyPaid) return;
 
-  setIsSubmitting(true);
+    setIsSubmitting(true);
 
-  try {
-    console.log('💰 Starting MOCK payment for booking:', booking.id);
-    
-    // TEMPORARY: Use mock payment endpoint
-    const result = await createPaymentForBooking.mutateAsync({
-      bookingId: booking.id,
-      payment_method: 'gcash',
-      amount: actualAmountDue
-    });
-
-    console.log('🔍 MOCK PAYMENT RESPONSE:', result);
-
-    if (result?.checkout_url) {
-      toast.success('Redirecting to mock payment checkout...');
+    try {
+      console.log('💰 Starting payment for booking:', booking.id);
       
-      // Open mock checkout in new tab
-      window.open(result.checkout_url, '_blank', 'noopener,noreferrer');
-      
-      onClose();
+      // For Cash on Delivery - create a pending payment
+      if (paymentMethod === 'cod') {
+        const result = await createPaymentForBooking.mutateAsync({
+          bookingId: booking.id,
+          payment_method: 'cod',
+          amount: actualAmountDue
+        });
+
+        console.log('🔍 CASH ON DELIVERY RESPONSE:', result);
+        toast.success('Cash on Delivery payment recorded successfully!');
+        onPaymentSuccess?.();
+        onClose();
+        return;
+      }
+
+      // For GCash - use mock payment endpoint
+      if (paymentMethod === 'gcash') {
+        const result = await createPaymentForBooking.mutateAsync({
+          bookingId: booking.id,
+          payment_method: 'gcash',
+          amount: actualAmountDue
+        });
+
+        console.log('🔍 MOCK PAYMENT RESPONSE:', result);
+
+        if (result?.checkout_url) {
+          toast.success('Redirecting to payment checkout...');
+          window.open(result.checkout_url, '_blank', 'noopener,noreferrer');
+          onClose();
+        }
+      }
+    } catch (error) {
+      console.error('❌ Payment error:', error);
+      toast.error(error.response?.data?.message || 'Failed to create payment');
+    } finally {
+      setIsSubmitting(false);
     }
-  } catch (error) {
-    console.error('❌ Mock payment error:', error);
-    toast.error(error.response?.data?.message || 'Failed to create payment');
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+  };
 
   const handleClose = () => {
-    setPaymentMethod('gcash');
+    setPaymentMethod('cod');
     setShowPaymentMethods(false);
     onClose();
   };
@@ -187,11 +208,13 @@ const handleSubmit = async (e) => {
               <h3 className="text-base font-semibold text-heading">Payment Method</h3>
               
               {/* Payment Method Selector */}
-              <div className="bg-main border border-main rounded-lg p-3">
+              <div className="bg-surface border border-gray-200 rounded-lg p-3">
                 <button
                   type="button"
                   onClick={() => setShowPaymentMethods(!showPaymentMethods)}
-                  className="w-full flex items-center justify-between p-3 bg-white border border-gray-300 rounded-lg hover:border-gray-400 transition-colors"
+                  className="w-full flex items-center justify-between p-3
+                  bg-surface border border-surface rounded-lg hover:border-gray-400
+                  transition-colors"
                 >
                   <div className="flex items-center gap-3">
                     {selectedPaymentMethod && (
@@ -199,7 +222,7 @@ const handleSubmit = async (e) => {
                         <selectedPaymentMethod.icon className={`w-5 h-5 ${selectedPaymentMethod.color}`} />
                         <div className="text-left">
                           <div className="font-medium text-heading">{selectedPaymentMethod.label}</div>
-                          <div className="text-xs text-muted">{selectedPaymentMethod.description}</div>
+                          <div className="text-xs text-content">{selectedPaymentMethod.description}</div>
                         </div>
                       </>
                     )}
@@ -224,14 +247,14 @@ const handleSubmit = async (e) => {
                         }}
                         className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors ${
                           paymentMethod === method.value
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 bg-white hover:border-gray-300'
+                            ? 'border-main bg-blue-600'
+                            : 'border-surface bg-surface hover:border-primary'
                         }`}
                       >
                         <method.icon className={`w-5 h-5 ${method.color}`} />
                         <div className="text-left">
                           <div className="font-medium text-heading">{method.label}</div>
-                          <div className="text-xs text-muted">{method.description}</div>
+                          <div className="text-xs text-content">{method.description}</div>
                         </div>
                       </button>
                     ))}
@@ -247,7 +270,10 @@ const handleSubmit = async (e) => {
                 <div className="text-xs text-yellow-700">
                   <strong>Full Payment Required:</strong> You will be paying the full amount of{' '}
                   <span className="font-bold">{formatCurrency(actualAmountDue)}</span>. 
-                  You will be redirected to a secure GCash checkout page.
+                  {paymentMethod === 'cod' 
+                    ? ' Payment will be collected upon delivery of your shipment.'
+                    : ' You will be redirected to a secure GCash checkout page.'
+                  }
                 </div>
               </div>
             </div>
@@ -258,8 +284,9 @@ const handleSubmit = async (e) => {
                 <div className="flex items-start gap-2">
                   <Shield className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
                   <div className="text-xs text-green-700">
-                    <strong>Secure Payment:</strong> All transactions are encrypted and secure. 
-                    You will be redirected to PayMongo's secure checkout page.
+                    <strong>Secure Transaction:</strong> All transactions are processed securely. 
+                    {paymentMethod === 'gcash' && " You'll be redirected to a secure checkout page."}
+                    {paymentMethod === 'cod' && " Your payment details are protected."}
                   </div>
                 </div>
               </div>
@@ -269,7 +296,7 @@ const handleSubmit = async (e) => {
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="px-4 py-2.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  className="px-4 py-2.5 text-sm text-content bg-surface border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
                   disabled={isSubmitting}
                 >
                   Cancel
@@ -277,12 +304,17 @@ const handleSubmit = async (e) => {
                 <button
                   type="submit"
                   disabled={isSubmitting || isFullyPaid}
-                  className="px-4 py-2.5 text-sm text-white bg-green-600 border border-transparent rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
+                  className="px-4 py-2.5 text-sm text-white bg-primary border border-transparent rounded-lg hover:bg-primary-dark transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
                 >
                   {isSubmitting ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       Processing...
+                    </>
+                  ) : paymentMethod === 'cod' ? (
+                    <>
+                      <Truck className="w-4 h-4" />
+                      Confirm Cash on Delivery
                     </>
                   ) : (
                     <>
@@ -302,7 +334,7 @@ const handleSubmit = async (e) => {
           <div className="flex justify-end pt-4 border-t border-gray-200">
             <button
               onClick={handleClose}
-              className="px-4 py-2.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-4 py-2.5 text-sm text-content bg-surface border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               Close
             </button>
