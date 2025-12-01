@@ -29,7 +29,7 @@ const PayBooking = ({
   const [showPaymentMethods, setShowPaymentMethods] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { createPaymentForBooking, checkPaymentStatus } = usePayment();
+  const { createPaymentForBooking } = usePayment();
 
   // Get actual amount due from AR data
   const actualAmountDue = booking?.accounts_receivable?.collectible_amount || 0;
@@ -62,33 +62,6 @@ const PayBooking = ({
     }
   }, [isOpen, booking]);
 
-  // Payment status polling function
-  const startPaymentStatusPolling = async (paymentId) => {
-    const pollInterval = setInterval(async () => {
-      try {
-        const response = await checkPaymentStatus.mutateAsync(paymentId);
-        console.log('🔍 Payment status check:', response);
-        
-        if (response.status === 'paid') {
-          clearInterval(pollInterval);
-          toast.success('Payment completed successfully!');
-          onPaymentSuccess?.();
-        } else if (response.status === 'failed') {
-          clearInterval(pollInterval);
-          toast.error('Payment failed. Please try again.');
-        }
-      } catch (error) {
-        console.error('Status check error:', error);
-      }
-    }, 5000); // Check every 5 seconds
-
-    // Stop polling after 30 minutes
-    setTimeout(() => {
-      clearInterval(pollInterval);
-      console.log('⏹️ Payment status polling stopped');
-    }, 30 * 60 * 1000);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!booking || isFullyPaid) return;
@@ -98,36 +71,26 @@ const PayBooking = ({
     try {
       console.log('💰 Starting payment for booking:', booking.id);
       
-      // For Cash on Delivery - create a pending payment
-      if (paymentMethod === 'cod') {
-        const result = await createPaymentForBooking.mutateAsync({
-          bookingId: booking.id,
-          payment_method: 'cod',
-          amount: actualAmountDue
-        });
+      const result = await createPaymentForBooking.mutateAsync({
+        bookingId: booking.id,
+        payment_method: paymentMethod,
+        amount: actualAmountDue
+      });
 
-        console.log('🔍 CASH ON DELIVERY RESPONSE:', result);
-        toast.success('Cash on Delivery payment recorded successfully!');
+      console.log('🔍 PAYMENT RESPONSE:', result);
+
+      if (paymentMethod === 'cod') {
+        toast.success('Cash on Delivery payment recorded successfully! Payment will be collected upon delivery.');
         onPaymentSuccess?.();
         onClose();
-        return;
-      }
-
-      // For GCash - use mock payment endpoint
-      if (paymentMethod === 'gcash') {
-        const result = await createPaymentForBooking.mutateAsync({
-          bookingId: booking.id,
-          payment_method: 'gcash',
-          amount: actualAmountDue
-        });
-
-        console.log('🔍 MOCK PAYMENT RESPONSE:', result);
-
-        if (result?.checkout_url) {
-          toast.success('Redirecting to payment checkout...');
-          window.open(result.checkout_url, '_blank', 'noopener,noreferrer');
-          onClose();
-        }
+      } else if (paymentMethod === 'gcash' && result?.checkout_url) {
+        toast.success('Redirecting to GCash checkout...');
+        // Open Paymongo checkout in new tab
+        window.open(result.checkout_url, '_blank', 'noopener,noreferrer');
+        onClose();
+        
+        // You can also add payment status polling here if needed
+        // startPaymentStatusPolling(result.payment_id);
       }
     } catch (error) {
       console.error('❌ Payment error:', error);
@@ -285,7 +248,7 @@ const PayBooking = ({
                   <Shield className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
                   <div className="text-xs text-green-700">
                     <strong>Secure Transaction:</strong> All transactions are processed securely. 
-                    {paymentMethod === 'gcash' && " You'll be redirected to a secure checkout page."}
+                    {paymentMethod === 'gcash' && " You'll be redirected to a secure Paymongo checkout page."}
                     {paymentMethod === 'cod' && " Your payment details are protected."}
                   </div>
                 </div>
@@ -319,7 +282,7 @@ const PayBooking = ({
                   ) : (
                     <>
                       <CreditCard className="w-4 h-4" />
-                      Pay {formatCurrency(actualAmountDue)}
+                      Pay with GCash
                       <ExternalLink className="w-3 h-3" />
                     </>
                   )}
