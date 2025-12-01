@@ -34,7 +34,7 @@ const CustomerBookingsTable = ({
   onDownloadStatement,
   isLoading = false,
   getChargesBreakdown,
-  getCargoMonitoringData // Add this prop
+  getCargoMonitoringData
 }) => {
   const [expandedCards, setExpandedCards] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -146,32 +146,32 @@ const CustomerBookingsTable = ({
   const formatWeight = (w) => `${parseFloat(w).toFixed(2)} kg`;
 
   // Check if booking has outstanding payment using AR data
-const hasOutstandingPayment = (booking) => {
+  const hasOutstandingPayment = (booking) => {
     if (booking.accounts_receivable) {
-        const ar = booking.accounts_receivable;
-        
-        // Check if it's COD (Cash on Delivery)
-        const isCOD = ar.payment_method === 'cod' || ar.cod_pending === true;
-        
-        // For COD, don't show Pay button (payment will be collected on delivery)
-        if (isCOD) {
-            return false;
-        }
-        
-        // For other payment methods, show Pay button if there's balance
-        return ar.collectible_amount > 0 && !ar.is_paid;
+      const ar = booking.accounts_receivable;
+      
+      // Check if it's COD (Cash on Delivery)
+      const isCOD = ar.payment_method === 'cod' || ar.cod_pending === true;
+      
+      // For COD, don't show Pay button (payment will be collected on delivery)
+      if (isCOD) {
+        return false;
+      }
+      
+      // For other payment methods, show Pay button if there's balance
+      return ar.collectible_amount > 0 && !ar.is_paid;
     }
     return false;
-};
+  };
 
-// Add a function to check if it's COD
-const isCOD = (booking) => {
+  // Check if it's COD
+  const isCOD = (booking) => {
     if (booking.accounts_receivable) {
-        return booking.accounts_receivable.payment_method === 'cod' || 
-               booking.accounts_receivable.cod_pending === true;
+      return booking.accounts_receivable.payment_method === 'cod' || 
+            booking.accounts_receivable.cod_pending === true;
     }
     return false;
-};
+  };
 
   // Check if booking is fully paid
   const isFullyPaid = (booking) => {
@@ -198,8 +198,8 @@ const isCOD = (booking) => {
   // Check if payment is being calculated (no AR record or no payment set)
   const isPaymentPending = (booking) => {
     return !booking.accounts_receivable || 
-           !booking.accounts_receivable.total_payment || 
-           booking.accounts_receivable.total_payment === 0;
+          !booking.accounts_receivable.total_payment || 
+          booking.accounts_receivable.total_payment === 0;
   };
 
   // Calculate due date based on delivery date and terms
@@ -259,7 +259,9 @@ const isCOD = (booking) => {
       deliveryDate: booking.delivery_date ? formatDate(booking.delivery_date) : 'Not specified',
       dueDate: dueDate ? formatDate(dueDate) : 'Not specified',
       isOverdue: isPaymentOverdue(booking),
-      isFullyPaid: isFullyPaid(booking)
+      isFullyPaid: isFullyPaid(booking),
+      paymentMethod: booking.accounts_receivable?.payment_method || 'Not specified',
+      isCOD: isCOD(booking)
     };
     
     return statementData;
@@ -304,6 +306,7 @@ const isCOD = (booking) => {
           const isDelivered = displayStatus === 'Delivered';
           const hasARRecord = !!item.accounts_receivable;
           const isApproved = item.status === 'approved';
+          const codBooking = isCOD(item);
 
           // Get cargo monitoring data
           const cargoMonitoring = getCargoMonitoringData ? getCargoMonitoringData(item.id) : item.cargo_monitoring;
@@ -438,6 +441,21 @@ const isCOD = (booking) => {
                         </div>
                       </div>
                     </div>
+                  ) : codBooking ? (
+                    <div className="email-notice border-blue-600 bg-blue-50 dark:border-blue-700 dark:bg-blue-900">
+                      <div className="flex items-start gap-4 pl-4">
+                        <Truck className="email-notice-icon text-blue-600 dark:text-blue-100" />
+                        <div className="flex-1">
+                          <p className="email-notice-text text-blue-700 dark:text-blue-200">
+                            <strong className="email-notice-heading text-blue-600 dark:text-blue-100">
+                              Cash on Delivery Selected
+                            </strong>{' '}
+                            Your payment of <span className="font-bold">{formatCurrency(totalPaymentDue)}</span> will be collected upon delivery of your shipment.
+                            No online payment is required at this time.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   ) : hasOutstandingPayment(item) && (
                     <div className={`email-notice ${
                       isOverdue
@@ -543,12 +561,26 @@ const isCOD = (booking) => {
                           Booking Details
                         </h4>
                         
+                        {/* Payment Method */}
+                        {isApproved && item.accounts_receivable?.payment_method && (
+                          <div>
+                            <div className="text-xs font-bold text-muted mb-1 uppercase">PAYMENT METHOD:</div>
+                            <div className="text-content flex items-center gap-1">
+                              <CreditCard className="w-3 h-3 text-muted" />
+                              {item.accounts_receivable.payment_method === 'cod' ? 'Cash on Delivery' : 'GCash'}
+                              {codBooking && (
+                                <span className="text-blue-600 ml-2 font-medium">(Payment upon delivery)</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Payment Terms */}
                         {isApproved && item.terms !== undefined && (
                           <div>
                             <div className="text-xs font-bold text-muted mb-1 uppercase">PAYMENT TERMS:</div>
                             <div className="text-content flex items-center gap-1">
-                              <CreditCard className="w-3 h-3 text-muted" />
+                              <Clock className="w-3 h-3 text-muted" />
                               {item.terms === 0 ? 'Immediate' : `${item.terms} days`}
                               {dueDate ? (
                                 <span className="text-muted ml-2">
@@ -829,52 +861,68 @@ const isCOD = (booking) => {
                 )}
               </div>
 
-              {/* Pay Action - Only show for approved bookings with outstanding payment */}
-{isApproved && canPay && !isCOD(item) && (
-    <div className="bg-surface px-4 py-3 border-t border-main flex flex-col sm:flex-row justify-between items-center gap-3">
-        <button
-            onClick={() => handleDownloadStatement(item)}
-            className="w-full sm:w-auto bg-gray-600 text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
-        >
-            <Download className="w-4 h-4" />
-            Download Billing Statement
-        </button>
-        <button
-            onClick={() => handlePayClick(item)}
-            className="w-full sm:w-auto bg-primary text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 shadow-sm"
-        >
-            <CreditCard className="w-4 h-4" />
-            Pay {formatCurrency(totalPaymentDue)}
-        </button>
-    </div>
-)}
-
-{isApproved && isCOD(item) && (
-    <div className="bg-blue-50 px-4 py-3 border-t border-blue-200 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-blue-700">
-            <Truck className="w-5 h-5" />
-            <div>
-                <span className="font-semibold">Cash on Delivery</span>
-                <p className="text-sm text-blue-600">Payment will be collected upon delivery</p>
-            </div>
-        </div>
-        <button
-            onClick={() => handleDownloadStatement(item)}
-            className="bg-blue-600 text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-        >
-            <Download className="w-4 h-4" />
-            Download Billing Statement
-        </button>
-    </div>
-)}
-
-              {/* Fully Paid Status - Only show for approved bookings */}
-              {isApproved && fullyPaid && (
-                <div className="bg-green-50 px-4 py-3 border-t border-green-200 flex items-center justify-center">
-                  <div className="flex items-center gap-2 text-green-700">
-                    <BadgeCheck className="w-5 h-5" />
-                    <span className="font-semibold">Fully Paid</span>
-                  </div>
+              {/* Action Section - Only show for approved bookings */}
+              {isApproved && (
+                <div className="border-t border-main">
+                  {canPay && !codBooking ? (
+                    <div className="bg-surface px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-3">
+                      <button
+                        onClick={() => handleDownloadStatement(item)}
+                        className="w-full sm:w-auto bg-gray-600 text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                      >
+                        <Download className="w-4 h-4" />
+                        Download Billing Statement
+                      </button>
+                      <button
+                        onClick={() => handlePayClick(item)}
+                        className="w-full sm:w-auto bg-primary text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                      >
+                        <CreditCard className="w-4 h-4" />
+                        Pay {formatCurrency(totalPaymentDue)}
+                      </button>
+                    </div>
+                  ) : codBooking ? (
+                    <div className="bg-blue-50 px-4 py-3 border-t border-blue-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+                      <div className="flex items-center gap-2 text-blue-700 mb-3 sm:mb-0">
+                        <Truck className="w-5 h-5" />
+                        <div>
+                          <span className="font-semibold">Cash on Delivery Selected</span>
+                          <p className="text-sm text-blue-600">Payment will be collected upon delivery</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDownloadStatement(item)}
+                        className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Download className="w-4 h-4" />
+                        Download Billing Statement
+                      </button>
+                    </div>
+                  ) : fullyPaid ? (
+                    <div className="bg-green-50 px-4 py-3 border-t border-green-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+                      <div className="flex items-center gap-2 text-green-700 mb-3 sm:mb-0">
+                        <BadgeCheck className="w-5 h-5" />
+                        <div>
+                          <span className="font-semibold">Fully Paid</span>
+                          <p className="text-sm text-green-600">Thank you for your payment</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDownloadStatement(item)}
+                        className="w-full sm:w-auto bg-green-600 text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Download className="w-4 h-4" />
+                        Download Receipt
+                      </button>
+                    </div>
+                  ) : hasARRecord && !hasPayment ? (
+                    <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 text-center">
+                      <p className="text-gray-600 text-sm">
+                        <AlertCircle className="w-4 h-4 inline-block mr-2" />
+                        Payment calculation in progress. Please wait for admin to set the payment amount.
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
               )}
             </div>
