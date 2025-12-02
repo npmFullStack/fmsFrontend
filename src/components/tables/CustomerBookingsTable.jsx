@@ -24,7 +24,8 @@ import {
   FileText,
   Calculator,
   AlertCircle,
-  BadgeCheck
+  BadgeCheck,
+  Receipt
 } from 'lucide-react';
 import { formatDate, formatCurrency } from '../../utils/formatters';
 import PayBooking from '../modals/PayBooking';
@@ -144,25 +145,6 @@ const CustomerBookingsTable = ({
   const calculateTotalWeight = (items) => items?.reduce((sum, i) => sum + i.weight * i.quantity, 0) || 0;
   const calculateTotalItems = (items) => items?.reduce((sum, i) => sum + i.quantity, 0) || 0;
   const formatWeight = (w) => `${parseFloat(w).toFixed(2)} kg`;
-
-  // Check if booking has outstanding payment using AR data
-  const hasOutstandingPayment = (booking) => {
-    if (booking.accounts_receivable) {
-      const ar = booking.accounts_receivable;
-      
-      // Check if it's COD (Cash on Delivery)
-      const isCOD = ar.payment_method === 'cod' || ar.cod_pending === true;
-      
-      // For COD, don't show Pay button (payment will be collected on delivery)
-      if (isCOD) {
-        return false;
-      }
-      
-      // For other payment methods, show Pay button if there's balance
-      return ar.collectible_amount > 0 && !ar.is_paid;
-    }
-    return false;
-  };
 
   // Check if it's COD
   const isCOD = (booking) => {
@@ -297,7 +279,6 @@ const CustomerBookingsTable = ({
           const isExpanded = expandedCards[item.id || index];
           const displayStatus = getDisplayStatus(item);
           const fullyPaid = isFullyPaid(item);
-          const canPay = hasOutstandingPayment(item);
           const totalPaymentDue = getTotalPaymentDue(item);
           const hasPayment = hasPaymentData(item);
           const paymentPending = isPaymentPending(item);
@@ -317,27 +298,27 @@ const CustomerBookingsTable = ({
           return (
             <div
               key={item.id || index}
-              className="bg-surface rounded-lg border border-main overflow-hidden hover:shadow-md transition-shadow"
+              className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
             >
               <div className="p-4">
                 {/* Header with Total Amount Prominently Displayed */}
                 <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4 mb-3">
                   <div className="flex flex-col gap-2 flex-1">
                     <div className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-muted" />
-                      <span className="font-semibold text-heading">{item.first_name} {item.last_name}</span>
+                      <User className="w-4 h-4 text-gray-500" />
+                      <span className="font-semibold text-gray-900">{item.first_name} {item.last_name}</span>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 ml-4">
                       {item.booking_number && (
                         <div className="flex items-center gap-1">
-                          <span className="text-xs font-bold text-muted">BOOKING #:</span>
-                          <span className="text-content font-mono font-semibold">{item.booking_number}</span>
+                          <span className="text-xs font-bold text-gray-500">BOOKING #:</span>
+                          <span className="text-gray-900 font-mono font-semibold">{item.booking_number}</span>
                         </div>
                       )}
                       {item.hwb_number && (
                         <div className="flex items-center gap-1">
-                          <span className="text-xs font-bold text-muted">HWB #:</span>
-                          <span className="text-content font-mono font-semibold">{item.hwb_number}</span>
+                          <span className="text-xs font-bold text-gray-500">HWB #:</span>
+                          <span className="text-gray-900 font-mono font-semibold">{item.hwb_number}</span>
                         </div>
                       )}
                     </div>
@@ -345,8 +326,8 @@ const CustomerBookingsTable = ({
                   <div className="flex flex-col items-start lg:items-end gap-2">
                     {isApproved && hasPayment && (
                       <div className="text-right">
-                        <div className="text-xs font-bold text-muted mb-1 uppercase">TOTAL AMOUNT</div>
-                        <div className="text-xl font-bold text-content">
+                        <div className="text-xs font-bold text-gray-500 mb-1 uppercase">TOTAL AMOUNT</div>
+                        <div className="text-xl font-bold text-gray-900">
                           {formatCurrency(item.accounts_receivable.total_payment)}
                         </div>
                       </div>
@@ -359,35 +340,35 @@ const CustomerBookingsTable = ({
                   </div>
                 </div>
 
-                <div className="text-xs text-muted flex items-center gap-1 mb-3">
+                <div className="text-xs text-gray-500 flex items-center gap-1 mb-3">
                   <Calendar className="w-3 h-3"/>
                   Booked on {formatDate(item.created_at)}
                 </div>
 
                 {/* Compact Grid with Icons on Data - Responsive */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm mb-3 border-t border-b border-main py-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm mb-3 border-t border-b border-gray-200 py-3">
                   {/* Route */}
                   <div>
-                    <div className="text-xs font-bold text-muted mb-1 uppercase">ROUTE:</div>
-                    <div className="flex items-center gap-1 text-content">
-                      <MapPin className="w-3 h-3 text-muted" />
+                    <div className="text-xs font-bold text-gray-500 mb-1 uppercase">ROUTE:</div>
+                    <div className="text-gray-900 flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-gray-500" />
                       <span className="truncate">{item.origin?.route_name || item.origin?.name || 'N/A'}</span>
-                      <ArrowRight className="w-3 h-3 text-muted" />
-                      <MapPin className="w-3 h-3 text-muted" />
+                      <ArrowRight className="w-3 h-3 text-gray-500" />
+                      <MapPin className="w-3 h-3 text-gray-500" />
                       <span className="truncate">{item.destination?.route_name || item.destination?.name || 'N/A'}</span>
                     </div>
                   </div>
 
                   {/* Container with VAN # */}
                   <div>
-                    <div className="text-xs font-bold text-muted mb-1 uppercase">CONTAINER:</div>
-                    <div className="text-content">
+                    <div className="text-xs font-bold text-gray-500 mb-1 uppercase">CONTAINER:</div>
+                    <div className="text-gray-900">
                       <div className="flex items-center gap-1">
-                        <Container className="w-3 h-3 text-muted" />
+                        <Container className="w-3 h-3 text-gray-500" />
                         {item.container_quantity} x {item.container_size?.size || item.container_size?.name}
                       </div>
                       {item.van_number && (
-                        <div className="text-sm font-mono text-content mt-1 flex items-center gap-1">
+                        <div className="text-sm font-mono text-gray-900 mt-1 flex items-center gap-1">
                           <Box className="w-3 h-3" />
                           VAN #: {item.van_number}
                         </div>
@@ -397,13 +378,13 @@ const CustomerBookingsTable = ({
 
                   {/* Items */}
                   <div>
-                    <div className="text-xs font-bold text-muted mb-1 uppercase">ITEMS:</div>
+                    <div className="text-xs font-bold text-gray-500 mb-1 uppercase">ITEMS:</div>
                     <div className="flex flex-col gap-1">
-                      <div className="text-content flex items-center gap-1">
-                        <Package className="w-3 h-3 text-muted"/>
+                      <div className="text-gray-900 flex items-center gap-1">
+                        <Package className="w-3 h-3 text-gray-500"/>
                         {item.items?.length || 0} types, {totalItems} units
                       </div>
-                      <div className="text-xs text-muted flex items-center gap-1">
+                      <div className="text-xs text-gray-500 flex items-center gap-1">
                         <Weight className="w-3 h-3"/>
                         {formatWeight(totalWeight)} total
                       </div>
@@ -413,12 +394,12 @@ const CustomerBookingsTable = ({
 
                 {/* Status Notice */}
                 {!isApproved ? (
-                  <div className="email-notice border-yellow-600 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-900">
-                    <div className="flex items-start gap-4 pl-4">
-                      <Clock className="email-notice-icon text-yellow-600 dark:text-yellow-100" />
+                  <div className="border-yellow-600 bg-yellow-50 p-3 rounded-lg mb-3">
+                    <div className="flex items-start gap-4">
+                      <Clock className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
                       <div className="flex-1">
-                        <p className="email-notice-text text-yellow-700 dark:text-yellow-200">
-                          <strong className="email-notice-heading text-yellow-600 dark:text-yellow-100">
+                        <p className="text-yellow-700">
+                          <strong className="text-yellow-600">
                             Waiting for Approval
                           </strong>{' '}
                           Your booking request is pending admin approval. Once approved, you'll be able to view payment details and track your shipment.
@@ -428,12 +409,12 @@ const CustomerBookingsTable = ({
                   </div>
                 ) : hasARRecord ? (
                   fullyPaid ? (
-                    <div className="email-notice border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-900">
-                      <div className="flex items-start gap-4 pl-4">
-                        <BadgeCheck className="email-notice-icon text-green-600 dark:text-green-100" />
+                    <div className="border-green-300 bg-green-50 p-3 rounded-lg mb-3">
+                      <div className="flex items-start gap-4">
+                        <BadgeCheck className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
-                          <p className="email-notice-text text-green-700 dark:text-green-200">
-                            <strong className="email-notice-heading text-green-600 dark:text-green-100">
+                          <p className="text-green-700">
+                            <strong className="text-green-600">
                               Payment Complete
                             </strong>{' '}
                             Thank you for your payment! Your booking is now fully paid and being processed.
@@ -442,12 +423,12 @@ const CustomerBookingsTable = ({
                       </div>
                     </div>
                   ) : codBooking ? (
-                    <div className="email-notice border-blue-600 bg-blue-50 dark:border-blue-700 dark:bg-blue-900">
-                      <div className="flex items-start gap-4 pl-4">
-                        <Truck className="email-notice-icon text-blue-600 dark:text-blue-100" />
+                    <div className="border-blue-600 bg-blue-50 p-3 rounded-lg mb-3">
+                      <div className="flex items-start gap-4">
+                        <Truck className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
-                          <p className="email-notice-text text-blue-700 dark:text-blue-200">
-                            <strong className="email-notice-heading text-blue-600 dark:text-blue-100">
+                          <p className="text-blue-700">
+                            <strong className="text-blue-600">
                               Cash on Delivery Selected
                             </strong>{' '}
                             Your payment of <span className="font-bold">{formatCurrency(totalPaymentDue)}</span> will be collected upon delivery of your shipment.
@@ -456,28 +437,28 @@ const CustomerBookingsTable = ({
                         </div>
                       </div>
                     </div>
-                  ) : hasOutstandingPayment(item) && (
-                    <div className={`email-notice ${
+                  ) : totalPaymentDue > 0 && (
+                    <div className={`p-3 rounded-lg mb-3 ${
                       isOverdue
-                        ? 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900'
-                        : 'border-blue-600 bg-white dark:border-blue-700 dark:bg-blue-900'
+                        ? 'border-red-300 bg-red-50'
+                        : 'border-blue-600 bg-white'
                     }`}>
-                      <div className="flex items-start gap-4 pl-4">
-                        <AlertCircle className={`email-notice-icon ${
+                      <div className="flex items-start gap-4">
+                        <AlertCircle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
                           isOverdue
-                            ? 'text-red-600 dark:text-red-100'
-                            : 'text-blue-600 dark:text-blue-100'
+                            ? 'text-red-600'
+                            : 'text-blue-600'
                         }`} />
                         <div className="flex-1">
-                          <p className={`email-notice-text ${
+                          <p className={`${
                             isOverdue
-                              ? 'text-red-700 dark:text-red-200'
-                              : 'text-black dark:text-blue-200'
+                              ? 'text-red-700'
+                              : 'text-gray-900'
                           }`}>
-                            <strong className={`email-notice-heading ${
+                            <strong className={`${
                               isOverdue
-                                ? 'text-red-600 dark:text-red-100'
-                                : 'text-blue-600 dark:text-blue-100'
+                                ? 'text-red-600'
+                                : 'text-blue-600'
                             }`}>
                               {isDelivered ? 'Payment Required - Shipment Delivered' : 'Outstanding Balance'}
                             </strong>{' '}
@@ -522,12 +503,12 @@ const CustomerBookingsTable = ({
                     </div>
                   )
                 ) : (
-                  <div className="email-notice border-blue-600 bg-white dark:border-blue-700 dark:bg-blue-900">
-                    <div className="flex items-start gap-4 pl-4">
-                      <AlertCircle className="email-notice-icon text-blue-600 dark:text-blue-100" />
+                  <div className="border-blue-600 bg-white p-3 rounded-lg mb-3">
+                    <div className="flex items-start gap-4">
+                      <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
                       <div className="flex-1">
-                        <p className="email-notice-text text-black dark:text-blue-200">
-                          <strong className="email-notice-heading text-blue-600 dark:text-blue-100">
+                        <p className="text-gray-900">
+                          <strong className="text-blue-600">
                             Payment Information Pending
                           </strong>{' '}
                           Your payment amount is being calculated by our admin team. Once the amount is set, you'll be able to view the charges breakdown and make payments here.
@@ -540,7 +521,7 @@ const CustomerBookingsTable = ({
                 {/* Extra Info (Toggle) */}
                 <button
                   onClick={() => toggleCard(item.id || index)}
-                  className="w-full text-left mt-2 pt-2 border-t border-main text-sm flex items-center gap-1 font-semibold text-heading hover:text-heading"
+                  className="w-full text-left mt-2 pt-2 border-t border-gray-200 text-sm flex items-center gap-1 font-semibold text-gray-900 hover:text-gray-700"
                 >
                   {isExpanded ? (
                     <> <ChevronUp className="w-4 h-4" /> Hide Details </>
@@ -556,7 +537,7 @@ const CustomerBookingsTable = ({
                       
                       {/* Booking Details with Items */}
                       <div className="space-y-4">
-                        <h4 className="font-semibold text-heading text-sm flex items-center gap-2">
+                        <h4 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
                           <FileText className="w-4 h-4" />
                           Booking Details
                         </h4>
@@ -564,9 +545,9 @@ const CustomerBookingsTable = ({
                         {/* Payment Method */}
                         {isApproved && item.accounts_receivable?.payment_method && (
                           <div>
-                            <div className="text-xs font-bold text-muted mb-1 uppercase">PAYMENT METHOD:</div>
-                            <div className="text-content flex items-center gap-1">
-                              <CreditCard className="w-3 h-3 text-muted" />
+                            <div className="text-xs font-bold text-gray-500 mb-1 uppercase">PAYMENT METHOD:</div>
+                            <div className="text-gray-900 flex items-center gap-1">
+                              <CreditCard className="w-3 h-3 text-gray-500" />
                               {item.accounts_receivable.payment_method === 'cod' ? 'Cash on Delivery' : 'GCash'}
                               {codBooking && (
                                 <span className="text-blue-600 ml-2 font-medium">(Payment upon delivery)</span>
@@ -578,17 +559,17 @@ const CustomerBookingsTable = ({
                         {/* Payment Terms */}
                         {isApproved && item.terms !== undefined && (
                           <div>
-                            <div className="text-xs font-bold text-muted mb-1 uppercase">PAYMENT TERMS:</div>
-                            <div className="text-content flex items-center gap-1">
-                              <Clock className="w-3 h-3 text-muted" />
+                            <div className="text-xs font-bold text-gray-500 mb-1 uppercase">PAYMENT TERMS:</div>
+                            <div className="text-gray-900 flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-gray-500" />
                               {item.terms === 0 ? 'Immediate' : `${item.terms} days`}
                               {dueDate ? (
-                                <span className="text-muted ml-2">
+                                <span className="text-gray-500 ml-2">
                                   (Due: {formatDate(dueDate)})
                                   {isOverdue && <span className="text-red-600 ml-1">• Overdue</span>}
                                 </span>
                               ) : (
-                                <span className="text-muted ml-2">
+                                <span className="text-gray-500 ml-2">
                                   (Due date will be set after delivery)
                                 </span>
                               )}
@@ -599,33 +580,33 @@ const CustomerBookingsTable = ({
                         <div className="space-y-3">
                           {/* Shipping Line */}
                           <div>
-                            <div className="text-xs font-bold text-muted mb-1 uppercase">SHIPPING LINE:</div>
-                            <div className="text-content flex items-center gap-1">
-                              <Ship className="w-3 h-3 text-muted" />
+                            <div className="text-xs font-bold text-gray-500 mb-1 uppercase">SHIPPING LINE:</div>
+                            <div className="text-gray-900 flex items-center gap-1">
+                              <Ship className="w-3 h-3 text-gray-500" />
                               {item.shipping_line?.name || 'Not specified'}
                             </div>
                           </div>
                           
                           {/* Trucking */}
                           <div>
-                            <div className="text-xs font-bold text-muted mb-1 uppercase">TRUCKING:</div>
-                            <div className="text-content flex items-center gap-1">
-                              <Truck className="w-3 h-3 text-muted" />
+                            <div className="text-xs font-bold text-gray-500 mb-1 uppercase">TRUCKING:</div>
+                            <div className="text-gray-900 flex items-center gap-1">
+                              <Truck className="w-3 h-3 text-gray-500" />
                               {item.truck_comp?.name || 'Not specified'}
                             </div>
                           </div>
                           
                           {/* Parties */}
                           <div>
-                            <div className="text-xs font-bold text-muted mb-1 uppercase">PARTIES:</div>
-                            <div className="text-content space-y-1">
+                            <div className="text-xs font-bold text-gray-500 mb-1 uppercase">PARTIES:</div>
+                            <div className="text-gray-900 space-y-1">
                               <div className="flex items-center gap-1">
-                                <UserCheck className="w-3 h-3 text-muted" />
+                                <UserCheck className="w-3 h-3 text-gray-500" />
                                 <span className="font-semibold">Shipper: </span>
                                 {item.shipper_first_name} {item.shipper_last_name}
                               </div>
                               <div className="flex items-center gap-1">
-                                <UserCog className="w-3 h-3 text-muted" />
+                                <UserCog className="w-3 h-3 text-gray-500" />
                                 <span className="font-semibold">Consignee: </span>
                                 {item.consignee_first_name} {item.consignee_last_name}
                               </div>
@@ -638,18 +619,18 @@ const CustomerBookingsTable = ({
                           <div className="space-y-2">
                             {item.departure_date && (
                               <div>
-                                <div className="text-xs font-bold text-muted mb-1 uppercase">PREFERRED DEPARTURE:</div>
-                                <div className="text-content flex items-center gap-1">
-                                  <Calendar className="w-3 h-3 text-muted"/>
+                                <div className="text-xs font-bold text-gray-500 mb-1 uppercase">PREFERRED DEPARTURE:</div>
+                                <div className="text-gray-900 flex items-center gap-1">
+                                  <Calendar className="w-3 h-3 text-gray-500"/>
                                   {formatDate(item.departure_date)}
                                 </div>
                               </div>
                             )}
                             {item.delivery_date && (
                               <div>
-                                <div className="text-xs font-bold text-muted mb-1 uppercase">PREFERRED DELIVERY:</div>
-                                <div className="text-content flex items-center gap-1">
-                                  <Calendar className="w-3 h-3 text-muted"/>
+                                <div className="text-xs font-bold text-gray-500 mb-1 uppercase">PREFERRED DELIVERY:</div>
+                                <div className="text-gray-900 flex items-center gap-1">
+                                  <Calendar className="w-3 h-3 text-gray-500"/>
                                   {formatDate(item.delivery_date)}
                                 </div>
                               </div>
@@ -659,14 +640,14 @@ const CustomerBookingsTable = ({
 
                         {/* Items List */}
                         <div>
-                          <div className="font-bold text-muted mb-2 uppercase">ITEMS {item.items.length}:</div>
-                          <div className="space-y-2 pl-3 border-l-2 border-main">
+                          <div className="font-bold text-gray-500 mb-2 uppercase">ITEMS {item.items.length}:</div>
+                          <div className="space-y-2 pl-3 border-l-2 border-gray-300">
                             {item.items.map((i, idx) => (
                               <div key={idx} className="flex items-center gap-2">
-                                <Package className="w-3 h-3 text-muted" />
+                                <Package className="w-3 h-3 text-gray-500" />
                                 <div>
-                                  <div className="font-medium text-heading">{i.name}</div>
-                                  <div className="text-muted text-xs">{i.category} | {i.quantity} units | {i.weight} kg each</div>
+                                  <div className="font-medium text-gray-900">{i.name}</div>
+                                  <div className="text-gray-500 text-xs">{i.category} | {i.quantity} units | {i.weight} kg each</div>
                                 </div>
                               </div>
                             ))}
@@ -676,14 +657,14 @@ const CustomerBookingsTable = ({
 
                       {/* Status Timeline - Middle Section */}
                       <div className="space-y-4">
-                        <h4 className="font-semibold text-heading text-sm flex items-center gap-2">
+                        <h4 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
                           <Clock className="w-4 h-4" />
                           Shipping Status Timeline
                         </h4>
 
                         {cargoMonitoring ? (
                           <div className="space-y-2">
-                            <div className="text-xs font-bold text-muted mb-2 uppercase">STATUS TIMELINE:</div>
+                            <div className="text-xs font-bold text-gray-500 mb-2 uppercase">STATUS TIMELINE:</div>
                             <div className="space-y-1">
                               {['Pending', 'Picked Up', 'Origin Port', 'In Transit', 'Destination Port', 'Delivered'].map((status, index) => {
                                 const dateField = `${status.toLowerCase().replace(' ', '_')}_at`;
@@ -733,7 +714,7 @@ const CustomerBookingsTable = ({
                                       </div>
                                       
                                       {date && (
-                                        <div className="flex items-center gap-1 text-xs text-muted ml-6 sm:ml-0">
+                                        <div className="flex items-center gap-1 text-xs text-gray-500 ml-6 sm:ml-0">
                                           <Clock className="w-3 h-3 flex-shrink-0" />
                                           <span className="font-medium whitespace-nowrap text-xs">
                                             {new Date(date).toLocaleString()}
@@ -756,7 +737,7 @@ const CustomerBookingsTable = ({
                             </div>
                           </div>
                         ) : (
-                          <div className="text-center py-8 text-muted bg-main/30 rounded-lg">
+                          <div className="text-center py-8 text-gray-500 bg-gray-100 rounded-lg">
                             <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
                             <p className="text-sm font-medium">Tracking not available</p>
                             <p className="text-xs mt-1">Shipping status will appear once tracking begins.</p>
@@ -767,7 +748,7 @@ const CustomerBookingsTable = ({
                       {/* Charges Breakdown - Right Section */}
                       {isApproved && hasARRecord && (
                         <div className="space-y-4">
-                          <h4 className="font-semibold text-heading text-sm flex items-center gap-2">
+                          <h4 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
                             <Calculator className="w-4 h-4" />
                             Charges Breakdown
                           </h4>
@@ -789,21 +770,21 @@ const CustomerBookingsTable = ({
 
                                 return chargesToDisplay ? (
                                   <div className="space-y-2">
-                                    <div className="text-xs font-bold text-muted uppercase">CHARGES BREAKDOWN:</div>
+                                    <div className="text-xs font-bold text-gray-500 uppercase">CHARGES BREAKDOWN:</div>
                                     {chargesToDisplay.map((charge, idx) => (
-                                      <div key={idx} className="flex justify-between items-start py-2 border-b border-main/20">
+                                      <div key={idx} className="flex justify-between items-start py-2 border-b border-gray-200">
                                         <div className="flex-1">
-                                          <div className="font-medium text-heading">{charge.description}</div>
+                                          <div className="font-medium text-gray-900">{charge.description}</div>
                                         </div>
-                                        <div className="font-semibold text-heading text-right min-w-[100px]">
+                                        <div className="font-semibold text-gray-900 text-right min-w-[100px]">
                                           {formatCurrency(charge.total)}
                                         </div>
                                       </div>
                                     ))}
                                     
                                     {/* Total Amount and Balance Due at Bottom */}
-                                    <div className="space-y-2 pt-2 border-t border-main/30">
-                                      <div className="flex justify-between items-center font-bold text-heading text-sm">
+                                    <div className="space-y-2 pt-2 border-t border-gray-300">
+                                      <div className="flex justify-between items-center font-bold text-gray-900 text-sm">
                                         <div>Total Amount:</div>
                                         <div>{formatCurrency(item.accounts_receivable.total_payment)}</div>
                                       </div>
@@ -822,7 +803,7 @@ const CustomerBookingsTable = ({
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="text-center py-4 text-muted bg-main/30 rounded-lg">
+                                  <div className="text-center py-4 text-gray-500 bg-gray-100 rounded-lg">
                                     <AlertCircle className="w-6 h-6 mx-auto mb-2 opacity-50" />
                                     <p className="text-sm font-medium">Detailed charges not available</p>
                                     <p className="text-xs mt-1">Contact admin for charges breakdown</p>
@@ -831,7 +812,7 @@ const CustomerBookingsTable = ({
                               })()}
                             </div>
                           ) : (
-                            <div className="text-center py-8 text-muted bg-main/30 rounded-lg">
+                            <div className="text-center py-8 text-gray-500 bg-gray-100 rounded-lg">
                               <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
                               <p className="text-sm font-medium">Payment calculation in progress</p>
                               <p className="text-xs mt-1">The admin is currently calculating your total payment amount.</p>
@@ -842,16 +823,16 @@ const CustomerBookingsTable = ({
                     </div>
 
                     {/* Separator lines between sections for better visual separation */}
-                    <div className="border-t border-main/30 pt-4">
+                    <div className="border-t border-gray-300 pt-4">
                       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="text-center text-xs text-muted">
+                        <div className="text-center text-xs text-gray-500">
                           Booking & Item Details
                         </div>
-                        <div className="text-center text-xs text-muted">
+                        <div className="text-center text-xs text-gray-500">
                           Shipping Status Timeline
                         </div>
                         {isApproved && hasARRecord && (
-                          <div className="text-center text-xs text-muted">
+                          <div className="text-center text-xs text-gray-500">
                             Payment & Charges
                           </div>
                         )}
@@ -863,43 +844,10 @@ const CustomerBookingsTable = ({
 
               {/* Action Section - Only show for approved bookings */}
               {isApproved && (
-                <div className="border-t border-main">
-                  {canPay && !codBooking ? (
-                    <div className="bg-surface px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-3">
-                      <button
-                        onClick={() => handleDownloadStatement(item)}
-                        className="w-full sm:w-auto bg-gray-600 text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
-                      >
-                        <Download className="w-4 h-4" />
-                        Download Billing Statement
-                      </button>
-                      <button
-                        onClick={() => handlePayClick(item)}
-                        className="w-full sm:w-auto bg-primary text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 shadow-sm"
-                      >
-                        <CreditCard className="w-4 h-4" />
-                        Pay {formatCurrency(totalPaymentDue)}
-                      </button>
-                    </div>
-                  ) : codBooking ? (
-                    <div className="bg-blue-50 px-4 py-3 border-t border-blue-200 flex flex-col sm:flex-row justify-between items-center gap-3">
-                      <div className="flex items-center gap-2 text-blue-700 mb-3 sm:mb-0">
-                        <Truck className="w-5 h-5" />
-                        <div>
-                          <span className="font-semibold">Cash on Delivery Selected</span>
-                          <p className="text-sm text-blue-600">Payment will be collected upon delivery</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleDownloadStatement(item)}
-                        className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                      >
-                        <Download className="w-4 h-4" />
-                        Download Billing Statement
-                      </button>
-                    </div>
-                  ) : fullyPaid ? (
-                    <div className="bg-green-50 px-4 py-3 border-t border-green-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+                <div className="border-t border-gray-200">
+                  {/* CASE 1: Fully paid - Show receipt download only */}
+                  {fullyPaid ? (
+                    <div className="bg-green-50 px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-3">
                       <div className="flex items-center gap-2 text-green-700 mb-3 sm:mb-0">
                         <BadgeCheck className="w-5 h-5" />
                         <div>
@@ -915,14 +863,60 @@ const CustomerBookingsTable = ({
                         Download Receipt
                       </button>
                     </div>
-                  ) : hasARRecord && !hasPayment ? (
+                  ) : 
+                  
+                  {/* CASE 2: COD booking - No payment button, only statement download */}
+                  codBooking ? (
+                    <div className="bg-blue-50 px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-3">
+                      <div className="flex items-center gap-2 text-blue-700 mb-3 sm:mb-0">
+                        <Truck className="w-5 h-5" />
+                        <div>
+                          <span className="font-semibold">Cash on Delivery</span>
+                          <p className="text-sm text-blue-600">Payment will be collected upon delivery</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDownloadStatement(item)}
+                        className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Receipt className="w-4 h-4" />
+                        View Statement
+                      </button>
+                    </div>
+                  ) : 
+                  
+                  {/* CASE 3: Has payment due and NOT COD - Show pay button */}
+                  totalPaymentDue > 0 ? (
+                    <div className="bg-white px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-3">
+                      <button
+                        onClick={() => handleDownloadStatement(item)}
+                        className="w-full sm:w-auto bg-gray-600 text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                      >
+                        <Download className="w-4 h-4" />
+                        Download Statement
+                      </button>
+                      <button
+                        onClick={() => handlePayClick(item)}
+                        className="w-full sm:w-auto bg-primary text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                      >
+                        <CreditCard className="w-4 h-4" />
+                        Pay {formatCurrency(totalPaymentDue)}
+                      </button>
+                    </div>
+                  ) : 
+                  
+                  {/* CASE 4: Has AR record but no payment set yet */}
+                  hasARRecord && !hasPayment ? (
                     <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 text-center">
                       <p className="text-gray-600 text-sm">
                         <AlertCircle className="w-4 h-4 inline-block mr-2" />
                         Payment calculation in progress. Please wait for admin to set the payment amount.
                       </p>
                     </div>
-                  ) : null}
+                  ) : 
+                  
+                  {/* CASE 5: Default - no action needed */}
+                  null}
                 </div>
               )}
             </div>
