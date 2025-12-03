@@ -1,5 +1,6 @@
-// [file name]: PayBooking.jsx
+// PayBooking.jsx - Updated version
 import React, { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query'; // Added this import
 import { 
   DollarSign, 
   CreditCard, 
@@ -17,7 +18,9 @@ import {
   Info,
   Mail,
   Phone,
-  Lock
+  Lock,
+  Package,
+  Loader2
 } from 'lucide-react';
 import SharedModal from '../ui/SharedModal';
 import { formatCurrency } from '../../utils/formatters';
@@ -35,6 +38,7 @@ const PayBooking = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { createPaymentForBooking } = usePayment();
+  const queryClient = useQueryClient(); // Added queryClient for manual invalidation
 
   // Get actual amount due from AR data
   const actualAmountDue = booking?.accounts_receivable?.collectible_amount || 0;
@@ -70,71 +74,139 @@ const PayBooking = ({
   }, [isOpen, booking]);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!booking || isFullyPaid) return;
+  e.preventDefault();
+  if (!booking || isFullyPaid) return;
 
-    setIsSubmitting(true);
+  setIsSubmitting(true);
 
-    try {
-      console.log('💰 Starting payment for booking:', booking.id);
+  try {
+    console.log('💰 Starting payment for booking:', booking.id);
+    console.log('💰 Payment method:', paymentMethod);
+    console.log('💰 Amount due:', actualAmountDue);
+    
+    const result = await createPaymentForBooking.mutateAsync({
+      bookingId: booking.id,
+      payment_method: paymentMethod,
+      amount: actualAmountDue
+    });
+
+    console.log('🔍 PAYMENT RESPONSE:', result);
+
+    // Enhanced cache invalidation
+    const promises = [
+      queryClient.invalidateQueries({ queryKey: ['payments'] }),
+      queryClient.invalidateQueries({ queryKey: ['customer-bookings'] }),
+      queryClient.invalidateQueries({ queryKey: ['accounts-receivables'] }),
+      // Invalidate specific booking queries
+      queryClient.invalidateQueries({ 
+        queryKey: ['customer-bookings', booking.id] 
+      }),
+      queryClient.invalidateQueries({ 
+        queryKey: ['accounts-receivables', 'booking', booking.id] 
+      }),
+      // Force refetch active queries
+      queryClient.refetchQueries({ 
+        queryKey: ['customer-bookings'],
+        type: 'active',
+        exact: false
+      }),
+      queryClient.refetchQueries({ 
+        queryKey: ['accounts-receivables'],
+        type: 'active',
+        exact: false
+      })
+    ];
+
+    await Promise.allSettled(promises);
+    
+    console.log('✅ Cache invalidated and refetched');
+
+    if (paymentMethod === 'cod') {
+      toast.success('Cash on Delivery payment recorded! Payment will be collected upon delivery.');
       
-      const result = await createPaymentForBooking.mutateAsync({
-        bookingId: booking.id,
-        payment_method: paymentMethod,
-        amount: actualAmountDue
-      });
-
-      console.log('🔍 PAYMENT RESPONSE:', result);
-
-      if (paymentMethod === 'cod') {
-        toast.success('Cash on Delivery payment recorded successfully! Payment will be collected upon delivery.');
-        onPaymentSuccess?.();
-        onClose();
-      } else if (paymentMethod === 'gcash' && result?.checkout_url) {
-        toast.success('Redirecting to GCash checkout...');
-        // Open Paymongo checkout in new tab
-        window.open(result.checkout_url, '_blank', 'noopener,noreferrer');
+      // Extra refresh to ensure UI updates
+      setTimeout(() => {
+        // Refetch the specific booking data
+        queryClient.refetchQueries({ 
+          queryKey: ['customer-bookings'],
+          exact: false
+        });
         
-        // Show success message with instructions
-        toast.custom((t) => (
-          <div className="bg-white border border-green-300 rounded-lg shadow-lg p-4 max-w-md">
-            <div className="flex items-start gap-3">
-              <div className="bg-green-100 p-2 rounded-full">
-                <ExternalLink className="w-5 h-5 text-green-600" />
+        // Close modal and notify parent
+        setTimeout(() => {
+          onPaymentSuccess?.();
+          onClose();
+        }, 500);
+      }, 1000);
+      
+    } else if (paymentMethod === 'gcash' && result?.checkout_url) {
+      toast.success('Redirecting to GCash checkout...');
+      
+      // Open Paymongo checkout in new tab
+      const newWindow = window.open(result.checkout_url, '_blank', 'noopener,noreferrer');
+      
+      if (!newWindow) {
+        toast.error('Popup blocked. Please allow popups for this site and try again.');
+        return;
+      }
+      
+      // Show success message with instructions
+      toast.custom((t) => (
+        <div className="bg-white border border-green-300 rounded-lg shadow-lg p-4 max-w-md">
+          <div className="flex items-start gap-3">
+            <div className="bg-green-100 p-2 rounded-full">
+              <ExternalLink className="w-5 h-5 text-green-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-green-800">GCash Payment Started</h3>
+              <p className="text-sm text-gray-600 mt-1">
+                You've been redirected to the secure payment page. After completing payment, the system will automatically update your payment status.
+              </p>
+              <div className="mt-3 flex flex-col gap-2">
+                <button
+                  onClick={() => {
+                    // Force refresh all data
+                    queryClient.invalidateQueries({ queryKey: ['customer-bookings'] });
+                    queryClient.invalidateQueries({ queryKey: ['accounts-receivables'] });
+                    queryClient.refetchQueries({ type: 'active' });
+                    toast.dismiss(t.id);
+                    window.location.reload();
+                  }}
+                  className="text-sm bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 transition-colors"
+                >
+                  Refresh Status Now
+                </button>
+                <button
+                  onClick={() => {
+                    onClose();
+                    toast.dismiss(t.id);
+                  }}
+                  className="text-sm bg-gray-200 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 transition-colors"
+                >
+                  Close and Continue
+                </button>
               </div>
-              <div>
-                <h3 className="font-semibold text-green-800">GCash Payment Started</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  You've been redirected to the secure payment page. Please complete the payment in the new tab.
-                </p>
-                <div className="mt-3 flex gap-2">
-                  <button
-                    onClick={() => window.location.reload()}
-                    className="text-sm bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700"
-                  >
-                    Refresh Status
-                  </button>
-                  <button
-                    onClick={() => toast.dismiss(t.id)}
-                    className="text-sm bg-gray-200 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Note: Payment confirmation may take 1-2 minutes. You can refresh this page later to see updated status.
+              </p>
             </div>
           </div>
-        ), { duration: 10000 });
-        
+        </div>
+      ), { duration: 15000 });
+      
+      // Close modal after 2 seconds
+      setTimeout(() => {
         onClose();
-      }
-    } catch (error) {
-      console.error('❌ Payment error:', error);
-      toast.error(error.response?.data?.message || 'Failed to create payment');
-    } finally {
-      setIsSubmitting(false);
+      }, 2000);
     }
-  };
+  } catch (error) {
+    console.error('❌ Payment error:', error);
+    console.error('❌ Error details:', error.response?.data);
+    toast.error(error.response?.data?.message || 'Failed to create payment. Please try again.');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const handleClose = () => {
     setPaymentMethod('cod');
@@ -152,53 +224,67 @@ const PayBooking = ({
       isOpen={isOpen} 
       onClose={handleClose} 
       title="Make Payment" 
-      size="md"
+      size="sm"
     >
       <div className="max-h-[80vh] overflow-y-auto space-y-4">
-        {/* Booking Summary */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h4 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
-            <Calculator className="w-4 h-4" />
-            Booking & Payment Summary
-          </h4>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-blue-600">Booking #:</span>
-              <span className="font-medium text-blue-800">{booking.booking_number}</span>
+        {/* Booking Summary - Matching SendTotalPayment style */}
+        <div className="bg-main border border-main rounded-lg p-3">
+          <h3 className="text-base font-semibold text-heading mb-2">Booking Details</h3>
+          <div className="flex items-center gap-2 mb-2">
+            <Package className="w-3 h-3 text-blue-600" />
+            <span className="font-medium text-heading text-sm uppercase">Booking #{booking.booking_number}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <span className="font-medium text-muted">Customer:</span>
+              <p className="text-heading">{booking.first_name} {booking.last_name}</p>
             </div>
-            <div className="flex justify-between">
-              <span className="text-blue-600">Route:</span>
-              <span className="font-medium text-blue-800">
-                {booking.origin?.name} → {booking.destination?.name}
-              </span>
-            </div>
-            
-            {/* Financial Breakdown */}
-            <div className="border-t border-blue-200 pt-2 mt-2 space-y-1">
-              <div className="flex justify-between">
-                <span className="text-blue-600">Total Amount:</span>
-                <span className="font-semibold text-blue-800">{formatCurrency(totalPayment)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-blue-600">Amount Due:</span>
-                <span className="font-semibold text-orange-600">{formatCurrency(actualAmountDue)}</span>
-              </div>
+            <div>
+              <span className="font-medium text-muted">Route:</span>
+              <p className="text-heading">
+                {booking.origin?.route_name || booking.origin?.name} → {booking.destination?.route_name || booking.destination?.name}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Already Paid Notice */}
-        {isFullyPaid && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-green-800">
-              <CheckCircle className="w-4 h-4" />
-              <span className="font-medium">This booking is fully paid!</span>
+        {/* Financial Summary - Matching SendTotalPayment style */}
+        <div className="bg-main border border-main rounded-lg p-3 space-y-3">
+          <h3 className="text-base font-semibold text-heading">Financial Summary</h3>
+          
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between items-center border-b border-main pb-2">
+              <div className="flex items-center gap-2">
+                <Calculator className="w-4 h-4 text-heading" />
+                <span className="text-muted">Total Amount:</span>
+              </div>
+              <span className="font-semibold text-heading">{formatCurrency(totalPayment)}</span>
             </div>
-            <p className="text-sm text-green-700 mt-1">
-              No payment is required at this time.
-            </p>
+            
+            <div className="flex justify-between items-center border-b border-main pb-2">
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-heading" />
+                <span className="text-muted">Amount Due:</span>
+              </div>
+              <span className={`font-bold text-lg ${isFullyPaid ? 'text-green-600' : 'text-orange-600'}`}>
+                {formatCurrency(actualAmountDue)}
+              </span>
+            </div>
           </div>
-        )}
+
+          {/* Already Paid Notice */}
+          {isFullyPaid && (
+            <div className="bg-green-50 border border-green-200 rounded p-3 mt-2">
+              <div className="flex items-center gap-2 text-green-800">
+                <CheckCircle className="w-4 h-4" />
+                <span className="font-medium text-sm">This booking is fully paid!</span>
+              </div>
+              <p className="text-xs text-green-700 mt-1">
+                No payment is required at this time.
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* Payment Method Selection - Only show if not fully paid */}
         {!isFullyPaid && (
@@ -207,7 +293,7 @@ const PayBooking = ({
               <h3 className="text-base font-semibold text-heading">Payment Method</h3>
               
               {/* Payment Method Selector */}
-              <div className="bg-surface border border-gray-200 rounded-lg p-3">
+              <div className="bg-surface border border-surface rounded-lg p-3">
                 <button
                   type="button"
                   onClick={() => setShowPaymentMethods(!showPaymentMethods)}
@@ -275,12 +361,12 @@ const PayBooking = ({
 
             {/* Payment Instructions based on method */}
             {paymentMethod === 'cod' ? (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <h4 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
                   <Truck className="w-4 h-4" />
                   Cash on Delivery Instructions
                 </h4>
-                <div className="space-y-3 text-sm text-blue-700">
+                <div className="space-y-2 text-xs text-blue-700">
                   <div className="flex items-start gap-2">
                     <div className="bg-blue-100 p-1 rounded-full mt-0.5">
                       <Info className="w-3 h-3 text-blue-600" />
@@ -302,12 +388,12 @@ const PayBooking = ({
                 </div>
               </div>
             ) : (
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
                 <h4 className="font-semibold text-purple-800 mb-3 flex items-center gap-2">
                   <Smartphone className="w-4 h-4" />
                   How to Pay with GCash
                 </h4>
-                <ol className="space-y-2 text-sm text-purple-700">
+                <ol className="space-y-2 text-xs text-purple-700">
                   <li className="flex items-start gap-2">
                     <div className="bg-purple-100 text-purple-700 font-bold rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
                       1
@@ -324,27 +410,21 @@ const PayBooking = ({
                     <div className="bg-purple-100 text-purple-700 font-bold rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
                       3
                     </div>
-                    <span>Enter your <strong>mobile number</strong> or <strong>email address</strong> registered with GCash.</span>
+                    <span>Complete the payment in your <strong>GCash app</strong> when prompted.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <div className="bg-purple-100 text-purple-700 font-bold rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
                       4
                     </div>
-                    <span>Complete the payment in your <strong>GCash app</strong> when prompted.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <div className="bg-purple-100 text-purple-700 font-bold rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
-                      5
-                    </div>
                     <span>Return to this page after payment - we'll <strong>automatically update</strong> your payment status.</span>
                   </li>
                 </ol>
-                <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded p-3 text-xs text-yellow-800">
+                <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded p-2 text-xs text-yellow-800">
                   <div className="flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                    <AlertCircle className="w-3 h-3 text-yellow-600 mt-0.5 flex-shrink-0" />
                     <div>
                       <strong>Important:</strong> 
-                      <ul className="mt-1 space-y-1">
+                      <ul className="mt-1 space-y-0.5">
                         <li>• Make sure you have sufficient balance in your GCash account</li>
                         <li>• Keep the GCash app open for faster payment confirmation</li>
                         <li>• Payment status updates may take 1-2 minutes</li>
@@ -355,11 +435,11 @@ const PayBooking = ({
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3">
               {/* Security Notice */}
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-2">
                 <div className="flex items-start gap-2">
-                  <Shield className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                  <Shield className="w-3 h-3 text-green-600 mt-0.5 flex-shrink-0" />
                   <div className="text-xs text-green-700">
                     <strong>Secure Transaction:</strong> All transactions are processed securely. 
                     {paymentMethod === 'gcash' && " You'll be redirected to a secure Paymongo checkout page that is PCI-DSS compliant."}
@@ -368,26 +448,26 @@ const PayBooking = ({
                 </div>
               </div>
 
-              {/* Total Payment Summary */}
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              {/* Total Payment Summary - Matching SendTotalPayment style */}
+              <div className="bg-main border border-main rounded-lg p-3">
                 <div className="flex justify-between items-center">
                   <div>
-                    <div className="text-sm font-medium text-gray-600">Total Payment</div>
-                    <div className="text-xs text-gray-500">Amount due for booking #{booking.booking_number}</div>
+                    <div className="text-sm font-medium text-heading">Total Payment</div>
+                    <div className="text-xs text-muted">Amount due for booking #{booking.booking_number}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-gray-800">{formatCurrency(actualAmountDue)}</div>
-                    <div className="text-xs text-gray-500">One-time payment</div>
+                    <div className="text-xl font-bold text-heading">{formatCurrency(actualAmountDue)}</div>
+                    <div className="text-xs text-muted">One-time payment</div>
                   </div>
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+              {/* Action Buttons - Matching SendTotalPayment style */}
+              <div className="flex justify-end gap-2 pt-3 border-t border-main">
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="px-4 py-2.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  className="modal-btn-cancel text-sm py-2 px-3"
                   disabled={isSubmitting}
                 >
                   Cancel
@@ -395,27 +475,28 @@ const PayBooking = ({
                 <button
                   type="submit"
                   disabled={isSubmitting || isFullyPaid}
-                  className={`px-4 py-2.5 text-sm text-white rounded-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2 font-medium ${
+                  className={`text-sm py-2 px-3 font-medium ${
+                    isSubmitting ? 'modal-btn-disabled' : 
                     paymentMethod === 'cod' 
-                      ? 'bg-blue-600 hover:bg-blue-700' 
-                      : 'bg-purple-600 hover:bg-purple-700'
+                      ? 'modal-btn-primary bg-blue-600 hover:bg-blue-700' 
+                      : 'modal-btn-primary bg-purple-600 hover:bg-purple-700'
                   }`}
                 >
                   {isSubmitting ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1" />
                       Processing...
                     </>
                   ) : paymentMethod === 'cod' ? (
                     <>
-                      <Truck className="w-4 h-4" />
+                      <Truck className="w-3 h-3 inline mr-1" />
                       Confirm Cash on Delivery
                     </>
                   ) : (
                     <>
-                      <Smartphone className="w-4 h-4" />
+                      <Smartphone className="w-3 h-3 inline mr-1" />
                       Pay with GCash
-                      <ExternalLink className="w-3 h-3" />
+                      <ExternalLink className="w-3 h-3 inline ml-1" />
                     </>
                   )}
                 </button>
@@ -426,10 +507,10 @@ const PayBooking = ({
 
         {/* Close Button for Fully Paid Bookings */}
         {isFullyPaid && (
-          <div className="flex justify-end pt-4 border-t border-gray-200">
+          <div className="flex justify-end pt-3 border-t border-main">
             <button
               onClick={handleClose}
-              className="px-4 py-2.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="modal-btn-cancel text-sm py-2 px-3"
             >
               Close
             </button>

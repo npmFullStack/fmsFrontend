@@ -1,9 +1,10 @@
-// [file name]: usePayment.js
+// usePayment.js - Updated version
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api';
 
 const PAYMENT_KEY = ['payments'];
 const CUSTOMER_BOOKING_KEY = ['customer-bookings'];
+const AR_KEY = ['accounts-receivables']; // Added AR key
 
 // API functions
 const paymentApi = {
@@ -34,7 +35,6 @@ const paymentApi = {
     const { data } = await api.post('/payments', payload);
     return data;
   },
-  // FIXED: This should match the route definition
   createForBooking: async (bookingId, payload) => {
     const { data } = await api.post(`/customer/bookings/${bookingId}/pay`, {
       ...payload,
@@ -60,7 +60,6 @@ const paymentApi = {
   },
 };
 
-// Hook - rest remains the same...
 export const usePayment = () => {
   const queryClient = useQueryClient();
 
@@ -103,13 +102,14 @@ export const usePayment = () => {
     },
   });
 
-  // Mutations
+  // Mutations with proper query invalidation
   const createPayment = useMutation({
     mutationFn: paymentApi.create,
     onSuccess: () => {
-      queryClient.invalidateQueries(PAYMENT_KEY);
-      queryClient.invalidateQueries(CUSTOMER_BOOKING_KEY);
-      console.log('✅ Payment created successfully');
+      queryClient.invalidateQueries({ queryKey: PAYMENT_KEY });
+      queryClient.invalidateQueries({ queryKey: CUSTOMER_BOOKING_KEY });
+      queryClient.invalidateQueries({ queryKey: AR_KEY });
+      console.log('✅ Payment created successfully, queries invalidated');
     },
     onError: (error) => {
       console.error('❌ Create payment error:', error.response?.data || error.message);
@@ -118,10 +118,18 @@ export const usePayment = () => {
 
   const createPaymentForBooking = useMutation({
     mutationFn: ({ bookingId, ...payload }) => paymentApi.createForBooking(bookingId, payload),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries(PAYMENT_KEY);
-      queryClient.invalidateQueries(CUSTOMER_BOOKING_KEY);
-      console.log('✅ Payment created successfully');
+    onSuccess: (data, variables) => {
+      // Invalidate all related queries to force refresh
+      queryClient.invalidateQueries({ queryKey: PAYMENT_KEY });
+      queryClient.invalidateQueries({ queryKey: CUSTOMER_BOOKING_KEY });
+      queryClient.invalidateQueries({ queryKey: AR_KEY });
+      
+      // Specifically invalidate the booking that was just paid
+      queryClient.invalidateQueries({ 
+        queryKey: [...CUSTOMER_BOOKING_KEY, variables.bookingId] 
+      });
+      
+      console.log('✅ Payment created successfully, queries invalidated');
       return data;
     },
     onError: (error) => {
@@ -132,8 +140,10 @@ export const usePayment = () => {
   const updatePayment = useMutation({
     mutationFn: paymentApi.update,
     onSuccess: () => {
-      queryClient.invalidateQueries(PAYMENT_KEY);
-      console.log('✅ Payment updated');
+      queryClient.invalidateQueries({ queryKey: PAYMENT_KEY });
+      queryClient.invalidateQueries({ queryKey: CUSTOMER_BOOKING_KEY });
+      queryClient.invalidateQueries({ queryKey: AR_KEY });
+      console.log('✅ Payment updated, queries invalidated');
     },
     onError: (error) => {
       console.error('❌ Update payment error:', error.response?.data || error.message);
@@ -143,9 +153,10 @@ export const usePayment = () => {
   const processGCashPayment = useMutation({
     mutationFn: ({ id, ...payload }) => paymentApi.processGCash(id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries(PAYMENT_KEY);
-      queryClient.invalidateQueries(CUSTOMER_BOOKING_KEY);
-      console.log('✅ GCash payment processed');
+      queryClient.invalidateQueries({ queryKey: PAYMENT_KEY });
+      queryClient.invalidateQueries({ queryKey: CUSTOMER_BOOKING_KEY });
+      queryClient.invalidateQueries({ queryKey: AR_KEY });
+      console.log('✅ GCash payment processed, queries invalidated');
     },
     onError: (error) => {
       console.error('❌ Process GCash error:', error.response?.data || error.message);
@@ -155,8 +166,10 @@ export const usePayment = () => {
   const deletePayment = useMutation({
     mutationFn: paymentApi.delete,
     onSuccess: () => {
-      queryClient.invalidateQueries(PAYMENT_KEY);
-      console.log('✅ Payment deleted');
+      queryClient.invalidateQueries({ queryKey: PAYMENT_KEY });
+      queryClient.invalidateQueries({ queryKey: CUSTOMER_BOOKING_KEY });
+      queryClient.invalidateQueries({ queryKey: AR_KEY });
+      console.log('✅ Payment deleted, queries invalidated');
     },
     onError: (error) => {
       console.error('❌ Delete payment error:', error.response?.data || error.message);
@@ -165,10 +178,14 @@ export const usePayment = () => {
 
   const checkPaymentStatus = useMutation({
     mutationFn: paymentApi.checkStatus,
-    onSuccess: () => {
-      queryClient.invalidateQueries(PAYMENT_KEY);
-      queryClient.invalidateQueries(CUSTOMER_BOOKING_KEY);
-      console.log('✅ Payment status checked');
+    onSuccess: (data) => {
+      // If payment status changed to 'paid', refresh all related data
+      if (data?.status === 'paid') {
+        queryClient.invalidateQueries({ queryKey: PAYMENT_KEY });
+        queryClient.invalidateQueries({ queryKey: CUSTOMER_BOOKING_KEY });
+        queryClient.invalidateQueries({ queryKey: AR_KEY });
+        console.log('✅ Payment status is paid, refreshing all data');
+      }
     },
     onError: (error) => {
       console.error('❌ Check payment status error:', error.response?.data || error.message);
