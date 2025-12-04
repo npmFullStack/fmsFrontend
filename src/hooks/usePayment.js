@@ -1,61 +1,100 @@
-// usePayment.js - Updated version
+// src/hooks/usePayment.js
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { retryWithBackoff } from '../utils/retry';
 import api from '../api';
 
 const PAYMENT_KEY = ['payments'];
-const CUSTOMER_BOOKING_KEY = ['customer-bookings'];
-const AR_KEY = ['accounts-receivables']; // Added AR key
 
-// API functions
 const paymentApi = {
-  // Customer bookings
-  getCustomerBookings: async (params = {}) => {
-    const { data } = await api.get('/customer/bookings', { params });
+  // Get all payments (for admin)
+  getAll: async (params = {}, signal) => {
+    const { data } = await retryWithBackoff(
+      () => api.get('/payments', { params, signal }),
+      3,
+      1000,
+      30000
+    );
     return data;
   },
-  getCustomerBooking: async (id) => {
-    const { data } = await api.get(`/customer/bookings/${id}`);
+
+  // Get single payment
+  getOne: async (id, signal) => {
+    const { data } = await retryWithBackoff(
+      () => api.get(`/payments/${id}`, { signal }),
+      3,
+      1000,
+      30000
+    );
     return data;
   },
-  
-  // Payments
-  getAll: async (params = {}) => {
-    const { data } = await api.get('/payments', { params });
-    return data;
-  },
-  getOne: async (id) => {
-    const { data } = await api.get(`/payments/${id}`);
-    return data;
-  },
-  getByBooking: async (bookingId) => {
-    const { data } = await api.get(`/payments/booking/${bookingId}`);
-    return data;
-  },
+
+  // Create payment (for customer)
   create: async (payload) => {
-    const { data } = await api.post('/payments', payload);
-    return data;
-  },
-  createForBooking: async (bookingId, payload) => {
-    const { data } = await api.post(`/customer/bookings/${bookingId}/pay`, {
-      ...payload,
-      booking_id: bookingId // Ensure booking_id is included
+    const formData = new FormData();
+    
+    // Append all fields to FormData
+    Object.keys(payload).forEach(key => {
+      if (key === 'gcash_receipt_image' && payload[key]) {
+        formData.append(key, payload[key]);
+      } else if (payload[key] !== null && payload[key] !== undefined) {
+        formData.append(key, payload[key]);
+      }
     });
+
+    const { data } = await retryWithBackoff(
+      () => api.post('/payments', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      }),
+      2,
+      1000,
+      45000
+    );
     return data;
   },
-  update: async ({ id, ...payload }) => {
-    const { data } = await api.put(`/payments/${id}`, payload);
+
+  // Update payment status (for admin)
+  updateStatus: async ({ id, status, admin_notes }) => {
+    const { data } = await retryWithBackoff(
+      () => api.put(`/payments/${id}/status`, { status, admin_notes }),
+      2,
+      1000,
+      30000
+    );
     return data;
   },
-  processGCash: async (id, payload) => {
-    const { data } = await api.post(`/payments/${id}/process-gcash`, payload);
-    return data;
-  },
+
+  // Delete payment (for admin)
   delete: async (id) => {
-    const { data } = await api.delete(`/payments/${id}`);
+    const { data } = await retryWithBackoff(
+      () => api.delete(`/payments/${id}`),
+      2,
+      1000,
+      30000
+    );
     return data;
   },
-  checkStatus: async (id) => {
-    const { data } = await api.get(`/payments/${id}/status`);
+
+  // Get payments by booking
+  getByBooking: async (bookingId, signal) => {
+    const { data } = await retryWithBackoff(
+      () => api.get(`/payments/booking/${bookingId}`, { signal }),
+      3,
+      1000,
+      30000
+    );
+    return data;
+  },
+
+  // Get customer's payments
+  getCustomerPayments: async (params = {}, signal) => {
+    const { data } = await retryWithBackoff(
+      () => api.get('/payments/customer/my-payments', { params, signal }),
+      3,
+      1000,
+      30000
+    );
     return data;
   },
 };
@@ -63,150 +102,176 @@ const paymentApi = {
 export const usePayment = () => {
   const queryClient = useQueryClient();
 
-  // Customer bookings queries
-  const customerBookingsQuery = (params = {}) => useQuery({
-    queryKey: [...CUSTOMER_BOOKING_KEY, params],
-    queryFn: () => paymentApi.getCustomerBookings(params),
-  });
-
-  const customerBookingQuery = (id) => useQuery({
-    queryKey: [...CUSTOMER_BOOKING_KEY, id],
-    queryFn: () => paymentApi.getCustomerBooking(id),
-    enabled: !!id,
-  });
-
-  // Payment queries
+  // Fetch all payments (admin)
   const paymentsQuery = (params = {}) => useQuery({
     queryKey: [...PAYMENT_KEY, params],
-    queryFn: () => paymentApi.getAll(params),
+    queryFn: ({ signal }) => paymentApi.getAll(params, signal),
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: (failureCount, error) => {
+      if (error.response?.status >= 400 && error.response?.status < 500) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    refetchOnWindowFocus: false,
   });
 
+  // Fetch single payment
   const paymentQuery = (id) => useQuery({
     queryKey: [...PAYMENT_KEY, id],
-    queryFn: () => paymentApi.getOne(id),
+    queryFn: ({ signal }) => paymentApi.getOne(id, signal),
     enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    retry: (failureCount, error) => {
+      if (error.response?.status >= 400 && error.response?.status < 500) {
+        return false;
+      }
+      return failureCount < 2;
+    },
   });
 
+  // Fetch payments by booking
   const paymentsByBookingQuery = (bookingId) => useQuery({
     queryKey: [...PAYMENT_KEY, 'booking', bookingId],
-    queryFn: () => paymentApi.getByBooking(bookingId),
+    queryFn: ({ signal }) => paymentApi.getByBooking(bookingId, signal),
     enabled: !!bookingId,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
-  const paymentStatusQuery = (id) => useQuery({
-    queryKey: [...PAYMENT_KEY, 'status', id],
-    queryFn: () => paymentApi.checkStatus(id),
-    enabled: !!id,
-    refetchInterval: (data) => {
-      return data?.status === 'processing' ? 5000 : false;
-    },
+  // Fetch customer payments
+  const customerPaymentsQuery = (params = {}) => useQuery({
+    queryKey: [...PAYMENT_KEY, 'customer', params],
+    queryFn: ({ signal }) => paymentApi.getCustomerPayments(params, signal),
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
-  // Mutations with proper query invalidation
+  // Create payment mutation
   const createPayment = useMutation({
     mutationFn: paymentApi.create,
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: PAYMENT_KEY });
-      queryClient.invalidateQueries({ queryKey: CUSTOMER_BOOKING_KEY });
-      queryClient.invalidateQueries({ queryKey: AR_KEY });
-      console.log('✅ Payment created successfully, queries invalidated');
-    },
-    onError: (error) => {
-      console.error('❌ Create payment error:', error.response?.data || error.message);
-    },
-  });
-
-  const createPaymentForBooking = useMutation({
-    mutationFn: ({ bookingId, ...payload }) => paymentApi.createForBooking(bookingId, payload),
-    onSuccess: (data, variables) => {
-      // Invalidate all related queries to force refresh
-      queryClient.invalidateQueries({ queryKey: PAYMENT_KEY });
-      queryClient.invalidateQueries({ queryKey: CUSTOMER_BOOKING_KEY });
-      queryClient.invalidateQueries({ queryKey: AR_KEY });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-receivables'] });
       
-      // Specifically invalidate the booking that was just paid
-      queryClient.invalidateQueries({ 
-        queryKey: [...CUSTOMER_BOOKING_KEY, variables.bookingId] 
-      });
-      
-      console.log('✅ Payment created successfully, queries invalidated');
+      // Invalidate specific booking
+      if (data?.booking_id) {
+        queryClient.invalidateQueries({ queryKey: ['bookings', data.booking_id] });
+        queryClient.invalidateQueries({ queryKey: ['accounts-receivables', 'booking', data.booking_id] });
+      }
+      console.log('✅ Payment created successfully', data);
       return data;
     },
     onError: (error) => {
       console.error('❌ Create payment error:', error.response?.data || error.message);
+      throw error;
     },
   });
 
-  const updatePayment = useMutation({
-    mutationFn: paymentApi.update,
-    onSuccess: () => {
+  // Create payment for booking (simplified version)
+  const createPaymentForBooking = useMutation({
+    mutationFn: async ({ bookingId, ...payload }) => {
+      const paymentData = {
+        booking_id: bookingId,
+        ...payload
+      };
+      return paymentApi.create(paymentData);
+    },
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: PAYMENT_KEY });
-      queryClient.invalidateQueries({ queryKey: CUSTOMER_BOOKING_KEY });
-      queryClient.invalidateQueries({ queryKey: AR_KEY });
-      console.log('✅ Payment updated, queries invalidated');
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts-receivables'] });
+      
+      if (data?.booking_id) {
+        queryClient.invalidateQueries({ queryKey: ['bookings', data.booking_id] });
+        
+        // Update the booking cache immediately with new AR data
+        queryClient.setQueryData(['bookings', data.booking_id], (oldData) => {
+          if (!oldData) return oldData;
+          
+          return {
+            ...oldData,
+            accounts_receivable: {
+              ...oldData.accounts_receivable,
+              collectible_amount: data.remaining_balance || 0,
+              payment_method: data.payment_method || data.payment?.payment_method,
+              is_paid: data.is_paid || false
+            }
+          };
+        });
+        
+        // Also update customer bookings list cache
+        queryClient.setQueriesData(
+          { queryKey: ['bookings', 'customer'] },
+          (oldData) => {
+            if (!oldData || !oldData.data) return oldData;
+            
+            return {
+              ...oldData,
+              data: oldData.data.map(booking => {
+                if (booking.id === data.booking_id) {
+                  return {
+                    ...booking,
+                    accounts_receivable: {
+                      ...booking.accounts_receivable,
+                      collectible_amount: data.remaining_balance || 0,
+                      payment_method: data.payment_method || data.payment?.payment_method,
+                      is_paid: data.is_paid || false
+                    }
+                  };
+                }
+                return booking;
+              })
+            };
+          }
+        );
+      }
     },
     onError: (error) => {
-      console.error('❌ Update payment error:', error.response?.data || error.message);
+      console.error('❌ Create payment for booking error:', error.response?.data || error.message);
+      throw error;
     },
   });
 
-  const processGCashPayment = useMutation({
-    mutationFn: ({ id, ...payload }) => paymentApi.processGCash(id, payload),
-    onSuccess: () => {
+  // Update payment status mutation
+  const updatePaymentStatus = useMutation({
+    mutationFn: paymentApi.updateStatus,
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: PAYMENT_KEY });
-      queryClient.invalidateQueries({ queryKey: CUSTOMER_BOOKING_KEY });
-      queryClient.invalidateQueries({ queryKey: AR_KEY });
-      console.log('✅ GCash payment processed, queries invalidated');
-    },
-    onError: (error) => {
-      console.error('❌ Process GCash error:', error.response?.data || error.message);
+      if (data?.id) {
+        queryClient.invalidateQueries({ queryKey: [...PAYMENT_KEY, data.id] });
+      }
+      // Also invalidate AR and booking queries since payment status affects them
+      queryClient.invalidateQueries({ queryKey: ['accounts-receivables'] });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
     },
   });
 
+  // Delete payment mutation
   const deletePayment = useMutation({
     mutationFn: paymentApi.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PAYMENT_KEY });
-      queryClient.invalidateQueries({ queryKey: CUSTOMER_BOOKING_KEY });
-      queryClient.invalidateQueries({ queryKey: AR_KEY });
-      console.log('✅ Payment deleted, queries invalidated');
-    },
-    onError: (error) => {
-      console.error('❌ Delete payment error:', error.response?.data || error.message);
-    },
-  });
-
-  const checkPaymentStatus = useMutation({
-    mutationFn: paymentApi.checkStatus,
-    onSuccess: (data) => {
-      // If payment status changed to 'paid', refresh all related data
-      if (data?.status === 'paid') {
-        queryClient.invalidateQueries({ queryKey: PAYMENT_KEY });
-        queryClient.invalidateQueries({ queryKey: CUSTOMER_BOOKING_KEY });
-        queryClient.invalidateQueries({ queryKey: AR_KEY });
-        console.log('✅ Payment status is paid, refreshing all data');
-      }
-    },
-    onError: (error) => {
-      console.error('❌ Check payment status error:', error.response?.data || error.message);
+      queryClient.invalidateQueries({ queryKey: ['accounts-receivables'] });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
     },
   });
 
   return {
     // Queries
-    customerBookingsQuery,
-    customerBookingQuery,
     paymentsQuery,
     paymentQuery,
     paymentsByBookingQuery,
-    paymentStatusQuery,
+    customerPaymentsQuery,
     
     // Mutations
     createPayment,
     createPaymentForBooking,
-    updatePayment,
-    processGCashPayment,
+    updatePaymentStatus,
     deletePayment,
-    checkPaymentStatus,
   };
 };

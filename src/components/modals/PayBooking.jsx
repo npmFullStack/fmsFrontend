@@ -1,523 +1,537 @@
-// PayBooking.jsx - Updated version
+// src/components/modals/PayBooking.jsx
 import React, { useState, useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query'; // Added this import
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { 
-  DollarSign, 
   CreditCard, 
   Smartphone, 
+  Upload, 
   CheckCircle, 
-  TrendingUp,
-  Calculator,
-  Shield,
-  ChevronDown,
-  ChevronUp,
-  Building,
-  ExternalLink,
-  Truck,
   AlertCircle,
   Info,
-  Mail,
+  Loader2,
+  Receipt,
   Phone,
-  Lock,
-  Package,
-  Loader2
+  MessageSquare,
+  Truck,
+  User
 } from 'lucide-react';
-import SharedModal from '../ui/SharedModal';
 import { formatCurrency } from '../../utils/formatters';
-import { usePayment } from '../../hooks/usePayment';
 import toast from 'react-hot-toast';
+
+const paymentSchema = z.object({
+  payment_method: z.enum(['cod', 'gcash'], {
+    required_error: "Please select a payment method",
+  }),
+  amount: z.number()
+    .positive("Amount must be positive")
+    .min(0.01, "Amount must be at least ₱0.01"),
+  reference_number: z.string()
+    .optional()
+    .or(z.literal('')),
+  gcash_receipt_image: z.any().optional(),
+});
 
 const PayBooking = ({ 
   isOpen, 
   onClose, 
-  booking,
-  onPaymentSuccess 
+  booking, 
+  onPaymentSuccess,
+  onCreatePayment 
 }) => {
-  const [paymentMethod, setPaymentMethod] = useState('cod');
-  const [showPaymentMethods, setShowPaymentMethods] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState('');
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentInstructions, setPaymentInstructions] = useState({
+    accountName: 'NO*** M',
+    accountNumber: '09944435770',
+    steps: [
+      'Open your GCash app',
+      'Go to "Send Money"',
+      'Enter GCash number: 09944435770',
+      'Enter exact amount to pay',
+      'Take a screenshot of the receipt',
+      'Upload it below'
+    ]
+  });
 
-  const { createPaymentForBooking } = usePayment();
-  const queryClient = useQueryClient(); // Added queryClient for manual invalidation
-
-  // Get actual amount due from AR data
-  const actualAmountDue = booking?.accounts_receivable?.collectible_amount || 0;
-  const totalPayment = booking?.accounts_receivable?.total_payment || 0;
-  const isFullyPaid = actualAmountDue === 0;
-
-  // Payment methods with Cash on Delivery as default
-  const paymentMethods = [
-    {
-      value: 'cod',
-      label: 'Cash on Delivery',
-      description: 'Pay when you receive the shipment',
-      icon: Truck,
-      color: 'text-blue-600',
-      badge: 'No online payment needed'
-    },
-    {
-      value: 'gcash',
-      label: 'GCash',
-      description: 'Pay instantly via GCash',
-      icon: Smartphone,
-      color: 'text-purple-600',
-      badge: 'Instant payment'
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    formState: { errors, isValid }
+  } = useForm({
+    resolver: zodResolver(paymentSchema),
+    mode: 'onChange',
+    defaultValues: {
+      payment_method: '',
+      amount: booking?.accounts_receivable?.collectible_amount || 0,
+      reference_number: '',
+      gcash_receipt_image: null
     }
-  ];
+  });
+
+  const paymentMethod = watch('payment_method');
+  const amount = watch('amount');
 
   // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen && booking) {
-      setPaymentMethod('cod');
-      setShowPaymentMethods(false);
+      reset({
+        payment_method: '',
+        amount: booking.accounts_receivable?.collectible_amount || 0,
+        reference_number: '',
+        gcash_receipt_image: null
+      });
+      setSelectedMethod('');
+      setUploadedFile(null);
+      setPreviewUrl('');
     }
-  }, [isOpen, booking]);
+  }, [isOpen, booking, reset]);
 
-  const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (!booking || isFullyPaid) return;
+  // Handle file upload
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
 
-  setIsSubmitting(true);
-
-  try {
-    console.log('💰 Starting payment for booking:', booking.id);
-    console.log('💰 Payment method:', paymentMethod);
-    console.log('💰 Amount due:', actualAmountDue);
-    
-    const result = await createPaymentForBooking.mutateAsync({
-      bookingId: booking.id,
-      payment_method: paymentMethod,
-      amount: actualAmountDue
-    });
-
-    console.log('🔍 PAYMENT RESPONSE:', result);
-
-    // Enhanced cache invalidation
-    const promises = [
-      queryClient.invalidateQueries({ queryKey: ['payments'] }),
-      queryClient.invalidateQueries({ queryKey: ['customer-bookings'] }),
-      queryClient.invalidateQueries({ queryKey: ['accounts-receivables'] }),
-      // Invalidate specific booking queries
-      queryClient.invalidateQueries({ 
-        queryKey: ['customer-bookings', booking.id] 
-      }),
-      queryClient.invalidateQueries({ 
-        queryKey: ['accounts-receivables', 'booking', booking.id] 
-      }),
-      // Force refetch active queries
-      queryClient.refetchQueries({ 
-        queryKey: ['customer-bookings'],
-        type: 'active',
-        exact: false
-      }),
-      queryClient.refetchQueries({ 
-        queryKey: ['accounts-receivables'],
-        type: 'active',
-        exact: false
-      })
-    ];
-
-    await Promise.allSettled(promises);
-    
-    console.log('✅ Cache invalidated and refetched');
-
-    if (paymentMethod === 'cod') {
-      toast.success('Cash on Delivery payment recorded! Payment will be collected upon delivery.');
-      
-      // Extra refresh to ensure UI updates
-      setTimeout(() => {
-        // Refetch the specific booking data
-        queryClient.refetchQueries({ 
-          queryKey: ['customer-bookings'],
-          exact: false
-        });
-        
-        // Close modal and notify parent
-        setTimeout(() => {
-          onPaymentSuccess?.();
-          onClose();
-        }, 500);
-      }, 1000);
-      
-    } else if (paymentMethod === 'gcash' && result?.checkout_url) {
-      toast.success('Redirecting to GCash checkout...');
-      
-      // Open Paymongo checkout in new tab
-      const newWindow = window.open(result.checkout_url, '_blank', 'noopener,noreferrer');
-      
-      if (!newWindow) {
-        toast.error('Popup blocked. Please allow popups for this site and try again.');
-        return;
-      }
-      
-      // Show success message with instructions
-      toast.custom((t) => (
-        <div className="bg-white border border-green-300 rounded-lg shadow-lg p-4 max-w-md">
-          <div className="flex items-start gap-3">
-            <div className="bg-green-100 p-2 rounded-full">
-              <ExternalLink className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-green-800">GCash Payment Started</h3>
-              <p className="text-sm text-gray-600 mt-1">
-                You've been redirected to the secure payment page. After completing payment, the system will automatically update your payment status.
-              </p>
-              <div className="mt-3 flex flex-col gap-2">
-                <button
-                  onClick={() => {
-                    // Force refresh all data
-                    queryClient.invalidateQueries({ queryKey: ['customer-bookings'] });
-                    queryClient.invalidateQueries({ queryKey: ['accounts-receivables'] });
-                    queryClient.refetchQueries({ type: 'active' });
-                    toast.dismiss(t.id);
-                    window.location.reload();
-                  }}
-                  className="text-sm bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 transition-colors"
-                >
-                  Refresh Status Now
-                </button>
-                <button
-                  onClick={() => {
-                    onClose();
-                    toast.dismiss(t.id);
-                  }}
-                  className="text-sm bg-gray-200 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 transition-colors"
-                >
-                  Close and Continue
-                </button>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">
-                Note: Payment confirmation may take 1-2 minutes. You can refresh this page later to see updated status.
-              </p>
-            </div>
-          </div>
-        </div>
-      ), { duration: 15000 });
-      
-      // Close modal after 2 seconds
-      setTimeout(() => {
-        onClose();
-      }, 2000);
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Please upload a valid image file (JPEG, PNG, JPG, GIF)');
+      return;
     }
-  } catch (error) {
-    console.error('❌ Payment error:', error);
-    console.error('❌ Error details:', error.response?.data);
-    toast.error(error.response?.data?.message || 'Failed to create payment. Please try again.');
-  } finally {
-    setIsSubmitting(false);
-  }
-};
 
-  const handleClose = () => {
-    setPaymentMethod('cod');
-    setShowPaymentMethods(false);
-    onClose();
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('File size should be less than 2MB');
+      return;
+    }
+
+    setUploadedFile(file);
+    setValue('gcash_receipt_image', file);
+    
+    // Create preview URL
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
   };
 
-  // Get selected payment method
-  const selectedPaymentMethod = paymentMethods.find(method => method.value === paymentMethod);
+  // Remove uploaded file
+  const removeFile = () => {
+    setUploadedFile(null);
+    setValue('gcash_receipt_image', null);
+    setPreviewUrl('');
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+  };
+
+  // Handle payment method selection
+  const handleMethodSelect = (method) => {
+    setSelectedMethod(method);
+    setValue('payment_method', method, { shouldValidate: true });
+    
+    if (method === 'cod') {
+      toast.success('COD selected! Payment will be collected upon delivery.');
+    }
+  };
+
+  // Handle form submission
+  const onSubmit = async (data) => {
+    if (!booking) return;
+
+    setIsSubmitting(true);
+    
+    try {
+      const paymentData = {
+        booking_id: booking.id,
+        payment_method: data.payment_method,
+        amount: parseFloat(data.amount),
+        reference_number: data.reference_number || '',
+      };
+
+      // Add file if GCash
+      if (data.payment_method === 'gcash' && data.gcash_receipt_image) {
+        paymentData.gcash_receipt_image = data.gcash_receipt_image;
+      }
+
+      console.log('Submitting payment:', paymentData);
+
+      // Call the mutation
+      if (onCreatePayment) {
+        const result = await onCreatePayment(paymentData);
+        
+        if (result) {
+          toast.success(
+            data.payment_method === 'cod' 
+              ? 'COD payment recorded! Payment will be collected upon delivery.' 
+              : 'Payment submitted successfully! Please wait for admin verification.',
+            {
+              duration: 5000,
+              icon: '✅'
+            }
+          );
+          
+          if (onPaymentSuccess) {
+            onPaymentSuccess();
+          }
+          
+          onClose();
+        }
+      } else {
+        toast.error('Payment submission function not available');
+      }
+    } catch (error) {
+      console.error('Payment submission error:', error);
+      toast.error(
+        error.response?.data?.message || 
+        'Failed to submit payment. Please try again.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (!isOpen || !booking) return null;
 
+  const ar = booking.accounts_receivable;
+  const collectibleAmount = ar?.collectible_amount || 0;
+  const bookingNumber = booking.booking_number || 'N/A';
+
   return (
-    <SharedModal 
-      isOpen={isOpen} 
-      onClose={handleClose} 
-      title="Make Payment" 
-      size="sm"
-    >
-      <div className="max-h-[80vh] overflow-y-auto space-y-4">
-        {/* Booking Summary - Matching SendTotalPayment style */}
-        <div className="bg-main border border-main rounded-lg p-3">
-          <h3 className="text-base font-semibold text-heading mb-2">Booking Details</h3>
-          <div className="flex items-center gap-2 mb-2">
-            <Package className="w-3 h-3 text-blue-600" />
-            <span className="font-medium text-heading text-sm uppercase">Booking #{booking.booking_number}</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div>
-              <span className="font-medium text-muted">Customer:</span>
-              <p className="text-heading">{booking.first_name} {booking.last_name}</p>
-            </div>
-            <div>
-              <span className="font-medium text-muted">Route:</span>
-              <p className="text-heading">
-                {booking.origin?.route_name || booking.origin?.name} → {booking.destination?.route_name || booking.destination?.name}
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        {/* Background overlay */}
+        <div 
+          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
+          onClick={onClose}
+        />
+
+        {/* Modal container */}
+        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            {/* Header */}
+            <div className="mb-6">
+              <h3 className="text-lg leading-6 font-bold text-gray-900">
+                Make Payment
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Booking #{bookingNumber}
               </p>
             </div>
-          </div>
-        </div>
 
-        {/* Financial Summary - Matching SendTotalPayment style */}
-        <div className="bg-main border border-main rounded-lg p-3 space-y-3">
-          <h3 className="text-base font-semibold text-heading">Financial Summary</h3>
-          
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between items-center border-b border-main pb-2">
-              <div className="flex items-center gap-2">
-                <Calculator className="w-4 h-4 text-heading" />
-                <span className="text-muted">Total Amount:</span>
+            {/* Amount Due */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm text-blue-700 font-medium">Total Amount Due</p>
+                  <p className="text-2xl font-bold text-blue-900">
+                    {formatCurrency(collectibleAmount)}
+                  </p>
+                </div>
+                <CreditCard className="w-10 h-10 text-blue-500" />
               </div>
-              <span className="font-semibold text-heading">{formatCurrency(totalPayment)}</span>
             </div>
-            
-            <div className="flex justify-between items-center border-b border-main pb-2">
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-heading" />
-                <span className="text-muted">Amount Due:</span>
-              </div>
-              <span className={`font-bold text-lg ${isFullyPaid ? 'text-green-600' : 'text-orange-600'}`}>
-                {formatCurrency(actualAmountDue)}
-              </span>
-            </div>
-          </div>
 
-          {/* Already Paid Notice */}
-          {isFullyPaid && (
-            <div className="bg-green-50 border border-green-200 rounded p-3 mt-2">
-              <div className="flex items-center gap-2 text-green-800">
-                <CheckCircle className="w-4 h-4" />
-                <span className="font-medium text-sm">This booking is fully paid!</span>
-              </div>
-              <p className="text-xs text-green-700 mt-1">
-                No payment is required at this time.
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Payment Method Selection - Only show if not fully paid */}
-        {!isFullyPaid && (
-          <>
-            <div className="space-y-3">
-              <h3 className="text-base font-semibold text-heading">Payment Method</h3>
-              
-              {/* Payment Method Selector */}
-              <div className="bg-surface border border-surface rounded-lg p-3">
-                <button
-                  type="button"
-                  onClick={() => setShowPaymentMethods(!showPaymentMethods)}
-                  className="w-full flex items-center justify-between p-3
-                  bg-surface border border-surface rounded-lg hover:border-gray-400
-                  transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    {selectedPaymentMethod && (
-                      <>
-                        <selectedPaymentMethod.icon className={`w-5 h-5 ${selectedPaymentMethod.color}`} />
-                        <div className="text-left">
-                          <div className="font-medium text-heading">{selectedPaymentMethod.label}</div>
-                          <div className="text-xs text-content">{selectedPaymentMethod.description}</div>
-                          <div className="text-xs font-medium text-blue-600 mt-1">
-                            {selectedPaymentMethod.badge}
-                          </div>
+            <form onSubmit={handleSubmit(onSubmit)}>
+              {/* Payment Method Selection */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Select Payment Method
+                </label>
+                <div className="grid grid-cols-1 gap-3">
+                  {/* COD Option */}
+                  <button
+                    type="button"
+                    onClick={() => handleMethodSelect('cod')}
+                    className={`flex items-center justify-between p-4 border rounded-lg transition-all ${
+                      selectedMethod === 'cod'
+                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-100'
+                        : 'border-gray-300 hover:border-blue-300 hover:bg-blue-50'
+                    }`}
+                  >
+                    <div className="flex items-center">
+                      <div className={`p-2 rounded-lg mr-3 ${
+                        selectedMethod === 'cod' ? 'bg-blue-100' : 'bg-gray-100'
+                      }`}>
+                        <Truck className="w-5 h-5 text-gray-700" />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-medium text-gray-900">Cash on Delivery</div>
+                        <div className="text-sm text-gray-500">
+                          Pay when your shipment arrives
                         </div>
-                      </>
+                      </div>
+                    </div>
+                    {selectedMethod === 'cod' && (
+                      <CheckCircle className="w-5 h-5 text-blue-500" />
                     )}
-                  </div>
-                  {showPaymentMethods ? (
-                    <ChevronUp className="w-4 h-4 text-muted" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-muted" />
-                  )}
-                </button>
+                  </button>
 
-                {/* Payment Methods Dropdown */}
-                {showPaymentMethods && (
-                  <div className="mt-3 space-y-2">
-                    {paymentMethods.map((method) => (
-                      <button
-                        key={method.value}
-                        type="button"
-                        onClick={() => {
-                          setPaymentMethod(method.value);
-                          setShowPaymentMethods(false);
-                        }}
-                        className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors ${
-                          paymentMethod === method.value
-                            ? 'border-blue-200 bg-blue-50'
-                            : 'border-surface bg-surface hover:border-blue-200'
-                        }`}
-                      >
-                        <method.icon className={`w-5 h-5 ${method.color}`} />
-                        <div className="text-left flex-1">
-                          <div className="font-medium text-heading">{method.label}</div>
-                          <div className="text-xs text-content">{method.description}</div>
-                          <div className="text-xs font-medium text-blue-600 mt-1">
-                            {method.badge}
-                          </div>
+                  {/* GCash Option */}
+                  <button
+                    type="button"
+                    onClick={() => handleMethodSelect('gcash')}
+                    className={`flex items-center justify-between p-4 border rounded-lg transition-all ${
+                      selectedMethod === 'gcash'
+                        ? 'border-green-500 bg-green-50 ring-2 ring-green-100'
+                        : 'border-gray-300 hover:border-green-300 hover:bg-green-50'
+                    }`}
+                  >
+                    <div className="flex items-center">
+                      <div className={`p-2 rounded-lg mr-3 ${
+                        selectedMethod === 'gcash' ? 'bg-green-100' : 'bg-gray-100'
+                      }`}>
+                        <Smartphone className="w-5 h-5 text-gray-700" />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-medium text-gray-900">GCash</div>
+                        <div className="text-sm text-gray-500">
+                          Pay instantly via GCash
                         </div>
-                        {paymentMethod === method.value && (
-                          <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center">
-                            <CheckCircle className="w-3 h-3 text-white" />
-                          </div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
+                      </div>
+                    </div>
+                    {selectedMethod === 'gcash' && (
+                      <CheckCircle className="w-5 h-5 text-green-500" />
+                    )}
+                  </button>
+                </div>
+                {errors.payment_method && (
+                  <p className="mt-2 text-sm text-red-600">{errors.payment_method.message}</p>
                 )}
               </div>
-            </div>
 
-            {/* Payment Instructions based on method */}
-            {paymentMethod === 'cod' ? (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <h4 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
-                  <Truck className="w-4 h-4" />
-                  Cash on Delivery Instructions
-                </h4>
-                <div className="space-y-2 text-xs text-blue-700">
-                  <div className="flex items-start gap-2">
-                    <div className="bg-blue-100 p-1 rounded-full mt-0.5">
-                      <Info className="w-3 h-3 text-blue-600" />
-                    </div>
-                    <span>Your payment of <strong>{formatCurrency(actualAmountDue)}</strong> will be collected when your shipment is delivered.</span>
+              {/* Hidden payment method field */}
+              <input type="hidden" {...register('payment_method')} />
+
+              {/* Amount (editable) */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Payment Amount
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span className="text-gray-500">₱</span>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <div className="bg-blue-100 p-1 rounded-full mt-0.5">
-                      <Lock className="w-3 h-3 text-blue-600" />
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max={collectibleAmount}
+                    className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    {...register('amount', { 
+                      valueAsNumber: true,
+                      onChange: (e) => {
+                        const value = parseFloat(e.target.value);
+                        if (value > collectibleAmount) {
+                          setValue('amount', collectibleAmount);
+                        }
+                      }
+                    })}
+                  />
+                </div>
+                <div className="flex justify-between mt-1">
+                  <p className="text-xs text-gray-500">
+                    Maximum: {formatCurrency(collectibleAmount)}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setValue('amount', collectibleAmount)}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    Pay Full Amount
+                  </button>
+                </div>
+                {errors.amount && (
+                  <p className="mt-1 text-sm text-red-600">{errors.amount.message}</p>
+                )}
+              </div>
+
+              {/* GCash Instructions */}
+              {selectedMethod === 'gcash' && (
+                <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-start mb-3">
+                    <Info className="w-5 h-5 text-green-600 mt-0.5 mr-2 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-medium text-green-800">Payment Instructions</h4>
+                      <p className="text-sm text-green-700 mt-1">
+                        Send payment to the following GCash account:
+                      </p>
                     </div>
-                    <span>No online payment is required now. Please have the exact amount ready for the delivery personnel.</span>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <div className="bg-blue-100 p-1 rounded-full mt-0.5">
-                      <AlertCircle className="w-3 h-3 text-blue-600" />
+
+                  {/* Account Details */}
+                  <div className="bg-white rounded-lg p-3 mb-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center">
+                        <Phone className="w-4 h-4 text-gray-500 mr-2" />
+                        <span className="text-sm font-medium text-gray-700">Account Number:</span>
+                      </div>
+                      <span className="font-mono font-bold text-gray-900">
+                        {paymentInstructions.accountNumber}
+                      </span>
                     </div>
-                    <span>Ensure you're available to receive the shipment and make payment at the delivery address.</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <User className="w-4 h-4 text-gray-500 mr-2" />
+                        <span className="text-sm font-medium text-gray-700">Account Name:</span>
+                      </div>
+                      <span className="font-bold text-gray-900">
+                        {paymentInstructions.accountName}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Steps */}
+                  <div className="space-y-2">
+                    {paymentInstructions.steps.map((step, index) => (
+                      <div key={index} className="flex items-start">
+                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 flex items-center justify-center mr-2 mt-0.5">
+                          <span className="text-xs font-bold text-green-700">{index + 1}</span>
+                        </div>
+                        <p className="text-sm text-gray-700">{step}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-                <h4 className="font-semibold text-purple-800 mb-3 flex items-center gap-2">
-                  <Smartphone className="w-4 h-4" />
-                  How to Pay with GCash
-                </h4>
-                <ol className="space-y-2 text-xs text-purple-700">
-                  <li className="flex items-start gap-2">
-                    <div className="bg-purple-100 text-purple-700 font-bold rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
-                      1
+              )}
+
+              {/* Reference Number (for GCash) */}
+              {selectedMethod === 'gcash' && (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Reference Number (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter GCash reference number"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    {...register('reference_number')}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Found in your GCash transaction receipt
+                  </p>
+                </div>
+              )}
+
+              {/* Receipt Upload (for GCash) */}
+              {selectedMethod === 'gcash' && (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Upload Receipt Screenshot
+                  </label>
+                  
+                  {!uploadedFile ? (
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                      <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                      <p className="text-sm text-gray-600 mb-2">
+                        Drag & drop your receipt screenshot here, or click to browse
+                      </p>
+                      <p className="text-xs text-gray-500 mb-4">
+                        Supports JPG, PNG up to 2MB
+                      </p>
+                      <label className="cursor-pointer">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleFileUpload}
+                        />
+                        <span className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+                          <Upload className="w-4 h-4 mr-2" />
+                          Browse Files
+                        </span>
+                      </label>
                     </div>
-                    <span>You'll be redirected to a <strong>secure Paymongo checkout page</strong> in a new tab.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <div className="bg-purple-100 text-purple-700 font-bold rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
-                      2
+                  ) : (
+                    <div className="border border-gray-300 rounded-lg overflow-hidden">
+                      <div className="bg-gray-50 px-4 py-3 flex justify-between items-center">
+                        <div className="flex items-center">
+                          <Receipt className="w-5 h-5 text-green-500 mr-2" />
+                          <span className="text-sm font-medium text-gray-900">
+                            {uploadedFile.name}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={removeFile}
+                          className="text-red-600 hover:text-red-800 text-sm font-medium"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      {previewUrl && (
+                        <div className="p-4">
+                          <img
+                            src={previewUrl}
+                            alt="Receipt preview"
+                            className="max-h-48 mx-auto rounded-lg border border-gray-200"
+                          />
+                        </div>
+                      )}
                     </div>
-                    <span>Select <strong>GCash</strong> as your payment method on the checkout page.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <div className="bg-purple-100 text-purple-700 font-bold rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
-                      3
-                    </div>
-                    <span>Complete the payment in your <strong>GCash app</strong> when prompted.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <div className="bg-purple-100 text-purple-700 font-bold rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
-                      4
-                    </div>
-                    <span>Return to this page after payment - we'll <strong>automatically update</strong> your payment status.</span>
-                  </li>
-                </ol>
-                <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded p-2 text-xs text-yellow-800">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-3 h-3 text-yellow-600 mt-0.5 flex-shrink-0" />
+                  )}
+                  
+                  {errors.gcash_receipt_image && (
+                    <p className="mt-2 text-sm text-red-600">{errors.gcash_receipt_image.message}</p>
+                  )}
+                </div>
+              )}
+
+              {/* COD Notice */}
+              {selectedMethod === 'cod' && (
+                <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start">
+                    <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
                     <div>
-                      <strong>Important:</strong> 
-                      <ul className="mt-1 space-y-0.5">
-                        <li>• Make sure you have sufficient balance in your GCash account</li>
-                        <li>• Keep the GCash app open for faster payment confirmation</li>
-                        <li>• Payment status updates may take 1-2 minutes</li>
+                      <h4 className="font-medium text-blue-800">Important Notice</h4>
+                      <ul className="text-sm text-blue-700 mt-2 space-y-1">
+                        <li>• Payment will be collected in cash when your shipment arrives</li>
+                        <li>• Please prepare exact amount: {formatCurrency(collectibleAmount)}</li>
+                        <li>• Driver will provide an official receipt upon payment</li>
+                        <li>• Your booking status will update to "Payment Pending"</li>
                       </ul>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <form onSubmit={handleSubmit} className="space-y-3">
-              {/* Security Notice */}
-              <div className="bg-green-50 border border-green-200 rounded-lg p-2">
-                <div className="flex items-start gap-2">
-                  <Shield className="w-3 h-3 text-green-600 mt-0.5 flex-shrink-0" />
-                  <div className="text-xs text-green-700">
-                    <strong>Secure Transaction:</strong> All transactions are processed securely. 
-                    {paymentMethod === 'gcash' && " You'll be redirected to a secure Paymongo checkout page that is PCI-DSS compliant."}
-                    {paymentMethod === 'cod' && " Your payment details are protected and will only be collected upon verified delivery."}
-                  </div>
-                </div>
-              </div>
-
-              {/* Total Payment Summary - Matching SendTotalPayment style */}
-              <div className="bg-main border border-main rounded-lg p-3">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="text-sm font-medium text-heading">Total Payment</div>
-                    <div className="text-xs text-muted">Amount due for booking #{booking.booking_number}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xl font-bold text-heading">{formatCurrency(actualAmountDue)}</div>
-                    <div className="text-xs text-muted">One-time payment</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons - Matching SendTotalPayment style */}
-              <div className="flex justify-end gap-2 pt-3 border-t border-main">
+              {/* Footer */}
+              <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-gray-200">
                 <button
                   type="button"
-                  onClick={handleClose}
-                  className="modal-btn-cancel text-sm py-2 px-3"
+                  onClick={onClose}
                   disabled={isSubmitting}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
+                
                 <button
                   type="submit"
-                  disabled={isSubmitting || isFullyPaid}
-                  className={`text-sm py-2 px-3 font-medium ${
-                    isSubmitting ? 'modal-btn-disabled' : 
-                    paymentMethod === 'cod' 
-                      ? 'modal-btn-primary bg-blue-600 hover:bg-blue-700' 
-                      : 'modal-btn-primary bg-purple-600 hover:bg-purple-700'
-                  }`}
+                  disabled={!isValid || isSubmitting || !selectedMethod}
+                  className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
                   {isSubmitting ? (
                     <>
-                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1" />
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       Processing...
-                    </>
-                  ) : paymentMethod === 'cod' ? (
-                    <>
-                      <Truck className="w-3 h-3 inline mr-1" />
-                      Confirm Cash on Delivery
                     </>
                   ) : (
                     <>
-                      <Smartphone className="w-3 h-3 inline mr-1" />
-                      Pay with GCash
-                      <ExternalLink className="w-3 h-3 inline ml-1" />
+                      {selectedMethod === 'cod' ? 'Confirm COD' : 'Submit Payment'}
                     </>
                   )}
                 </button>
               </div>
             </form>
-          </>
-        )}
-
-        {/* Close Button for Fully Paid Bookings */}
-        {isFullyPaid && (
-          <div className="flex justify-end pt-3 border-t border-main">
-            <button
-              onClick={handleClose}
-              className="modal-btn-cancel text-sm py-2 px-3"
-            >
-              Close
-            </button>
           </div>
-        )}
+        </div>
       </div>
-    </SharedModal>
+    </div>
   );
 };
 

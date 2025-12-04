@@ -8,15 +8,18 @@ import { useBooking } from '../hooks/useBooking';
 import { useAuth } from '../hooks/useAuth';
 import { usePayment } from '../hooks/usePayment';
 import { useAR } from '../hooks/useAR';
-import { useCargoMonitoring } from '../hooks/useCargoMonitoring'; // Add this import
+import { useCargoMonitoring } from '../hooks/useCargoMonitoring';
 import TableLayout from '../components/layout/TableLayout';
 import CustomerBookingsTable from '../components/tables/CustomerBookingsTable';
 import CreateBookingRequest from '../components/modals/CreateBookingRequest';
+import PayBooking from '../components/modals/PayBooking';
 import SearchBar from '../components/ui/SearchBar';
 import Pagination from '../components/ui/Pagination';
 
 const CustomerBookings = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isPayModalOpen, setIsPayModalOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch] = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
@@ -28,7 +31,7 @@ const CustomerBookings = () => {
   const { customerBookingsQuery, createCustomerBooking } = useBooking();
   const { createPaymentForBooking } = usePayment();
   const { paymentBreakdownQuery } = useAR();
-  const { cargoMonitoringByBookingQuery } = useCargoMonitoring(); // Add this
+  const { cargoMonitoringByBookingQuery } = useCargoMonitoring();
 
   const currentUser = userQuery.data?.user;
 
@@ -58,36 +61,6 @@ const CustomerBookings = () => {
     return data;
   }, [cargoMonitoringByBookingQuery]);
 
-  // Handle payment
-  const handlePay = useCallback(async (booking) => {
-    try {
-      const paymentData = {
-        amount: booking.accounts_receivable?.collectible_amount || 0,
-        payment_method: 'gcash',
-        booking_id: booking.id,
-        description: `Payment for booking ${booking.booking_number}`
-      };
-
-      await createPaymentForBooking.mutateAsync({
-        bookingId: booking.id,
-        ...paymentData
-      });
-
-      toast.success('Payment initiated successfully!');
-      handleRefresh();
-    } catch (error) {
-      console.error('Payment error:', error);
-      toast.error(error.response?.data?.message || 'Failed to process payment');
-    }
-  }, [createPaymentForBooking]);
-
-  // Handle download statement
-  const handleDownloadStatement = useCallback((statementData) => {
-    console.log('Download billing statement:', statementData);
-    // Implement PDF generation/download logic here
-    toast.success('Billing statement downloaded');
-  }, []);
-
   // Get charges breakdown for a booking
   const getChargesBreakdown = useCallback((bookingId) => {
     if (!bookingId) return null;
@@ -114,6 +87,38 @@ const CustomerBookings = () => {
       toast.error(error.response?.data?.message || 'Failed to create booking request');
     }
   }, [createCustomerBooking, currentUser]);
+
+  // Handle payment submission
+  const handlePaymentSubmit = async (paymentData) => {
+    try {
+      const result = await createPaymentForBooking.mutateAsync(paymentData);
+      return result;
+    } catch (error) {
+      console.error('Payment submission error:', error);
+      throw error;
+    }
+  };
+
+  // Handle payment success
+  const handlePaymentSuccess = () => {
+    setIsPayModalOpen(false);
+    setSelectedBooking(null);
+    handleRefresh();
+    toast.success('Payment submitted successfully! Please wait for admin verification.');
+  };
+
+  // Handle pay button click from table
+  const handlePayClick = useCallback((booking) => {
+    setSelectedBooking(booking);
+    setIsPayModalOpen(true);
+  }, []);
+
+  // Handle download statement
+  const handleDownloadStatement = useCallback((statementData) => {
+    console.log('Download billing statement:', statementData);
+    // Implement PDF generation/download logic here
+    toast.success('Billing statement downloaded');
+  }, []);
 
   // Refresh data
   const handleRefresh = useCallback(() => {
@@ -201,10 +206,10 @@ const CustomerBookings = () => {
         >
           <CustomerBookingsTable
             data={bookings}
-            onPay={handlePay}
+            onPay={handlePayClick}
             onDownloadStatement={handleDownloadStatement}
             getChargesBreakdown={getChargesBreakdown}
-            getCargoMonitoringData={getCargoMonitoringData} // Add this prop
+            getCargoMonitoringData={getCargoMonitoringData}
             isLoading={isLoading}
           />
         </TableLayout>
@@ -227,6 +232,18 @@ const CustomerBookings = () => {
         onSave={handleCreateBooking}
         isLoading={createCustomerBooking.isPending}
         currentUser={currentUser}
+      />
+
+      {/* Pay Booking Modal */}
+      <PayBooking
+        isOpen={isPayModalOpen}
+        onClose={() => {
+          setIsPayModalOpen(false);
+          setSelectedBooking(null);
+        }}
+        booking={selectedBooking}
+        onPaymentSuccess={handlePaymentSuccess}
+        onCreatePayment={handlePaymentSubmit}
       />
     </div>
   );
