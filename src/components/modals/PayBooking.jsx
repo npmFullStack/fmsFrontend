@@ -1,5 +1,5 @@
 // src/components/modals/PayBooking.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -13,9 +13,10 @@ import {
   Loader2,
   Receipt,
   Phone,
-  MessageSquare,
   Truck,
-  User
+  User,
+  Settings,
+  DollarSign
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatters';
 import toast from 'react-hot-toast';
@@ -33,6 +34,11 @@ const paymentSchema = z.object({
   gcash_receipt_image: z.any().optional(),
 });
 
+const paymentMethodOptions = [
+  { value: 'cod', label: 'Cash on Delivery', description: 'Pay when your shipment arrives' },
+  { value: 'gcash', label: 'GCash', description: 'Pay instantly via GCash' },
+];
+
 const PayBooking = ({ 
   isOpen, 
   onClose, 
@@ -40,7 +46,7 @@ const PayBooking = ({
   onPaymentSuccess,
   onCreatePayment 
 }) => {
-  const [selectedMethod, setSelectedMethod] = useState('');
+  const [showPaymentSetup, setShowPaymentSetup] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,13 +69,14 @@ const PayBooking = ({
     watch,
     setValue,
     reset,
+    trigger,
     formState: { errors, isValid }
   } = useForm({
     resolver: zodResolver(paymentSchema),
     mode: 'onChange',
     defaultValues: {
       payment_method: '',
-      amount: booking?.accounts_receivable?.collectible_amount || 0,
+      amount: 0,
       reference_number: '',
       gcash_receipt_image: null
     }
@@ -78,20 +85,26 @@ const PayBooking = ({
   const paymentMethod = watch('payment_method');
   const amount = watch('amount');
 
+  // Calculate collectible amount
+  const collectibleAmount = useMemo(() => {
+    return booking?.accounts_receivable?.collectible_amount || 0;
+  }, [booking]);
+
   // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen && booking) {
       reset({
         payment_method: '',
-        amount: booking.accounts_receivable?.collectible_amount || 0,
+        amount: collectibleAmount,
         reference_number: '',
         gcash_receipt_image: null
       });
-      setSelectedMethod('');
+      setShowPaymentSetup(false);
       setUploadedFile(null);
       setPreviewUrl('');
+      setIsSubmitting(false);
     }
-  }, [isOpen, booking, reset]);
+  }, [isOpen, booking, reset, collectibleAmount]);
 
   // Handle file upload
   const handleFileUpload = (event) => {
@@ -112,7 +125,7 @@ const PayBooking = ({
     }
 
     setUploadedFile(file);
-    setValue('gcash_receipt_image', file);
+    setValue('gcash_receipt_image', file, { shouldValidate: true });
     
     // Create preview URL
     const url = URL.createObjectURL(file);
@@ -131,11 +144,13 @@ const PayBooking = ({
 
   // Handle payment method selection
   const handleMethodSelect = (method) => {
-    setSelectedMethod(method);
     setValue('payment_method', method, { shouldValidate: true });
+    setShowPaymentSetup(false);
     
     if (method === 'cod') {
       toast.success('COD selected! Payment will be collected upon delivery.');
+    } else if (method === 'gcash') {
+      toast.success('GCash selected! Please upload your receipt.');
     }
   };
 
@@ -198,7 +213,6 @@ const PayBooking = ({
   if (!isOpen || !booking) return null;
 
   const ar = booking.accounts_receivable;
-  const collectibleAmount = ar?.collectible_amount || 0;
   const bookingNumber = booking.booking_number || 'N/A';
 
   return (
@@ -210,7 +224,7 @@ const PayBooking = ({
           onClick={onClose}
         />
 
-        {/* Modal container */}
+        {/* Modal container - Matching AddCharge size */}
         <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
           <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             {/* Header */}
@@ -223,82 +237,117 @@ const PayBooking = ({
               </p>
             </div>
 
-            {/* Amount Due */}
+            {/* Amount Due - Fixed Amount Display (non-editable) */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <div className="flex justify-between items-center">
                 <div>
                   <p className="text-sm text-blue-700 font-medium">Total Amount Due</p>
-                  <p className="text-2xl font-bold text-blue-900">
-                    {formatCurrency(collectibleAmount)}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-blue-500" />
+                    <p className="text-2xl font-bold text-blue-900">
+                      {formatCurrency(collectibleAmount)}
+                    </p>
+                  </div>
                 </div>
-                <CreditCard className="w-10 h-10 text-blue-500" />
+                <div className="text-right">
+                  <div className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                    Fixed Amount
+                  </div>
+                  <p className="text-xs text-blue-500 mt-1">Cannot be edited</p>
+                </div>
               </div>
+              <input type="hidden" value={collectibleAmount} {...register('amount', { valueAsNumber: true })} />
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)}>
-              {/* Payment Method Selection */}
+              {/* Payment Method Selection - Matching AddCharge styling */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Select Payment Method
-                </label>
-                <div className="grid grid-cols-1 gap-3">
-                  {/* COD Option */}
+                <div className="flex justify-between items-center mb-3">
+                  <label className="modal-label text-heading">Payment Method</label>
                   <button
                     type="button"
-                    onClick={() => handleMethodSelect('cod')}
-                    className={`flex items-center justify-between p-4 border rounded-lg transition-all ${
-                      selectedMethod === 'cod'
-                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-100'
-                        : 'border-gray-300 hover:border-blue-300 hover:bg-blue-50'
-                    }`}
+                    onClick={() => setShowPaymentSetup(!showPaymentSetup)}
+                    className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium"
                   >
-                    <div className="flex items-center">
-                      <div className={`p-2 rounded-lg mr-3 ${
-                        selectedMethod === 'cod' ? 'bg-blue-100' : 'bg-gray-100'
-                      }`}>
-                        <Truck className="w-5 h-5 text-gray-700" />
-                      </div>
-                      <div className="text-left">
-                        <div className="font-medium text-gray-900">Cash on Delivery</div>
-                        <div className="text-sm text-gray-500">
-                          Pay when your shipment arrives
-                        </div>
-                      </div>
-                    </div>
-                    {selectedMethod === 'cod' && (
-                      <CheckCircle className="w-5 h-5 text-blue-500" />
-                    )}
-                  </button>
-
-                  {/* GCash Option */}
-                  <button
-                    type="button"
-                    onClick={() => handleMethodSelect('gcash')}
-                    className={`flex items-center justify-between p-4 border rounded-lg transition-all ${
-                      selectedMethod === 'gcash'
-                        ? 'border-green-500 bg-green-50 ring-2 ring-green-100'
-                        : 'border-gray-300 hover:border-green-300 hover:bg-green-50'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <div className={`p-2 rounded-lg mr-3 ${
-                        selectedMethod === 'gcash' ? 'bg-green-100' : 'bg-gray-100'
-                      }`}>
-                        <Smartphone className="w-5 h-5 text-gray-700" />
-                      </div>
-                      <div className="text-left">
-                        <div className="font-medium text-gray-900">GCash</div>
-                        <div className="text-sm text-gray-500">
-                          Pay instantly via GCash
-                        </div>
-                      </div>
-                    </div>
-                    {selectedMethod === 'gcash' && (
-                      <CheckCircle className="w-5 h-5 text-green-500" />
-                    )}
+                    <Settings className="w-4 h-4" />
+                    {showPaymentSetup ? 'Hide Options' : 'Setup'}
                   </button>
                 </div>
+
+                {!paymentMethod ? (
+                  <div className="border border-dashed border-gray-300 rounded-lg p-4 text-center">
+                    <CreditCard className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600">No payment method selected</p>
+                    <p className="text-xs text-gray-500 mt-1">Click "Setup" to choose a method</p>
+                  </div>
+                ) : (
+                  <div className={`border rounded-lg p-4 transition-all ${
+                    paymentMethod === 'cod' 
+                      ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-100' 
+                      : 'border-blue-500 bg-blue-50 ring-2 ring-blue-100'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className={`p-2 rounded-lg mr-3 ${
+                          paymentMethod === 'cod' ? 'bg-blue-100' : 'bg-blue-100'
+                        }`}>
+                          {paymentMethod === 'cod' ? (
+                            <Truck className="w-5 h-5 text-blue-600" />
+                          ) : (
+                            <Smartphone className="w-5 h-5 text-blue-600" />
+                          )}
+                        </div>
+                        <div className="text-left">
+                          <div className="font-medium text-gray-900">
+                            {paymentMethod === 'cod' ? 'Cash on Delivery' : 'GCash'}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {paymentMethod === 'cod' 
+                              ? 'Pay when your shipment arrives' 
+                              : 'Pay instantly via GCash'}
+                          </div>
+                        </div>
+                      </div>
+                      <CheckCircle className="w-5 h-5 text-blue-500" />
+                    </div>
+                  </div>
+                )}
+                
+                {showPaymentSetup && (
+                  <div className="mt-3 space-y-2">
+                    {paymentMethodOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => handleMethodSelect(option.value)}
+                        className={`w-full text-left p-3 border rounded-lg transition-all flex items-center justify-between ${
+                          paymentMethod === option.value
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-300 hover:border-blue-300 hover:bg-blue-50'
+                        }`}
+                      >
+                        <div className="flex items-center">
+                          <div className={`p-2 rounded-lg mr-3 ${
+                            paymentMethod === option.value ? 'bg-blue-100' : 'bg-gray-100'
+                          }`}>
+                            {option.value === 'cod' ? (
+                              <Truck className="w-4 h-4 text-gray-700" />
+                            ) : (
+                              <Smartphone className="w-4 h-4 text-gray-700" />
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">{option.label}</div>
+                            <div className="text-xs text-gray-500">{option.description}</div>
+                          </div>
+                        </div>
+                        {paymentMethod === option.value && (
+                          <CheckCircle className="w-4 h-4 text-blue-500" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {errors.payment_method && (
                   <p className="mt-2 text-sm text-red-600">{errors.payment_method.message}</p>
                 )}
@@ -307,57 +356,14 @@ const PayBooking = ({
               {/* Hidden payment method field */}
               <input type="hidden" {...register('payment_method')} />
 
-              {/* Amount (editable) */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Payment Amount
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500">₱</span>
-                  </div>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={collectibleAmount}
-                    className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    {...register('amount', { 
-                      valueAsNumber: true,
-                      onChange: (e) => {
-                        const value = parseFloat(e.target.value);
-                        if (value > collectibleAmount) {
-                          setValue('amount', collectibleAmount);
-                        }
-                      }
-                    })}
-                  />
-                </div>
-                <div className="flex justify-between mt-1">
-                  <p className="text-xs text-gray-500">
-                    Maximum: {formatCurrency(collectibleAmount)}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setValue('amount', collectibleAmount)}
-                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                  >
-                    Pay Full Amount
-                  </button>
-                </div>
-                {errors.amount && (
-                  <p className="mt-1 text-sm text-red-600">{errors.amount.message}</p>
-                )}
-              </div>
-
               {/* GCash Instructions */}
-              {selectedMethod === 'gcash' && (
-                <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+              {paymentMethod === 'gcash' && (
+                <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-start mb-3">
-                    <Info className="w-5 h-5 text-green-600 mt-0.5 mr-2 flex-shrink-0" />
+                    <Info className="w-5 h-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
                     <div>
-                      <h4 className="font-medium text-green-800">Payment Instructions</h4>
-                      <p className="text-sm text-green-700 mt-1">
+                      <h4 className="font-medium text-blue-800">Payment Instructions</h4>
+                      <p className="text-sm text-blue-700 mt-1">
                         Send payment to the following GCash account:
                       </p>
                     </div>
@@ -389,8 +395,8 @@ const PayBooking = ({
                   <div className="space-y-2">
                     {paymentInstructions.steps.map((step, index) => (
                       <div key={index} className="flex items-start">
-                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 flex items-center justify-center mr-2 mt-0.5">
-                          <span className="text-xs font-bold text-green-700">{index + 1}</span>
+                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center mr-2 mt-0.5">
+                          <span className="text-xs font-bold text-blue-700">{index + 1}</span>
                         </div>
                         <p className="text-sm text-gray-700">{step}</p>
                       </div>
@@ -400,15 +406,13 @@ const PayBooking = ({
               )}
 
               {/* Reference Number (for GCash) */}
-              {selectedMethod === 'gcash' && (
+              {paymentMethod === 'gcash' && (
                 <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Reference Number (Optional)
-                  </label>
+                  <label className="modal-label text-heading">Reference Number (Optional)</label>
                   <input
                     type="text"
                     placeholder="Enter GCash reference number"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="modal-input"
                     {...register('reference_number')}
                   />
                   <p className="mt-1 text-xs text-gray-500">
@@ -418,11 +422,9 @@ const PayBooking = ({
               )}
 
               {/* Receipt Upload (for GCash) */}
-              {selectedMethod === 'gcash' && (
+              {paymentMethod === 'gcash' && (
                 <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Upload Receipt Screenshot
-                  </label>
+                  <label className="modal-label text-heading">Upload Receipt Screenshot</label>
                   
                   {!uploadedFile ? (
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
@@ -450,7 +452,7 @@ const PayBooking = ({
                     <div className="border border-gray-300 rounded-lg overflow-hidden">
                       <div className="bg-gray-50 px-4 py-3 flex justify-between items-center">
                         <div className="flex items-center">
-                          <Receipt className="w-5 h-5 text-green-500 mr-2" />
+                          <Receipt className="w-5 h-5 text-blue-500 mr-2" />
                           <span className="text-sm font-medium text-gray-900">
                             {uploadedFile.name}
                           </span>
@@ -482,7 +484,7 @@ const PayBooking = ({
               )}
 
               {/* COD Notice */}
-              {selectedMethod === 'cod' && (
+              {paymentMethod === 'cod' && (
                 <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-start">
                     <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
@@ -499,21 +501,21 @@ const PayBooking = ({
                 </div>
               )}
 
-              {/* Footer */}
-              <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-gray-200">
+              {/* Footer - Matching AddCharge buttons */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-main mt-6">
                 <button
                   type="button"
                   onClick={onClose}
                   disabled={isSubmitting}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  className="modal-btn-cancel"
                 >
                   Cancel
                 </button>
                 
                 <button
                   type="submit"
-                  disabled={!isValid || isSubmitting || !selectedMethod}
-                  className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  disabled={!isValid || isSubmitting || !paymentMethod}
+                  className={`modal-btn-primary ${(!isValid || isSubmitting || !paymentMethod) ? 'modal-btn-disabled' : ''}`}
                 >
                   {isSubmitting ? (
                     <>
@@ -522,7 +524,7 @@ const PayBooking = ({
                     </>
                   ) : (
                     <>
-                      {selectedMethod === 'cod' ? 'Confirm COD' : 'Submit Payment'}
+                      {paymentMethod === 'cod' ? 'Confirm COD' : 'Submit Payment'}
                     </>
                   )}
                 </button>
