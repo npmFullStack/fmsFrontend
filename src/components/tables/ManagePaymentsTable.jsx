@@ -1,5 +1,5 @@
 // src/components/tables/ManagePaymentsTable.jsx
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { 
   CreditCard, 
   Smartphone, 
@@ -7,26 +7,27 @@ import {
   CheckCircle, 
   XCircle,
   Clock,
-  AlertCircle,
   User,
   Receipt,
   DollarSign,
-  ShieldCheck
+  X,
+  Download,
+  AlertCircle
 } from 'lucide-react';
-import { formatCurrency, formatDate, toUpperCase } from '../../utils/formatters';
+import { formatCurrency } from '../../utils/formatters';
 import toast from 'react-hot-toast';
 
 const ManagePaymentsTable = ({ 
   data = [], 
   onVerify,
-  onViewDetails,
   isLoading = false 
 }) => {
   const [verifyingPayment, setVerifyingPayment] = useState(null);
   const [receiptModalOpen, setReceiptModalOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState(null);
+  const [imageError, setImageError] = useState(false);
 
-  // Payment status configuration - Updated for "Paid/Not Paid"
+  // Payment status configuration
   const getStatusConfig = (status) => {
     const config = {
       pending: {
@@ -35,7 +36,6 @@ const ManagePaymentsTable = ({
         bgColor: 'bg-yellow-100',
         textColor: 'text-yellow-800',
         borderColor: 'border-yellow-300',
-        badgeColor: 'bg-yellow-500'
       },
       verified: {
         text: 'Paid',
@@ -43,7 +43,6 @@ const ManagePaymentsTable = ({
         bgColor: 'bg-green-100',
         textColor: 'text-green-800',
         borderColor: 'border-green-300',
-        badgeColor: 'bg-green-500'
       },
       approved: {
         text: 'Paid',
@@ -51,7 +50,6 @@ const ManagePaymentsTable = ({
         bgColor: 'bg-green-100',
         textColor: 'text-green-800',
         borderColor: 'border-green-300',
-        badgeColor: 'bg-green-500'
       },
       rejected: {
         text: 'Not Paid',
@@ -59,13 +57,12 @@ const ManagePaymentsTable = ({
         bgColor: 'bg-red-100',
         textColor: 'text-red-800',
         borderColor: 'border-red-300',
-        badgeColor: 'bg-red-500'
       }
     };
     return config[status] || config.pending;
   };
 
-  // Payment method configuration - Updated for blue color
+  // Payment method configuration
   const getMethodConfig = (method) => {
     const config = {
       cod: {
@@ -86,7 +83,7 @@ const ManagePaymentsTable = ({
     return config[method] || config.cod;
   };
 
-  // Handle verify payment (Mark as Paid/Not Paid)
+  // Handle verify payment
   const handleMarkAsPaid = async (paymentId, action) => {
     if (!onVerify) return;
     
@@ -102,12 +99,51 @@ const ManagePaymentsTable = ({
     }
   };
 
+  // Get receipt URL - FIXED with proper Laravel storage URL
+  const getReceiptUrl = (payment) => {
+  if (!payment.gcash_receipt_image) return null;
+  
+  if (payment.gcash_receipt_image.startsWith('http')) {
+    console.log('Full URL already provided:', payment.gcash_receipt_image);
+    return payment.gcash_receipt_image;
+  }
+  
+  const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  console.log('Base URL:', baseUrl);
+  console.log('Original image path from API:', payment.gcash_receipt_image);
+  
+  let imagePath = payment.gcash_receipt_image;
+  
+  // Handle different path formats
+  if (imagePath.startsWith('public/')) {
+    imagePath = imagePath.substring(7);
+    console.log('After removing "public/":', imagePath);
+  }
+  
+  // Remove leading slash if present
+  if (imagePath.startsWith('/')) {
+    imagePath = imagePath.substring(1);
+    console.log('After removing leading slash:', imagePath);
+  }
+  
+  const fullUrl = `${baseUrl}/storage/${imagePath}`;
+  console.log('Final constructed URL:', fullUrl);
+  
+  return fullUrl;
+};
+
   // View receipt image in modal
-  const handleViewReceipt = (imageUrl, paymentMethod) => {
-    if (paymentMethod === 'gcash' && imageUrl) {
-      const fullUrl = `${process.env.REACT_APP_API_URL}/storage/${imageUrl}`;
-      setSelectedReceipt(fullUrl);
+  const handleViewReceipt = (payment) => {
+    const receiptUrl = getReceiptUrl(payment);
+    
+    if (payment.payment_method === 'gcash' && receiptUrl) {
+      setSelectedReceipt({
+        url: receiptUrl,
+        paymentId: payment.id,
+        bookingNumber: payment.booking?.booking_number || 'N/A'
+      });
       setReceiptModalOpen(true);
+      setImageError(false); // Reset error state
     } else {
       toast.error('No receipt available for this payment method');
     }
@@ -117,67 +153,138 @@ const ManagePaymentsTable = ({
   const closeReceiptModal = () => {
     setReceiptModalOpen(false);
     setSelectedReceipt(null);
+    setImageError(false);
   };
 
-  // View payment details
-  const handleViewDetails = (payment) => {
-    if (onViewDetails) {
-      onViewDetails(payment);
+  // Handle image error
+  const handleImageError = () => {
+    setImageError(true);
+    console.error('Failed to load image:', selectedReceipt?.url);
+    
+    // Test the URL
+    if (selectedReceipt?.url) {
+      fetch(selectedReceipt.url, { method: 'HEAD' })
+        .then(response => {
+          console.log('Image URL status:', response.status, response.ok);
+          if (!response.ok) {
+            toast.error(`Image not found (${response.status}). Check storage link.`);
+          }
+        })
+        .catch(err => {
+          console.error('Image fetch error:', err);
+          toast.error('Cannot access image. Check CORS and permissions.');
+        });
     }
   };
 
-  if (isLoading) return (
-    <div className="flex justify-center items-center py-12">
-      <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
+  // Loading state
+  if (isLoading && data.length === 0) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
-  if (data.length === 0) return (
-    <div className="text-center py-12 text-gray-500">
-      <DollarSign className="w-16 h-16 mx-auto mb-4 opacity-50" />
-      <p className="text-lg font-medium">No payments found</p>
-      <p className="text-sm">All payment records will appear here.</p>
-    </div>
-  );
+  // Empty state
+  if (data.length === 0) {
+    return (
+      <div className="text-center py-12 text-gray-500">
+        <DollarSign className="w-16 h-16 mx-auto mb-4 opacity-50" />
+        <p className="text-lg font-medium">No payments found</p>
+        <p className="text-sm">All payment records will appear here.</p>
+      </div>
+    );
+  }
 
   return (
     <>
       {/* Receipt Modal */}
       {receiptModalOpen && selectedReceipt && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div 
-              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
-              onClick={closeReceiptModal}
-            />
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg leading-6 font-bold text-gray-900">
-                    GCash Receipt
-                  </h3>
-                  <button
-                    onClick={closeReceiptModal}
-                    className="text-gray-400 hover:text-gray-500"
-                  >
-                    <XCircle className="w-6 h-6" />
-                  </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-70 transition-opacity"
+            onClick={closeReceiptModal}
+          />
+          
+          {/* Modal Content */}
+          <div className="relative bg-surface rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden border border-main">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-main bg-main">
+              <div>
+                <h3 className="text-lg font-bold text-heading">
+                  GCash Receipt
+                </h3>
+                <p className="text-sm text-muted">
+                  Payment #{selectedReceipt.paymentId} • Booking #{selectedReceipt.bookingNumber}
+                </p>
+              </div>
+              <button
+                onClick={closeReceiptModal}
+                className="text-muted hover:text-heading transition-colors p-1"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            {/* Modal Body */}
+            <div className="p-4">
+              {imageError ? (
+                <div className="flex flex-col items-center justify-center bg-main rounded-lg p-8 mb-4">
+                  <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
+                  <p className="text-heading font-medium mb-2">Failed to load receipt image</p>
+                  <p className="text-muted text-sm mb-4 text-center">
+                    The image could not be loaded. This could be due to:
+                  </p>
+                  <div className="text-left text-sm text-muted space-y-2">
+                    <p>• The file doesn't exist in storage</p>
+                    <p>• Storage link not created (run: php artisan storage:link)</p>
+                    <p>• File permission issues</p>
+                  </div>
+                  <div className="mt-4 p-3 bg-black/20 rounded text-xs">
+                    <p className="font-mono break-all">{selectedReceipt.url}</p>
+                  </div>
                 </div>
-                <div className="flex justify-center">
+              ) : (
+                <div className="flex justify-center bg-main rounded-lg p-4 mb-4">
                   <img
-                    src={selectedReceipt}
+                    src={selectedReceipt.url}
                     alt="GCash Receipt"
-                    className="max-w-full max-h-[70vh] object-contain rounded-lg border border-gray-200"
+                    className="max-w-full max-h-[60vh] object-contain rounded"
+                    onError={handleImageError}
+                    onLoad={() => console.log('Image loaded successfully:', selectedReceipt.url)}
                   />
                 </div>
-                <div className="mt-4 text-center">
-                  <button
-                    onClick={() => window.open(selectedReceipt, '_blank')}
-                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                  >
-                    Open in new tab
-                  </button>
-                </div>
+              )}
+              
+              {/* Action Buttons */}
+              <div className="flex justify-center gap-3">
+                <button
+                  onClick={() => {
+                    window.open(selectedReceipt.url, '_blank', 'noopener,noreferrer');
+                    toast.success('Opening receipt in new tab');
+                  }}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors border border-blue-700"
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  Open in New Tab
+                </button>
+                <button
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = selectedReceipt.url;
+                    link.download = `receipt_${selectedReceipt.paymentId}.jpg`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    toast.success('Receipt download started');
+                  }}
+                  className="inline-flex items-center px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors border border-gray-800"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download
+                </button>
               </div>
             </div>
           </div>
@@ -190,10 +297,10 @@ const ManagePaymentsTable = ({
           <thead className="bg-main">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">
-                Payment ID
+                Booking Number
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">
-                Booking & Client
+                Client
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">
                 Amount & Method
@@ -213,35 +320,22 @@ const ManagePaymentsTable = ({
               
               return (
                 <tr key={payment.id} className="hover:bg-main transition-colors">
-                  {/* Payment ID Column - Removed Date */}
+                  {/* Booking Number Column */}
                   <td className="px-4 py-3">
-                    <div className="font-mono text-xs font-bold text-heading">
-                      #{payment.id}
+                    <div className="font-bold text-blue-600 text-sm">
+                      #{payment.booking?.booking_number || 'N/A'}
                     </div>
                   </td>
 
-                  {/* Booking & Client Column */}
+                  {/* Client Column */}
                   <td className="px-4 py-3">
-                    <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-muted" />
                       <div>
-                        <div className="text-xs text-muted uppercase font-semibold mb-1">
-                          Booking
+                        <div className="font-medium text-heading text-sm">
+                          {payment.user?.first_name} {payment.user?.last_name}
                         </div>
-                        <div className="font-bold text-blue-600 text-xs">
-                          {payment.booking?.booking_number || 'N/A'}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-muted uppercase font-semibold mb-1">
-                          Client
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <User className="w-3 h-3 text-muted" />
-                          <span className="font-medium text-heading text-xs">
-                            {payment.user?.first_name} {payment.user?.last_name}
-                          </span>
-                        </div>
-                        <div className="text-xs text-muted mt-1 truncate max-w-[150px]">
+                        <div className="text-xs text-muted truncate max-w-[150px]">
                           {payment.user?.email}
                         </div>
                       </div>
@@ -251,36 +345,15 @@ const ManagePaymentsTable = ({
                   {/* Amount & Method Column */}
                   <td className="px-4 py-3">
                     <div className="space-y-2">
-                      <div>
-                        <div className="text-xs text-muted uppercase font-semibold mb-1">
-                          Amount Paid
-                        </div>
-                        <div className="text-sm font-bold text-heading">
-                          {formatCurrency(payment.amount)}
-                        </div>
+                      <div className="text-sm font-bold text-heading">
+                        {formatCurrency(payment.amount)}
                       </div>
-                      <div>
-                        <div className="text-xs text-muted uppercase font-semibold mb-1">
-                          Method
-                        </div>
-                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded border ${methodConfig.bgColor} ${methodConfig.borderColor}`}>
-                          {methodConfig.icon}
-                          <span className={`text-xs font-medium ${methodConfig.textColor}`}>
-                            {methodConfig.text}
-                          </span>
-                        </div>
+                      <div className={`inline-flex items-center gap-1 px-2 py-1 rounded border ${methodConfig.bgColor} ${methodConfig.borderColor}`}>
+                        {methodConfig.icon}
+                        <span className={`text-xs font-medium ${methodConfig.textColor}`}>
+                          {methodConfig.text}
+                        </span>
                       </div>
-                      {payment.payment_method === 'gcash' && payment.gcash_receipt_image && (
-                        <div>
-                          <button
-                            onClick={() => handleViewReceipt(payment.gcash_receipt_image, payment.payment_method)}
-                            className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors text-xs"
-                          >
-                            <Eye className="w-3 h-3" />
-                            <span className="font-medium">View Receipt</span>
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </td>
 
@@ -292,18 +365,23 @@ const ManagePaymentsTable = ({
                         {statusConfig.text}
                       </span>
                     </div>
-                    {payment.admin_notes && (
-                      <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-muted">
-                        <div className="font-semibold">Notes:</div>
-                        <div className="mt-1 truncate max-w-[200px]">{payment.admin_notes}</div>
-                      </div>
-                    )}
                   </td>
 
-                  {/* Actions Column - Updated for Paid/Not Paid */}
+                  {/* Actions Column */}
                   <td className="px-4 py-3">
                     <div className="flex flex-col gap-1">
-                      {/* Paid Button - Show for pending/rejected */}
+                      {/* View Receipt Button for GCash */}
+                      {payment.payment_method === 'gcash' && payment.gcash_receipt_image && (
+                        <button
+                          onClick={() => handleViewReceipt(payment)}
+                          className="flex items-center justify-center gap-1 px-2 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"
+                        >
+                          <Eye className="w-3 h-3" />
+                          <span className="font-medium">View Receipt</span>
+                        </button>
+                      )}
+                      
+                      {/* Paid Button */}
                       {(payment.status === 'pending' || payment.status === 'rejected') && (
                         <button
                           onClick={() => handleMarkAsPaid(payment.id, 'approve')}
@@ -321,7 +399,7 @@ const ManagePaymentsTable = ({
                         </button>
                       )}
                       
-                      {/* Not Paid Button - Show for verified/approved */}
+                      {/* Not Paid Button */}
                       {(payment.status === 'verified' || payment.status === 'approved') && (
                         <button
                           onClick={() => handleMarkAsPaid(payment.id, 'reject')}
