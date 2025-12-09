@@ -83,21 +83,21 @@ const ManagePaymentsTable = ({
     return config[method] || config.cod;
   };
 
-  // Handle verify payment
-  const handleMarkAsPaid = async (paymentId, action) => {
-    if (!onVerify) return;
-    
-    setVerifyingPayment(paymentId);
-    try {
-      await onVerify(paymentId, action);
-      toast.success(`Payment marked as ${action === 'approve' ? 'Paid' : 'Not Paid'} successfully`);
-    } catch (error) {
-      console.error('Payment verification error:', error);
-      toast.error(error.response?.data?.message || `Failed to update payment status`);
-    } finally {
-      setTimeout(() => setVerifyingPayment(null), 500);
-    }
-  };
+// Handle verify payment
+const handleMarkAsPaid = async (paymentId, action) => {
+  if (!onVerify) return;
+  
+  setVerifyingPayment(paymentId);
+  try {
+    await onVerify(paymentId, action);
+    toast.success(`Payment marked as ${action === 'approve' ? 'Paid' : 'Not Paid'} successfully`);
+  } catch (error) {
+    console.error('Payment verification error:', error);
+    toast.error(error.response?.data?.message || `Failed to update payment status`);
+  } finally {
+    setTimeout(() => setVerifyingPayment(null), 500);
+  }
+};
 
   // Get receipt URL - FIXED with proper Laravel storage URL
   const getReceiptUrl = (payment) => {

@@ -45,26 +45,26 @@ const ManagePayments = () => {
     total: data?.total || 0,
   };
 
-  // Handle payment verification
-  const handleVerifyPayment = useCallback(async (paymentId, action) => {
-    try {
-      const adminNotes = action === 'approve' 
-        ? 'Payment verified and approved by admin' 
-        : 'Payment rejected by admin';
-      
-      await updatePaymentStatus.mutateAsync({
-        id: paymentId,
-        status: action === 'approve' ? 'approved' : 'rejected',
-        admin_notes: adminNotes
-      });
-      
-      // Refresh data
-      setForceRefresh(prev => prev + 1);
-    } catch (error) {
-      console.error('Payment verification error:', error);
-      throw error;
-    }
-  }, [updatePaymentStatus]);
+ // Handle payment verification
+const handleVerifyPayment = useCallback(async (paymentId, action) => {
+  try {
+    const adminNotes = action === 'approve' 
+      ? 'Payment verified and approved by admin' 
+      : 'Payment rejected by admin';
+    
+    await updatePaymentStatus.mutateAsync({
+      id: paymentId,
+      status: action === 'approve' ? 'approved' : 'rejected',
+      admin_notes: adminNotes
+    });
+    
+    // Refresh data
+    setForceRefresh(prev => prev + 1);
+  } catch (error) {
+    console.error('Payment verification error:', error);
+    throw error;
+  }
+}, [updatePaymentStatus]);
 
   // Handle view details
   const handleViewDetails = useCallback((payment) => {
