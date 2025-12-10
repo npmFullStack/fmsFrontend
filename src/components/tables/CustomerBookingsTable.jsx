@@ -996,7 +996,7 @@ const CustomerBookingsTable = ({
                       className="w-full sm:w-auto bg-green-600 text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
                     >
                       <Download className="w-4 h-4" />
-                      Download Receipt
+                      Download Statement
                     </button>
                   </div>
                 ) : codPending ? (

@@ -1,5 +1,5 @@
 // src/pages/Dashboard.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Package, 
   ClipboardCheck, 
@@ -15,20 +15,11 @@ import {
   MapPin,
   Anchor,
   Container,
-  Users,
-  Calendar,
-  ArrowUpRight,
-  ArrowDownRight,
-  User,
-  Phone,
-  Mail,
-  ChevronRight,
-  PackageCheck
+  Users
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useDashboard } from '../hooks/useDashboard';
-import CardTilt from '../components/CardTilt';
-import { Link } from 'react-router-dom';
+import CardTilt from '../components/CardTilt'; // Import CardTilt component
 
 const Dashboard = () => {
   const { userQuery } = useAuth();
@@ -91,351 +82,6 @@ const Dashboard = () => {
           >
             Retry
           </button>
-        </div>
-      </div>
-    );
-  }
-
-  // For Customer - Show customer dashboard
-  if (userRole === 'customer' && dashboardData?.customer_metrics) {
-    const metrics = dashboardData.customer_metrics;
-    const recentBookings = dashboardData.recent_bookings || [];
-    
-    // Define customer stat cards
-    const customerStatCards = [
-      {
-        id: 'total-bookings',
-        title: 'Total Bookings',
-        value: metrics.total_bookings || 0,
-        icon: Package,
-        gradient: 'from-blue-500 to-purple-600',
-        showCount: true,
-        link: '/customer-bookings'
-      },
-      {
-        id: 'approved-bookings',
-        title: 'Approved Bookings',
-        value: metrics.approved_bookings || 0,
-        icon: CheckCircle,
-        gradient: 'from-green-500 to-emerald-600',
-        showCount: true
-      },
-      {
-        id: 'pending-bookings',
-        title: 'Pending Bookings',
-        value: metrics.pending_bookings || 0,
-        icon: Clock,
-        gradient: 'from-yellow-500 to-orange-600',
-        showCount: true,
-        subtitle: 'Waiting for Approval'
-      },
-      {
-        id: 'delivered-bookings',
-        title: 'Delivered Bookings',
-        value: metrics.delivered_bookings || 0,
-        icon: Truck,
-        gradient: 'from-indigo-500 to-blue-600',
-        showCount: true,
-        subtitle: 'Successful Deliveries'
-      },
-      {
-        id: 'paid-payments',
-        title: 'Paid Payments',
-        value: metrics.paid_payments || 0,
-        icon: CreditCard,
-        gradient: 'from-green-500 to-teal-600',
-        showCount: true,
-        subtitle: `${metrics.total_payments || 0} total payments`
-      }
-    ];
-
-    // Calculate percentages for insights
-    const approvalRate = metrics.total_bookings > 0 
-      ? ((metrics.approved_bookings / metrics.total_bookings) * 100).toFixed(1)
-      : '0.0';
-    
-    const deliveryRate = metrics.total_bookings > 0 
-      ? ((metrics.delivered_bookings / metrics.total_bookings) * 100).toFixed(1)
-      : '0.0';
-    
-    const paymentRate = metrics.total_payments > 0 
-      ? ((metrics.paid_payments / metrics.total_payments) * 100).toFixed(1)
-      : '0.0';
-
-    return (
-      <div className="page-container p-4 sm:p-6">
-        {/* Page Header with User Info */}
-        <div className="page-header mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="page-title text-2xl sm:text-3xl font-bold text-heading">
-                Welcome back, {metrics.user_name || 'Customer'}! 👋
-              </h1>
-              <p className="page-subtitle text-sm sm:text-base text-muted mt-2">
-                Here's an overview of your bookings and payments
-              </p>
-            </div>
-            <div className="flex items-center gap-3 bg-surface rounded-lg p-3 border border-main">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <User className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-content">{metrics.user_name}</p>
-                <p className="text-xs text-muted">{metrics.email}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="mb-6">
-          <div className="flex flex-wrap gap-3">
-            <Link 
-              to="/customer-bookings"
-              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-2"
-            >
-              <Package className="w-4 h-4" />
-              New Booking
-            </Link>
-            <Link 
-              to="/customer-bookings"
-              className="px-4 py-2 bg-surface border border-main rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
-            >
-              <ClipboardCheck className="w-4 h-4" />
-              View All Bookings
-            </Link>
-            <Link 
-              to="/payment-transaction"
-              className="px-4 py-2 bg-surface border border-main rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
-            >
-              <CreditCard className="w-4 h-4" />
-              Payment History
-            </Link>
-          </div>
-        </div>
-
-        {/* Customer Stat Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-6 mb-8">
-          {customerStatCards.map((card) => {
-            const Icon = card.icon;
-            
-            return (
-              <CardTilt key={card.id}>
-                <div 
-                  className={`bg-gradient-to-br ${card.gradient} rounded-xl p-4 sm:p-6 relative overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300`}
-                >
-                  {/* Big Background Icon */}
-                  <div className="absolute right-4 top-4 opacity-20">
-                    <Icon className="w-24 h-24 text-white" />
-                  </div>
-                  
-                  {/* Content */}
-                  <div className="relative z-10">
-                    {/* Icon and Title */}
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="p-3 bg-white/20 rounded-lg">
-                        <Icon className="w-10 h-10 text-white" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm text-white/80 font-medium">{card.title}</p>
-                        <h3 className="text-3xl sm:text-4xl font-bold text-white mt-1">
-                          {formatNumber(card.value)}
-                        </h3>
-                      </div>
-                    </div>
-                    
-                    {/* Additional Info */}
-                    <div className="mt-4 pt-4 border-t border-white/20">
-                      {card.subtitle && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-white/80">
-                            {card.subtitle}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </CardTilt>
-            );
-          })}
-        </div>
-
-        {/* Insights and Recent Bookings Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Performance Insights */}
-          <div className="bg-surface rounded-xl border border-main p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-indigo-100 rounded-lg">
-                <TrendingUp className="w-6 h-6 text-indigo-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-content">Performance Insights</h3>
-                <p className="text-sm text-muted">Your booking and payment metrics</p>
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="w-5 h-5 text-blue-600" />
-                  <div>
-                    <p className="text-sm font-medium text-content">Approval Rate</p>
-                    <p className="text-xs text-muted">Bookings approved vs total</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold text-blue-600">{approvalRate}%</p>
-                  <div className="text-xs text-muted">
-                    {metrics.approved_bookings} of {metrics.total_bookings}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Truck className="w-5 h-5 text-green-600" />
-                  <div>
-                    <p className="text-sm font-medium text-content">Delivery Success Rate</p>
-                    <p className="text-xs text-muted">Successful deliveries</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold text-green-600">{deliveryRate}%</p>
-                  <div className="text-xs text-muted">
-                    {metrics.delivered_bookings} of {metrics.total_bookings}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex justify-between items-center p-3 bg-emerald-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <CreditCard className="w-5 h-5 text-emerald-600" />
-                  <div>
-                    <p className="text-sm font-medium text-content">Payment Completion</p>
-                    <p className="text-xs text-muted">Payments settled</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold text-emerald-600">{paymentRate}%</p>
-                  <div className="text-xs text-muted">
-                    {metrics.paid_payments} of {metrics.total_payments}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Bookings */}
-          <div className="bg-surface rounded-xl border border-main p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Calendar className="w-6 h-6 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-content">Recent Bookings</h3>
-                  <p className="text-sm text-muted">Your latest 5 bookings</p>
-                </div>
-              </div>
-              <Link 
-                to="/customer-bookings"
-                className="text-primary hover:text-primary-dark text-sm font-medium flex items-center gap-1"
-              >
-                View All
-                <ChevronRight className="w-4 h-4" />
-              </Link>
-            </div>
-            
-            {recentBookings.length > 0 ? (
-              <div className="space-y-3">
-                {recentBookings.map((booking) => {
-                  // Determine status color
-                  let statusColor = 'bg-gray-100 text-gray-800';
-                  let statusIcon = Clock;
-                  
-                  if (booking.status === 'approved') {
-                    statusColor = 'bg-green-100 text-green-800';
-                    statusIcon = CheckCircle;
-                  } else if (booking.booking_status === 'delivered') {
-                    statusColor = 'bg-blue-100 text-blue-800';
-                    statusIcon = PackageCheck;
-                  } else if (booking.status === 'rejected') {
-                    statusColor = 'bg-red-100 text-red-800';
-                    statusIcon = AlertCircle;
-                  }
-                  
-                  const StatusIcon = statusIcon;
-                  
-                  return (
-                    <div 
-                      key={booking.id}
-                      className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-content">
-                            #{booking.booking_number}
-                          </span>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor} flex items-center gap-1`}>
-                            <StatusIcon className="w-3 h-3" />
-                            {booking.status === 'approved' ? booking.booking_status : booking.status}
-                          </span>
-                        </div>
-                        <span className="text-xs text-muted">{booking.created_at}</span>
-                      </div>
-                      <div className="text-sm text-content">
-                        <div className="flex items-center gap-2">
-                          <span>{booking.container_size}</span>
-                          <ArrowRight className="w-4 h-4 text-muted" />
-                          <span>{booking.origin}</span>
-                          <ArrowRight className="w-4 h-4 text-muted" />
-                          <span>{booking.destination}</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                  <Package className="w-8 h-8 text-gray-400" />
-                </div>
-                <h3 className="text-lg font-semibold text-content mb-2">No Bookings Yet</h3>
-                <p className="text-muted mb-4">Start by creating your first booking</p>
-                <Link 
-                  to="/customer-bookings"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
-                >
-                  <Package className="w-4 h-4" />
-                  Create Booking
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Contact Support */}
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl p-6 text-white">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h3 className="text-xl font-bold mb-2">Need Help?</h3>
-              <p className="text-white/80 mb-4 md:mb-0">
-                Contact our customer support for assistance with your bookings or payments
-              </p>
-            </div>
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4" />
-                <span>Support: +639944435770</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Mail className="w-4 h-4" />
-                <span>Email: fms@support.com</span>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     );
@@ -1153,6 +799,35 @@ const Dashboard = () => {
     );
   }
 
+  // For Customer - Show "Not Available Yet"
+  if (userRole === 'customer') {
+    return (
+      <div className="page-container p-6">
+        <div className="page-header mb-8">
+          <h1 className="page-title text-3xl font-bold text-heading">
+            Customer Dashboard
+          </h1>
+          <p className="page-subtitle text-muted mt-2">
+            Customer dashboard features coming soon
+          </p>
+        </div>
+        
+        <div className="bg-surface rounded-xl border border-main p-8 text-center">
+          <div className="max-w-md mx-auto">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+              <AlertCircle className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-content mb-2">Not Available Yet</h3>
+            <p className="text-muted">
+              The dashboard for customer role is currently under development.
+              Please check back later.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Fallback if no data
   return (
     <div className="page-container p-6">
@@ -1162,12 +837,5 @@ const Dashboard = () => {
     </div>
   );
 };
-
-// ArrowRight component for Recent Bookings
-const ArrowRight = ({ className }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-  </svg>
-);
 
 export default Dashboard;

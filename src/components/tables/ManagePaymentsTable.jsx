@@ -108,7 +108,7 @@ const handleMarkAsPaid = async (paymentId, action) => {
     return payment.gcash_receipt_image;
   }
   
-  const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  const baseUrl = "https://fmsbackend-mlfj.onrender.com" || "http://localhost:8000";
   console.log('Base URL:', baseUrl);
   console.log('Original image path from API:', payment.gcash_receipt_image);
   

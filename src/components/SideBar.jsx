@@ -53,7 +53,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
     payCharges: { icon: CreditCard, label: 'Pay Charges', path: '/pay-charges' },
     accountsReceivable: { icon: Receipt, label: 'Accounts Receivable', path: '/accounts-receivable' },
     customerBookings: { icon: Clipboard, label: 'Manage Bookings', path: '/customer-bookings' },
-    paymentTransaction: { icon: CreditCard, label: 'Manage Bookings', path:
+    paymentTransaction: { icon: CreditCard, label: 'Payment Transaction', path:
 '/payment-transaction' },
     managePayments: { icon: Receipt, label: 'Manage Payments', path:
     '/manage-payments' },
