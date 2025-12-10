@@ -89,7 +89,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
           menuItems.bookingRequest,
           menuItems.userManagement,
           menuItems.payCharges,
-          menuItems.paymentTransaction,
+          menuItems.managePayments,
         ]
       },
       {
