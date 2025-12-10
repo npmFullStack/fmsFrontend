@@ -37,6 +37,8 @@ const AccountsPayable = lazyWithRetry(() => import('./pages/AccountsPayable'));
 const AccountsReceivable = lazyWithRetry(() => import('./pages/AccountsReceivable'));
 const PayCharges = lazyWithRetry(() => import('./pages/PayCharges'));
 const CustomerBookings = lazyWithRetry(() => import('./pages/CustomerBookings'));
+const PaymentTransaction = lazyWithRetry(() =>
+import('./pages/PaymentTransaction'));
 const ManagePayments = lazyWithRetry(() =>
 import('./pages/ManagePayments'));
 const Profile = lazyWithRetry(() =>
@@ -77,6 +79,7 @@ function App() {
             <Route path="/accounts-payable" element={<AccountsPayable />} />
             <Route path="/pay-charges" element={<PayCharges />} />
             <Route path="/customer-bookings" element={<CustomerBookings />} />
+            <Route path="/payment-transaction" element={<PaymentTransaction />} />
             <Route path="/accounts-receivable" element={<AccountsReceivable />} />
             <Route path="/manage-payments" element={<ManagePayments />}
             />            

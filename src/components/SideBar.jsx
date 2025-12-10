@@ -53,6 +53,8 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
     payCharges: { icon: CreditCard, label: 'Pay Charges', path: '/pay-charges' },
     accountsReceivable: { icon: Receipt, label: 'Accounts Receivable', path: '/accounts-receivable' },
     customerBookings: { icon: Clipboard, label: 'Manage Bookings', path: '/customer-bookings' },
+    paymentTransaction: { icon: CreditCard, label: 'Manage Bookings', path:
+'/payment-transaction' },
     managePayments: { icon: Receipt, label: 'Manage Payments', path:
     '/manage-payments' },
   };
@@ -66,6 +68,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
         items: [
           menuItems.dashboard,
           menuItems.customerBookings,
+          menuItems.paymentTransaction,
         ]
       },
       {
@@ -86,6 +89,7 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
           menuItems.bookingRequest,
           menuItems.userManagement,
           menuItems.payCharges,
+          menuItems.paymentTransaction,
         ]
       },
       {
@@ -116,7 +120,6 @@ const SideBar = ({ isMobileOpen, setIsMobileOpen }) => {
           menuItems.cargoMonitoring,
           menuItems.accountsPayable,
           menuItems.accountsReceivable,
-          menuItems.managePayments,
         ]
       },
       {

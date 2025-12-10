@@ -29,20 +29,19 @@ import {
   Shield,
   Bell,
   Loader2,
-  Printer
+  Printer,
+  Smartphone
 } from 'lucide-react';
 import { formatDate, formatCurrency } from '../../utils/formatters';
 
 const CustomerBookingsTable = ({ 
   data = [],
-  onPay,
   onDownloadStatement,
   isLoading = false,
   getChargesBreakdown,
   getCargoMonitoringData
 }) => {
   const [expandedCards, setExpandedCards] = useState({});
-  const [processingPayment, setProcessingPayment] = useState(null);
 
   const toggleCard = (id) => {
     setExpandedCards(prev => ({ ...prev, [id]: !prev[id] }));
@@ -304,18 +303,9 @@ const CustomerBookingsTable = ({
     }
   };
 
-  // Handle pay button click
-  const handlePayButtonClick = async (booking) => {
-    setProcessingPayment(booking.id);
-    try {
-      if (onPay) {
-        onPay(booking);
-      }
-    } catch (error) {
-      console.error('Payment initiation error:', error);
-    } finally {
-      setTimeout(() => setProcessingPayment(null), 500);
-    }
+  // Handle download app button click
+  const handleDownloadAppClick = () => {
+    window.open('https://drive.google.com/file/d/1Fl8QW8k0mOUpT1B4n6_5IlPbdIkrzWTn/view?usp=drivesdk', '_blank');
   };
 
   // Get payment status text
@@ -585,10 +575,10 @@ const CustomerBookingsTable = ({
                             </strong>{' '}
                             {isDelivered ? (
                               <>
-                                Your shipment has been successfully delivered. You can pay your balance of <span className="font-bold">{formatCurrency(totalPaymentDue)}</span> today.
+                                Your shipment has been successfully delivered. 
                                 {dueDate ? (
                                   <>
-                                    Payment is due by {formatDate(dueDate)}.
+                                    Payment was due by {formatDate(dueDate)}.
                                     {isOverdue && (
                                       <span className="font-medium ml-1">This payment is now overdue.</span>
                                     )}
@@ -599,7 +589,6 @@ const CustomerBookingsTable = ({
                               </>
                             ) : (
                               <>
-                                You can pay your balance of <span className="font-bold">{formatCurrency(totalPaymentDue)}</span> today.
                                 {dueDate ? (
                                   <>
                                     Payment is due by {formatDate(dueDate)}.
@@ -650,7 +639,7 @@ const CustomerBookingsTable = ({
                         <strong className="text-blue-600">
                           Payment Information Pending
                         </strong>{' '}
-                        Your payment amount is being calculated by our admin team. Once the amount is set, you'll be able to view the charges breakdown and make payments here.
+                        Your payment amount is being calculated by our admin team. Once the amount is set, you'll be able to view the charges breakdown here.
                       </p>
                     </div>
                   </div>
@@ -1054,21 +1043,11 @@ const CustomerBookingsTable = ({
                       Download Statement
                     </button>
                     <button
-                      onClick={() => handlePayButtonClick(item)}
-                      disabled={processingPayment === item.id}
-                      className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={handleDownloadAppClick}
+                      className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
                     >
-                      {processingPayment === item.id ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          <CreditCard className="w-4 h-4" />
-                          Pay {formatCurrency(totalPaymentDue)}
-                        </>
-                      )}
+                      <Smartphone className="w-4 h-4" />
+                      Download App to Pay
                     </button>
                   </div>
                 ) : (
@@ -1087,6 +1066,27 @@ const CustomerBookingsTable = ({
                       <Receipt className="w-4 h-4" />
                       View Statement
                     </button>
+                  </div>
+                )}
+                
+                {/* App Download Reminder - Show for all payment statuses except fully paid */}
+                {!fullyPaid && !codPending && (
+                  <div className="bg-blue-50 border-t border-blue-200 px-4 py-3">
+                    <div className="flex items-start gap-3">
+                      <Smartphone className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-blue-800 text-sm">
+                          <strong>💡 Friendly Reminder:</strong> To make payments quickly and securely, download our mobile app! 
+                          It's the easiest way to settle your balance, track shipments, and manage all your bookings on the go. 
+                          <button 
+                            onClick={handleDownloadAppClick}
+                            className="ml-2 text-blue-700 font-semibold hover:text-blue-900 underline"
+                          >
+                            Get the app here →
+                          </button>
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
